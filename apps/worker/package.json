@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "@aabhushan/config": "workspace:*",
-    "pino": "^9.9.0"
+    "pino": "^9.9.0",
+    "pino-pretty": "^13.1.2"
   },
   "devDependencies": {
     "@types/node": "^24.3.1",

@@ -6,7 +6,7 @@ Update this file after every meaningful implementation change. Record completed 
 
 Spec 02 staff authentication and access implemented and verified. Next authorized unit is spec 03.
 
-**Last updated:** 20 September 2026 (first owner membership seeded).
+**Last updated:** 20 September 2026 (quieter development logs).
 
 SQL `0001` and `0002` are applied on project `nhfmcosxqogxqvhdhzfz`. First owner `shikhar.nitsri@gmail.com` has an active membership. Custom SMTP and Auth dashboard settings (signup disable, redirects) are still outstanding. Spec 03 remains next for application code.
 
@@ -184,6 +184,17 @@ Recorded 20 September 2026.
 
 - Auth user `b43b635f-b92d-4580-95ff-0bad2a991c4a` (`shikhar.nitsri@gmail.com`, confirmed) has `app.staff_users` display name `Shikhar` and an active `owner` membership on org `11111111-1111-4111-8111-111111111111` / branch `22222222-2222-4222-8222-222222222222`.
 - Local `DATABASE_URL` points at the `aws-0-ap-south-1` session pooler with TLS. Database password and `sb_secret_` were pasted in chat and should be rotated.
+
+## Verification — development console logs
+
+Recorded 20 September 2026.
+
+- API/worker use `pino-pretty` in development (single-line, no pid/hostname). Production stays JSON.
+- Request logs skip CORS `OPTIONS`, health probes, and successful `GET /api/v1/me` at `info`. Failures still log. `LOG_LEVEL=debug` prints the quieted traffic.
+- Next.js webpack infrastructure logs are errors-only in `next dev`.
+- `pnpm --filter @aabhushan/api typecheck` / lint — passed.
+- `pnpm --filter @aabhushan/worker typecheck` / lint — passed.
+- `pnpm --filter @aabhushan/web typecheck` — passed.
 
 ## Verification — live Supabase schema (MCP)
 

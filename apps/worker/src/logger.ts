@@ -1,27 +1,9 @@
 import type { ServerEnv } from "@aabhushan/config/server";
 import type { LoggerOptions } from "pino";
 
-const REDACT_PATHS = [
-  "req.headers.authorization",
-  "req.headers.Authorization",
-  "headers.authorization",
-  "access_token",
-  "refresh_token",
-  "password",
-  "*.password",
-  "*.access_token",
-  "*.refresh_token",
-] as const;
-
 export function loggerOptionsFor(env: Pick<ServerEnv, "LOG_LEVEL" | "NODE_ENV">): LoggerOptions {
-  const redact = {
-    paths: [...REDACT_PATHS],
-    censor: "[redacted]",
-  };
-
   if (env.NODE_ENV === "development") {
     return {
-      redact,
       level: env.LOG_LEVEL,
       transport: {
         target: "pino-pretty",
@@ -36,7 +18,6 @@ export function loggerOptionsFor(env: Pick<ServerEnv, "LOG_LEVEL" | "NODE_ENV">)
   }
 
   return {
-    redact,
     level: env.LOG_LEVEL,
   };
 }

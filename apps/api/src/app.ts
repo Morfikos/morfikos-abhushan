@@ -20,6 +20,30 @@ function assignRequestId(req: Request): string {
   return requestId;
 }
 
+function requestLogLevel(req: Request, status: number): "info" | "warn" | "error" | "debug" | null {
+  if (req.method === "OPTIONS") {
+    return null;
+  }
+
+  if (req.path === "/health/live" || req.path === "/health/ready") {
+    return status >= 500 ? "error" : "debug";
+  }
+
+  if (req.path === "/api/v1/me" && status < 400) {
+    return "debug";
+  }
+
+  if (status >= 500) {
+    return "error";
+  }
+
+  if (status >= 400) {
+    return "warn";
+  }
+
+  return "info";
+}
+
 export function createApp(env: ServerEnv): Express {
   const app = express();
   const logger = pino(loggerOptionsFor(env));
@@ -31,7 +55,24 @@ export function createApp(env: ServerEnv): Express {
   app.use((req, res, next) => {
     const requestId = assignRequestId(req);
     res.setHeader("x-request-id", requestId);
-    logger.info({ request_id: requestId, method: req.method, path: req.path }, "request");
+    const started = Date.now();
+    res.on("finish", () => {
+      const level = requestLogLevel(req, res.statusCode);
+      if (!level) {
+        return;
+      }
+
+      logger[level](
+        {
+          request_id: requestId,
+          method: req.method,
+          path: req.path,
+          status: res.statusCode,
+          duration_ms: Date.now() - started,
+        },
+        "request",
+      );
+    });
     next();
   });
   app.use(

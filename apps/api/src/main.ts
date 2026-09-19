@@ -2,11 +2,12 @@ import { parseServerEnv } from "@aabhushan/config/server";
 
 import { createApp } from "./app";
 import { loadCjs } from "./load-cjs";
+import { loggerOptionsFor } from "./logger";
 
 const pino = loadCjs<typeof import("pino")>("pino");
 
 const env = parseServerEnv(process.env);
-const logger = pino({ level: env.LOG_LEVEL });
+const logger = pino(loggerOptionsFor(env));
 const app = createApp(env);
 
 const server = app.listen(env.API_PORT, env.API_HOST, () => {

@@ -3,6 +3,18 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   transpilePackages: ["@aabhushan/config", "@aabhushan/contracts"],
   output: "standalone",
+  logging: {
+    incomingRequests: {
+      ignore: [/\/_next\//, /\/favicon\.ico$/],
+    },
+  },
+  webpack(config, { dev }) {
+    if (dev) {
+      config.infrastructureLogging = { level: "error" };
+    }
+
+    return config;
+  },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001",
     NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME ?? "Aabhushan",
