@@ -1,0 +1,14 @@
+---
+description: Use the Untitled UI MCP for free component discovery when implementing UI
+alwaysApply: true
+---
+
+# Untitled UI MCP
+
+When a feature spec needs Untitled UI React components, use the project `untitledui` MCP at `https://www.untitledui.com/react/api/mcp`. Official setup: [Untitled UI MCP integration](https://www.untitledui.com/react/integrations/mcp).
+
+- Search and list **free** Base/Application components and icons before copying or inventing controls.
+- Do not authenticate, add an API key, or install PRO components, page templates, or paid examples. Unauthenticated search is keyword-only and hides PRO items; that is the intended path.
+- If a tool returns `pro_access_required`, stop. Compose the screen from already-approved free primitives in `apps/web/components/`.
+- Install only when the named component is confirmed free. Prefer the existing pinned copies under `apps/web/components/base/` and `apps/web/components/application/` over a second visual system.
+- Do not run `npx untitledui init` or PRO login unless a later spec explicitly authorizes changing the current free, pinned import path.

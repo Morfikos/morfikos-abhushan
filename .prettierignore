@@ -1,0 +1,11 @@
+node_modules
+dist
+.next
+coverage
+pnpm-lock.yaml
+apps/web/components/base
+apps/web/styles/theme.css
+apps/web/styles/typography.css
+apps/web/utils/cx.ts
+apps/web/utils/is-react-component.ts
+context

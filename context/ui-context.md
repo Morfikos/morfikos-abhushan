@@ -2,7 +2,7 @@
 
 ## Theme
 
-Use only free, open-source Untitled UI React components with the default styles and default purple brand palette for Aabhooshad. No paid license, PRO components, premium page templates, paid icon styles, or trial-dependent assets are part of this project. Adopt the library's neutral surfaces, typography, spacing, borders, shadows, control states, and component variants. Keep the application's identity as Aabhooshad, with its own name and logo.
+Use only free, open-source Untitled UI React components with the default styles and default purple brand palette for Aabhushan. No paid license, PRO components, premium page templates, paid icon styles, or trial-dependent assets are part of this project. Adopt the library's neutral surfaces, typography, spacing, borders, shadows, control states, and component variants. Keep the application's identity as Aabhushan, with its own name and logo.
 
 This revision replaces the earlier Morfikos-derived orange palette, Cal Sans headings, dark pill-button prescription, custom radius overrides, shadcn/ui component selection, and Lucide icon selection. Where older architecture or code-standards documents prescribe those UI choices, this document takes precedence for presentation. Backend architecture and business rules remain as defined in the project documents.
 
@@ -12,7 +12,7 @@ Follow the official Next.js integration. Select the default brand option, which 
 
 ## Colors
 
-Keep the default theme definitions and consume their semantic CSS variables. Do not recreate a parallel Aabhooshad palette or copy the previous `--accent-primary`/`--bg-base` overrides. Values below reference the documented light-theme variables rather than freezing approximate hex colors. Follow the theming guidance when applying the installed theme.
+Keep the default theme definitions and consume their semantic CSS variables. Do not recreate a parallel Aabhushan palette or copy the previous `--accent-primary`/`--bg-base` overrides. Values below reference the documented light-theme variables rather than freezing approximate hex colors. Follow the theming guidance when applying the installed theme.
 
 | Role | CSS Variable | Value |
 | --- | --- | --- |
@@ -123,11 +123,13 @@ For Next.js App Router, retain the documented route/theme providers, font integr
 
 When adding a component later, confirm that its exact source and required assets are publicly available under a suitable free license. If not, leave that variant out and build the needed behavior from already-approved primitives. Do not ask the owner to purchase a license; the free-only decision is final for this project. This is a dependency check, not a blocker to building the MVP.
 
+**MCP (Cursor):** the project MCP server `untitledui` is configured in `.cursor/mcp.json` against [Untitled UI's React MCP](https://www.untitledui.com/react/integrations/mcp) at `https://www.untitledui.com/react/api/mcp`, with no API key or OAuth. Use it to search and list free Base/Application components and icons while implementing later specs. Unauthenticated search is keyword-only and hides PRO items. Do not log in, pass a license key, or install page templates (`get_page_template_files` is PRO-only). If a tool returns `pro_access_required`, compose from approved free primitives instead.
+
 ## Layout Patterns
 
 - **Application shell:** compose an original app shell around the public `sidebar-simple.tsx` or header-navigation component. Preserve that component's default styling and responsive behavior; do not import a paid dashboard shell. Navigation includes Dashboard, Inventory, Invoices/POS, Payments, Customers, Girvi, Notifications, and Settings, filtered by staff permission.
 - **Informational/list-detail screens:** Build original customer directories, transaction lists, account summaries, and detail pages using the approved free table/tabs/navigation and locally authored headers. No informational-page template is imported.
-- **Login:** Build a compact original page with Aabhooshad identity, free email/password inputs, submit feedback, and password recovery. Connect it to Supabase Auth. Do not import a paid login template or display unconfigured social-login methods.
+- **Login:** Build a compact original page with Aabhushan identity, free email/password inputs, submit feedback, and password recovery. Connect it to Supabase Auth. Do not import a paid login template or display unconfigured social-login methods.
 - **Invited staff setup:** Build an original invitation-acceptance and initial-account form using free controls. Public registration remains disabled. Hide public “Create account” links and explain administrator-provided access. Show recovery for expired or invalid invitations; no sign-up template is required.
 - **Verification and recovery:** Build original check-email, confirmation, expiration, resend, and completed states for the actual Supabase flow. Link-based verification shows instructions; code entry uses the free PIN input only when a real verification endpoint supports it. No paid verification/recovery page or SMS-only visual flow.
 - **404 and unavailable pages:** Build a simple original heading, explanation, and free return-to-dashboard/login buttons. No paid 404 template or illustration. Distinguish missing routes from permission or service failures without exposing private record existence; ordinary empty lists use the free empty-state foundation.

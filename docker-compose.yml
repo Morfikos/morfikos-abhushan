@@ -1,0 +1,37 @@
+# Web, API, and worker are independently restartable.
+# Supabase Auth/PostgreSQL/Storage remain external managed services.
+
+services:
+  api:
+    build:
+      context: .
+      args:
+        APP: api
+    env_file:
+      - .env
+    ports:
+      - "3001:3001"
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      args:
+        APP: worker
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      args:
+        APP: web
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+      NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Aabhushan}
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    depends_on:
+      - api

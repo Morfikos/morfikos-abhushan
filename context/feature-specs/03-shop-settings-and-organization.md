@@ -7,7 +7,7 @@
 
 ## Feature Overview & Objectives
 
-Give the single Aabhooshad business a durable organization, one branch, staff permissions, shop profile, daily metal rates, document numbering, printer defaults, and reminder preferences.
+Give the single Aabhushan business a durable organization, one branch, staff permissions, shop profile, daily metal rates, document numbering, printer defaults, and reminder preferences.
 
 This unit solves the problem of later features having nowhere to attach rates, invoice numbers, or role checks. It does not implement invoicing or messaging. Creating these screens does not configure SMTP, WhatsApp, backups, or production hosting.
 

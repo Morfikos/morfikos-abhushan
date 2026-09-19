@@ -1,8 +1,8 @@
-# Aabhooshad Jewellery Management
+# Aabhushan Jewellery Management
 
 ## Overview
 
-Aabhooshad Jewellery Management is a web application for Aabhooshad’s jewellery business that brings article-level inventory, barcode tagging, invoicing, payment tracking, customer records, and Girvi management into one system. It helps the owner and staff replace disconnected registers and manual calculations with traceable workflows, accurate invoice and interest calculations, and automated WhatsApp notifications. The MVP serves one business and one branch through a Next.js frontend and an independent Node.js/Express backend that can also support a future mobile app. Supabase Free provides authentication and PostgreSQL initially, private Supabase Storage holds files, and pg-boss processes background jobs without Redis.
+Aabhushan Jewellery Management is a web application for Aabhushan’s jewellery business that brings article-level inventory, barcode tagging, invoicing, payment tracking, customer records, and Girvi management into one system. It helps the owner and staff replace disconnected registers and manual calculations with traceable workflows, accurate invoice and interest calculations, and automated WhatsApp notifications. The MVP serves one business and one branch through a Next.js frontend and an independent Node.js/Express backend that can also support a future mobile app. Supabase Free provides authentication and PostgreSQL initially, private Supabase Storage holds files, and pg-boss processes background jobs without Redis.
 
 ## Goals
 

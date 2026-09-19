@@ -3,7 +3,7 @@
 ## General
 
 - Keep modules small and focused on one responsibility. Separate HTTP handling, application workflows, domain calculations, database access, and external integrations.
-- Follow the Aabhooshad architecture: Next.js web frontend, independent Express API, Supabase Auth/PostgreSQL, and a separate pg-boss worker. Do not introduce Redis or a second business backend.
+- Follow the Aabhushan architecture: Next.js web frontend, independent Express API, Supabase Auth/PostgreSQL, and a separate pg-boss worker. Do not introduce Redis or a second business backend.
 - Fix root causes rather than adding compensating workarounds. Keep changes scoped to the feature or defect being addressed.
 - Treat inventory, invoices, payments, and Girvi as distinct domains. Share explicit services and contracts rather than reaching into another module's internal implementation.
 - Keep invoice and Girvi calculations pure, deterministic, versioned, and independent of HTTP, React, database queries, and provider SDKs. Pass required rates, terms, and effective dates as inputs.
@@ -49,7 +49,7 @@
 
 ## Styling
 
-- Use Tailwind CSS and the shared shadcn/ui component system. Extend existing components before creating inconsistent local alternatives.
+- Use Tailwind CSS and the shared free Untitled UI component system. Extend existing components before creating inconsistent local alternatives.
 - Define colors, typography, spacing, borders, and radii through shared tokens. Use CSS custom properties rather than repeated hardcoded brand colors; align tokens with `ui-context.md` when that document is established.
 - Keep status colors semantic and pair them with readable labels or icons. Color alone must not distinguish paid, overdue, failed, or unavailable states.
 - Right-align monetary and weight columns, use consistent decimal formatting and tabular numerals, and always show meaningful currency/unit labels.

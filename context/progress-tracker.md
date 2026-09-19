@@ -4,22 +4,21 @@ Update this file after every meaningful implementation change. Record completed 
 
 ## Current Phase
 
-Feature specifications drafted; implementation not started.
+Spec 01 workspace foundation implemented and verified. Next authorized unit is spec 02.
 
-**Last updated:** 20 September 2026.
+**Last updated:** 20 September 2026 (React default-import type fix).
 
-No application repository, running build, database migration, provider integration, or production deployment has been inspected or verified for this MVP. Any work performed elsewhere must be checked before updating its status here. Feature specs are implementation-ready documentation, not evidence that the corresponding code exists.
+No production deployment, provider integration, or business-data migration has been verified. Spec 01 is application scaffolding only.
 
 ## Current Goal
 
-- Implement the first authorized unit from `context/feature-specs/01-workspace-foundation.md` when implementation is requested.
-- Reconcile older UI references with the settled choice of free-only Untitled UI and default styling before those documents guide implementation.
+- Implement `context/feature-specs/02-staff-authentication-and-access.md` when requested.
 - Collect the shop's invoice and Girvi examples alongside foundation work so financial calculations can be implemented against confirmed rules.
 
 ## Completed
 
 - Defined the MVP modules: inventory and per-article tagging, barcode invoicing, payments, customers, dashboard/reports, and Girvi with interest calculations and WhatsApp reminders.
-- Created `aabhooshad-mvp-architecture.md` covering system boundaries, module behavior, conceptual entities, API design, transactions, background jobs, deployment, recovery, and implementation sequence.
+- Created `aabhushan-mvp-architecture.md` covering system boundaries, module behavior, conceptual entities, API design, transactions, background jobs, deployment, recovery, and implementation sequence.
 - Created `project-overview.md` using the supplied template, including goals, flows, scope, and success criteria.
 - Created `architecture.md` using the supplied template, including stack, boundaries, storage, access control, and invariants.
 - Created `code-standards.md` using the supplied template, including TypeScript, API, data, financial arithmetic, and organization conventions.
@@ -28,6 +27,12 @@ No application repository, running build, database migration, provider integrati
 - Created this initial project progress tracker in the supplied format.
 - Checked template heading order and document structure during artifact creation. This is documentation verification, not application testing or business-owner approval of every proposed rule.
 - Created 16 implementation-ready feature specs in `context/feature-specs/` covering the MVP end to end. Schema fields, endpoints, and permission names in those specs are proposed for implementation and are not owner-approved business rules. Invoice and Girvi calculators remain blocked on shop examples.
+- Implemented spec 01 workspace foundation: pnpm workspace (`apps/web`, `apps/api`, `apps/worker`, shared packages), typed config, Express health/version routes, Next.js placeholder with free Untitled UI (commit `c981a73bcd6b6c68d2a54070f20f020191212828`), worker lifecycle without jobs, Compose skeleton, empty `app` schema SQL, and `.env.example` files. Reconciled the architecture/code-standards UI row from shadcn/ui to free Untitled UI.
+- Renamed the product from Aabhooshad to Aabhushan across docs, UI copy, env defaults, workspace package scope (`@aabhushan/*`), and the example database name `aabhushan_dev`. The local folder name was left unchanged.
+- Loaded API CJS packages (`cors`, `express`, `pino`) through `createRequire` so ESM + `verbatimModuleSyntax` no longer treat their `export =` typings as missing default exports.
+- Configured the Untitled UI React MCP in `.cursor/mcp.json` (unauthenticated, free components only) and recorded how later specs should use it.
+- Fixed `isForwardRefComponent` to compare `$$typeof` with `Symbol.for("react.forward_ref")` instead of `Symbol.prototype.toString()`. The string match is not a stable identity check and threw on objects without `$$typeof`, so `Button` could skip `forwardRef()` icon components.
+- Replaced default `React` imports in copied Untitled UI files with named/`import type * as React` imports so `@types/react`'s `export =` typings type-check.
 
 ## Feature Specifications
 
@@ -35,7 +40,7 @@ Specs are listed in intended implementation order. Feed them one by one; do not 
 
 | Spec | File | Notes |
 | --- | --- | --- |
-| 01 | `context/feature-specs/01-workspace-foundation.md` | Next implementation unit |
+| 01 | `context/feature-specs/01-workspace-foundation.md` | Implemented and verified |
 | 02 | `context/feature-specs/02-staff-authentication-and-access.md` | Invite-only staff Auth |
 | 03 | `context/feature-specs/03-shop-settings-and-organization.md` | Org, branch, permissions, rates |
 | 04 | `context/feature-specs/04-inventory-and-article-receiving.md` | Saleable articles only |
@@ -56,15 +61,49 @@ Customer cart/checkout and offline synchronization were not specified as product
 
 ## In Progress
 
-- Project preparation: documenting the baseline and identifying business decisions needed before financial implementation.
-- Feature specs are ready for sequential implementation. No coding, migration, automated test run, provider setup, or deployment is currently recorded as in progress.
+- No implementation unit is in progress. Spec 02 is next when requested.
+
+## Verification — React default-import type fix
+
+Recorded 20 September 2026.
+
+- Confirmed `@types/react@19.3.0` uses `export = React` and has no ESM default export, so `import React from "react"` reports “has no default export”.
+- `apps/web/components/base/buttons/button.tsx` now uses named `isValidElement` plus type-only `FC`/`ReactElement`/`ReactNode` imports.
+- `apps/web/utils/is-react-component.ts` now uses `import type * as React from "react"`.
+- `pnpm --filter @aabhushan/web typecheck` — passed.
+- `pnpm --filter @aabhushan/web test` — passed (5 tests).
+- Language-service diagnostics on `button.tsx` and `is-react-component.ts` — none.
+
+## Verification — forward-ref helper
+
+Recorded 20 September 2026.
+
+- Confirmed `apps/web/utils/is-react-component.ts` compared `component.$$typeof.toString()` to `"Symbol(react.forward_ref)"`.
+- Confirmed React 19 `forwardRef()` uses `Symbol.for("react.forward_ref")`. A unique `Symbol("react.forward_ref")` stringifies the same way but is not a forward-ref component; missing `$$typeof` threw `TypeError`.
+- `pnpm --filter @aabhushan/web test` — passed (5 tests, including 4 new forward-ref helper cases).
+
+## Verification — spec 01
+
+Recorded 20 September 2026. Real workspace scripts:
+
+- `pnpm lint` — passed
+- `pnpm typecheck` — passed
+- `pnpm test` — passed (16 tests across packages and apps)
+- `pnpm build` — passed (packages, API, worker, Next.js)
+- `pnpm generate:client` — placeholder only, as specified
+- `GET /health/live` — `200 {"status":"live"}`
+- `GET /health/ready` — `503` with shared error shape when the database is unreachable
+- `GET /api/v1` — OpenAPI v1 document, no business data
+- Web `/`, `/login`, and unknown route — placeholder, login stub, and 404 with free Untitled UI button
+- Lockfile scan: no `untitledui-pro`, `@untitledui/pro`, `shadcn`, or `lucide-react`
+
+Limitations still true: no Supabase project, no SMTP, no live DB schema applied, no auth, Compose not run as a production deploy. `apps/web` leaves `exactOptionalPropertyTypes` off because the copied Untitled UI button is incompatible; packages/API/worker keep the workspace-strict flags.
 
 ## Next Up
 
-- **Implementation — spec 01:** establish the pnpm workspace, apps, packages, Untitled UI free baseline, health endpoints, and verified lint/typecheck/test/build scripts when coding is requested.
-- **Documentation consistency:** update the UI-library and component-location references in `architecture.md`, `code-standards.md`, and the detailed architecture document to match the latest `ui-context.md`. Their earlier shadcn/ui references remain outdated; the latest explicit free-only Untitled UI choice governs implementation meanwhile.
+- **Implementation — spec 02:** invitation-based Supabase Auth, membership checks, and original login/invite/recovery screens from free controls.
 - **Business examples:** obtain representative invoices, pricing calculations, active/settled Girvi examples, and opening-data samples. Record approved rules and expected results before implementing calculators.
-- **Foundation — workspace:** establish a pnpm TypeScript workspace with `apps/web`, `apps/api`, `apps/worker`, and the agreed shared packages. Configure actual lint, type-check, test, and build scripts; validate the initial build.
+- **Foundation — workspace:** done in spec 01. Use `pnpm install` and the root scripts; copy `.env.example` before starting API/worker.
 - **Foundation — data and identity:** configure development Supabase, migrations, organization/branch records, staff memberships, restricted runtime database roles, transaction-local organization context, and access policies. Verify permitted and denied access with real database tests.
 - **Foundation — staff flow:** implement invitation-based Supabase Auth, custom SMTP, Next.js session integration, Express token verification, and active-membership/permission checks. Build the login and invited-account screens from approved free controls.
 - **Inventory and tagging:** deliver article receipt, weights/purity/location, movement history, unique barcode generation, tag print/reprint, lookup, and reviewed stock checks. Validate scanner and printer output.
@@ -89,7 +128,7 @@ Customer cart/checkout and offline synchronization were not specified as product
 - **Recovery:** confirm acceptable downtime and data loss. The proposed pilot recovery targets in the architecture require business acceptance and a successful restore drill.
 - **Scope checks:** determine whether old-gold exchange, supplier dues, karigar accounting, partial collateral release, or Girvi renewal/top-up is essential for launch. They remain deferred unless explicitly added to scope.
 - **Repository and ownership:** identify the implementation repository and deployment owners before coding or configuring live services. No repository location has been supplied in this work.
-- **Detailed specifications:** proposed field-level tables and `/api/v1` contracts now live in `context/feature-specs/`. They still need review against shop examples and must not be treated as owner-approved calculation or credit policy. Earlier Jewellery OS LLDs must not be assumed compatible without review against the current Aabhooshad scope.
+- **Detailed specifications:** proposed field-level tables and `/api/v1` contracts now live in `context/feature-specs/`. They still need review against shop examples and must not be treated as owner-approved calculation or credit policy. Earlier Jewellery OS LLDs must not be assumed compatible without review against the current Aabhushan scope.
 
 ## Architecture Decisions
 
@@ -110,10 +149,14 @@ Customer cart/checkout and offline synchronization were not specified as product
 
 ## Session Notes
 
-- All completed work recorded here is planning/document creation. No application implementation or production readiness is claimed.
-- Resume by implementing `01-workspace-foundation.md` when requested, after reading the latest `ui-context.md` and `ai-workflow-rules.md`. Keep document consistency work available in parallel.
+- Spec 01 is implemented in this repository. Later specs are still documentation only.
+- Untitled UI MCP is project-configured in `.cursor/mcp.json` without auth. Reload Cursor / enable the `untitledui` server in Settings → MCP if tools are missing. Free-only; no PRO login.
+- `apps/web/utils/is-react-component.ts` has documented vendor patches: detect `forwardRef` via `Symbol.for("react.forward_ref")`, not `$$typeof.toString()`; import React types with `import type * as React from "react"`.
+- Vendor `Button` uses named React imports (`isValidElement` and type-only `FC`/`ReactElement`/`ReactNode`), not a default `React` export. `@types/react` is `export =` and has no ESM default.
+- Product name is Aabhushan (`@aabhushan/*`). The workspace directory may still use the older folder name.
+- Resume with `02-staff-authentication-and-access.md` when requested. Read the latest `ui-context.md` and `ai-workflow-rules.md` first.
 - Read the latest `ui-context.md` and `ai-workflow-rules.md` before UI work. Free-only Untitled UI is a settled constraint and is not an open licensing question.
-- Do not confuse Aabhooshad's current MVP with the earlier broader Jewellery OS plan. Current choices include Next.js, Express, Supabase Auth/PostgreSQL, pg-boss, and no Redis; older Clerk/BullMQ/multi-branch assumptions do not carry over automatically.
+- Do not confuse Aabhushan's current MVP with the earlier broader Jewellery OS plan. Current choices include Next.js, Express, Supabase Auth/PostgreSQL, pg-boss, and no Redis; older Clerk/BullMQ/multi-branch assumptions do not carry over automatically.
 - Keep undefined financial behavior out of implementation. Record pending rules here and proceed with independent foundation work while awaiting examples or decisions.
 - For every meaningful implementation update, record the actual files/features changed, checks run and results, known limitations, and next unit. Move entries to Completed only after their acceptance conditions are evidenced.
 - Preserve user changes and inspect existing code before scaffolding if a repository is later supplied. Do not overwrite an existing implementation based on this initial status record.

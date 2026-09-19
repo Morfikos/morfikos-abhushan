@@ -1,13 +1,13 @@
 # 01 — Workspace Foundation
 
-**Status:** Specification only — not implemented  
+**Status:** Implemented and verified — 20 September 2026  
 **Depends on:** none  
 **Enables:** all later specs  
 **Blocked by:** none for scaffolding; live secrets and hosting remain unresolved  
 
 ## Feature Overview & Objectives
 
-Establish the Aabhooshad monorepo so later units can add real features without inventing a second architecture. This unit solves the problem of starting implementation without a verified workspace, shared contracts, or runnable process boundaries.
+Establish the Aabhushan monorepo so later units can add real features without inventing a second architecture. This unit solves the problem of starting implementation without a verified workspace, shared contracts, or runnable process boundaries.
 
 The shop cannot use the product until later units exist. This unit only makes the agreed stack buildable: Next.js web, independent Express API, pg-boss worker, shared packages, typed configuration, and a Docker Compose skeleton.
 
@@ -49,7 +49,7 @@ There is no staff jewellery workflow yet.
 1. A developer clones the repository and copies `.env.example` files.
 2. The developer installs dependencies with pnpm and runs the documented scripts.
 3. The developer starts API, web, and worker locally or through Compose.
-4. Opening the web app shows a compact Aabhooshad identity page and a link to sign in (sign-in is implemented in spec 02).
+4. Opening the web app shows a compact Aabhushan identity page and a link to sign in (sign-in is implemented in spec 02).
 5. Calling `GET /health/live` returns process liveness. Calling `GET /health/ready` reports whether required env and a database ping are available.
 
 ## Data Models & Schema Changes
@@ -96,7 +96,7 @@ Follow `ui-context.md`. This unit only sets the presentation baseline.
 - Copied free Base/Application primitives only as needed for the placeholder page
 - Source layout: `apps/web/components/base/`, `apps/web/components/application/`, `apps/web/components/shared/`, `apps/web/features/`
 - Record upstream Untitled UI commit `c981a73bcd6b6c68d2a54070f20f020191212828` in the import notes
-- Compact original landing/placeholder: Aabhooshad name, short explanation, free button to `/login`
+- Compact original landing/placeholder: Aabhushan name, short explanation, free button to `/login`
 - No paid login template, no marketing hero, no dark-mode toggle, no Lucide icons
 - 404 page is original text and a free return button
 

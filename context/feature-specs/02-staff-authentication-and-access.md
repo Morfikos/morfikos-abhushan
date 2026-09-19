@@ -53,7 +53,7 @@ This unit solves disconnected shop access: staff currently share informal logins
 
 ### Sign in
 
-1. Staff open the compact Aabhooshad login page.
+1. Staff open the compact Aabhushan login page.
 2. They submit email and password. The client shows loading and field errors.
 3. Supabase creates a session. The web app stores it through `@supabase/ssr`.
 4. Subsequent API calls send `Authorization: Bearer <access_token>`.
@@ -143,7 +143,7 @@ Original compact pages using free Base inputs, buttons, and optional `input/pin-
 
 Required screens:
 
-- `/login` — Aabhooshad identity, email, password, submit feedback, recovery link
+- `/login` — Aabhushan identity, email, password, submit feedback, recovery link
 - `/invite/accept` — password + display name for a valid invitation
 - `/auth/recovery` — request reset
 - `/auth/recovery/confirm` — set new password

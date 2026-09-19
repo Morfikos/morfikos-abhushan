@@ -1,0 +1,24 @@
+{
+  "name": "@aabhushan/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "lint": "eslint src --max-warnings=0",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.json",
+    "start": "tsx src/main.ts"
+  },
+  "dependencies": {
+    "@aabhushan/config": "workspace:*",
+    "pino": "^9.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.1",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}
