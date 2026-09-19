@@ -77,7 +77,7 @@ Update the relevant context file whenever implementation changes:
 - Feature scope or acceptance conditions — update `project-overview.md` and affected feature specifications.
 - Completed work, in-progress work, open questions, blockers, and verification evidence — update `progress-tracker.md`.
 
-Separate proposed decisions from confirmed decisions and implemented behavior. Record verification commands and outcomes accurately; do not mark a unit complete when its test was skipped, its provider was mocked, or required hardware validation remains outstanding.
+Separate proposed decisions from confirmed decisions and implemented behavior. Record verification commands and outcomes accurately; do not mark a unit complete when a required check was skipped, its provider was mocked, or required hardware validation remains outstanding.
 
 When a change supersedes an older convention, reconcile the relevant documents within the authorized work and identify any remaining inconsistency. Do not use documentation edits to imply that code has already migrated. Never erase unresolved decisions or earlier evidence simply to make the tracker appear complete.
 
@@ -85,11 +85,11 @@ When a change supersedes an older convention, reconcile the relevant documents w
 
 - The unit satisfies its defined acceptance conditions end to end, or is explicitly recorded as blocked/incomplete with the exact remaining dependency.
 - No invariant in `architecture.md` was violated. Check authorization, organization scope, decimal arithmetic, historical snapshots, and transaction boundaries where relevant.
-- Financial changes pass approved calculation fixtures and relevant real-PostgreSQL tests for locking, rollback, payment allocation, and idempotent retries. Worker changes cover the specific retry/crash/deduplication risks they introduce.
+- Financial changes use owner-approved calculation fixtures and real-PostgreSQL verification for locking, rollback, payment allocation, and idempotent retries. Worker changes cover the specific retry/crash/deduplication risks they introduce.
 - UI changes use only approved free components, default Untitled UI styling, accessible controls, and real workflow states. Check loading, empty, validation, failure, and keyboard behavior for the changed screen.
-- Run the meaningful checks for the affected code: lint, type checking, focused tests, and the applicable application/package build. For a repository-wide or release change, run the workspace build (`pnpm build` if that script is defined). Use actual repository scripts; do not invent passing commands. Document-only edits need consistency/structure verification rather than a build.
-- Review migrations and deployment implications where applicable. Before launch, complete the independent backup restore drill, required provider checks, and actual scanner/printer validation; track these separately from routine unit tests.
+- Run the meaningful checks for the affected code: lint, type checking, and the applicable application/package build. For a repository-wide or release change, run the workspace build (`pnpm build` if that script is defined). Use actual repository scripts; do not invent passing commands. Document-only edits need consistency/structure verification rather than a build.
+- Review migrations and deployment implications where applicable. Before launch, complete the independent backup restore drill, required provider checks, and actual scanner/printer validation; track these separately from routine lint/typecheck/build.
 - `progress-tracker.md` reflects what was implemented and verified, and relevant context files match the resulting decisions. Do not mark unperformed work as complete.
-- Review the final diff for unrelated edits, secrets, generated-file drift, paid dependencies, and accidental changes to protected files. Stop optional testing once the unit's concrete risks are sufficiently covered.
+- Review the final diff for unrelated edits, secrets, generated-file drift, paid dependencies, and accidental changes to protected files. Stop optional verification once the unit's concrete risks are sufficiently covered.
 
 Report the outcome concisely: what changed, why, how it was verified, and any real remaining limitation. Then proceed to the next authorized unit without introducing an unnecessary approval step.

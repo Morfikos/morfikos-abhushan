@@ -4,5 +4,9 @@
 
 CREATE SCHEMA IF NOT EXISTS app;
 
+REVOKE ALL ON SCHEMA app FROM PUBLIC;
+REVOKE ALL ON SCHEMA app FROM anon;
+REVOKE ALL ON SCHEMA app FROM authenticated;
+
 -- The pgboss schema is created only when the worker starts consuming jobs.
 -- Spec 01 does not start pg-boss consumers.

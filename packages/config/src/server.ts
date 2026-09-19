@@ -9,11 +9,41 @@ const serverEnvSchema = z.object({
   API_HOST: z.string().min(1).default("0.0.0.0"),
   API_PORT: z.coerce.number().int().positive().default(3001),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
+  SUPABASE_URL: z.string().url(),
+  SUPABASE_JWT_AUDIENCE: z.string().min(1).default("authenticated"),
+  SUPABASE_JWT_ISSUER: z.string().url().optional(),
+  SUPABASE_JWT_JWKS_URL: z.string().url().optional(),
 });
 
-export type ServerEnv = z.infer<typeof serverEnvSchema> & {
+export type ServerEnv = {
+  NODE_ENV: "development" | "test" | "production";
+  DATABASE_URL: string;
+  CORS_ORIGINS: string;
   corsOrigins: string[];
+  API_HOST: string;
+  API_PORT: number;
+  LOG_LEVEL: "fatal" | "error" | "warn" | "info" | "debug" | "trace" | "silent";
+  SUPABASE_URL: string;
+  SUPABASE_JWT_AUDIENCE: string;
+  SUPABASE_JWT_ISSUER: string;
+  SUPABASE_JWT_JWKS_URL: string;
 };
+
+export function deriveSupabaseJwtIssuer(supabaseUrl: string, explicitIssuer?: string): string {
+  if (explicitIssuer) {
+    return explicitIssuer;
+  }
+
+  return `${supabaseUrl.replace(/\/$/, "")}/auth/v1`;
+}
+
+export function deriveSupabaseJwtJwksUrl(supabaseUrl: string, explicitJwksUrl?: string): string {
+  if (explicitJwksUrl) {
+    return explicitJwksUrl;
+  }
+
+  return `${deriveSupabaseJwtIssuer(supabaseUrl)}/.well-known/jwks.json`;
+}
 
 export function parseServerEnv(env: Record<string, string | undefined>): ServerEnv {
   assertNoPublicSecrets(env);
@@ -25,6 +55,10 @@ export function parseServerEnv(env: Record<string, string | undefined>): ServerE
     API_HOST: env.API_HOST,
     API_PORT: env.API_PORT,
     LOG_LEVEL: env.LOG_LEVEL,
+    SUPABASE_URL: env.SUPABASE_URL,
+    SUPABASE_JWT_AUDIENCE: env.SUPABASE_JWT_AUDIENCE,
+    SUPABASE_JWT_ISSUER: env.SUPABASE_JWT_ISSUER,
+    SUPABASE_JWT_JWKS_URL: env.SUPABASE_JWT_JWKS_URL,
   });
 
   const corsOrigins = parsed.CORS_ORIGINS.split(",")
@@ -36,7 +70,16 @@ export function parseServerEnv(env: Record<string, string | undefined>): ServerE
   }
 
   return {
-    ...parsed,
+    NODE_ENV: parsed.NODE_ENV,
+    DATABASE_URL: parsed.DATABASE_URL,
+    CORS_ORIGINS: parsed.CORS_ORIGINS,
     corsOrigins,
+    API_HOST: parsed.API_HOST,
+    API_PORT: parsed.API_PORT,
+    LOG_LEVEL: parsed.LOG_LEVEL,
+    SUPABASE_URL: parsed.SUPABASE_URL,
+    SUPABASE_JWT_AUDIENCE: parsed.SUPABASE_JWT_AUDIENCE,
+    SUPABASE_JWT_ISSUER: deriveSupabaseJwtIssuer(parsed.SUPABASE_URL, parsed.SUPABASE_JWT_ISSUER),
+    SUPABASE_JWT_JWKS_URL: deriveSupabaseJwtJwksUrl(parsed.SUPABASE_URL, parsed.SUPABASE_JWT_JWKS_URL),
   };
 }

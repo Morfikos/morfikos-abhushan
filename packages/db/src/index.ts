@@ -1,5 +1,7 @@
 import { Client } from "pg";
 
+import { createStaffAccessRepository } from "./staff-access-repository";
+
 /**
  * Server-only database helpers. Do not import this package from the Next.js frontend.
  * Browser Supabase roles must not receive grants on the `app` schema.
@@ -7,7 +9,7 @@ import { Client } from "pg";
 export async function pingDatabase(databaseUrl: string): Promise<boolean> {
   const client = new Client({
     connectionString: databaseUrl,
-    connectionTimeoutMillis: 2000,
+    connectionTimeoutMillis: 8000,
   });
 
   try {
@@ -20,3 +22,5 @@ export async function pingDatabase(databaseUrl: string): Promise<boolean> {
     await client.end().catch(() => undefined);
   }
 }
+
+export { createStaffAccessRepository };

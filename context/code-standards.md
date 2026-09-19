@@ -13,8 +13,8 @@
 - Use structured Pino logs with request/event identifiers and redaction. Do not log access tokens, passwords, identity documents, or complete customer/payment payloads.
 - Await promises or deliberately hand work to the durable queue. Do not start untracked background tasks from request handlers.
 - Pin dependency versions through the lockfile, validate configuration at startup, and keep secrets out of source control. Document changes to architecture or calculation policies alongside the code.
-- Use ESLint, Prettier, and TypeScript checks consistently. Test business outcomes and failure modes rather than mirroring implementation details; avoid brittle tests for trivial presentation changes.
-- Require owner-approved fixtures for financial-rule changes and real-PostgreSQL verification for changes to locking, idempotency, isolation, or financial transactions. Use synthetic customer data in tests.
+- Use ESLint, Prettier, and TypeScript checks consistently. Verify business outcomes and failure modes through lint, typecheck, build, and targeted runtime checks rather than a unit or integration test harness.
+- Require owner-approved fixtures for financial-rule changes and real-PostgreSQL verification for changes to locking, idempotency, isolation, or financial transactions. Use synthetic customer data for those checks.
 
 ## TypeScript
 
@@ -106,13 +106,11 @@
 | `apps/api/` | Express bootstrap, versioned routers, HTTP validation/middleware, webhook endpoints, error mapping, and health endpoints |
 | `apps/worker/` | pg-boss bootstrap, outbox dispatcher, recurring evaluators, job handlers, and graceful shutdown handling |
 | `packages/contracts/` | Shared Zod schemas, DTOs, OpenAPI contracts, and generated API clients; browser-safe only |
-| `packages/domain/` | Pure invoice/Girvi arithmetic, pricing policies, supported state transitions, and focused domain tests |
+| `packages/domain/` | Pure invoice/Girvi arithmetic, pricing policies, supported state transitions, and domain invariants |
 | `packages/application/` | Business services, permission-aware use cases, transaction orchestration, and repository interfaces where useful |
 | `packages/db/` | Drizzle schema, repositories, reviewed migrations, database roles/RLS policies, and transaction helpers |
 | `packages/integrations/` | WhatsApp, storage, PDF, and barcode adapters, with provider-specific error normalization |
 | `packages/config/` | Typed environment parsing, shared configuration, and explicit public/server configuration boundaries |
-| `tests/integration/` | Database-backed transaction, isolation, idempotency, concurrency, and job-recovery scenarios |
-| `tests/e2e/` | Browser coverage for inventory-to-sale, collections/returns, and Girvi-to-release workflows |
 | `docs/` | Project overview, architecture, code standards, approved calculation examples, API documentation, and operational runbooks |
 
 - Use feature folders within applications, such as inventory, billing, payments, customers, and girvi. Keep shared components in deliberate shared locations rather than an unstructured utilities folder.

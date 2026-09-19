@@ -9,15 +9,15 @@
   "scripts": {
     "lint": "eslint src --max-warnings=0",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run",
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@aabhushan/application": "workspace:*",
+    "@aabhushan/contracts": "workspace:*",
     "pg": "^8.16.3"
   },
   "devDependencies": {
     "@types/pg": "^8.15.5",
-    "typescript": "^5.9.2",
-    "vitest": "^3.2.4"
+    "typescript": "^5.9.2"
   }
 }

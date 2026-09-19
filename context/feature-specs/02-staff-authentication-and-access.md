@@ -1,6 +1,6 @@
 # 02 — Staff Authentication and Access
 
-**Status:** Specification only — not implemented  
+**Status:** Implemented — 20 September 2026. Live SMTP, a real Supabase project, and the first owner seed remain configuration work.  
 **Depends on:** `01-workspace-foundation`  
 **Enables:** all authenticated staff screens  
 **Blocked by:** SMTP provider choice for invitations/recovery in a real environment  

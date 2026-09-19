@@ -59,5 +59,46 @@ export const apiVersionDocument = {
         responses: { "200": { description: "Version document" } },
       },
     },
+    "/me": {
+      get: {
+        summary: "Current staff profile, membership, role, and permissions",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Authenticated membership" },
+          "401": { description: "Missing or invalid token" },
+          "403": { description: "Disabled, suspended, or missing membership" },
+        },
+      },
+    },
+    "/auth/session/introspect": {
+      post: {
+        summary: "Explicit backend session check for a bearer token",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Active membership" },
+          "401": { description: "Missing or invalid token" },
+          "403": { description: "Disabled, suspended, or missing membership" },
+        },
+      },
+    },
   },
 } as const;
+
+export {
+  PUBLIC_SELF_SIGNUP_ENABLED,
+  currentStaffMembershipSchema,
+  currentStaffSchema,
+  sessionIntrospectionSchema,
+  staffInvitationStatusSchema,
+  staffMembershipStatusSchema,
+  staffPermissionSchema,
+  staffRoleSchema,
+} from "./staff";
+export type {
+  CurrentStaff,
+  SessionIntrospection,
+  StaffInvitationStatus,
+  StaffMembershipStatus,
+  StaffPermission,
+  StaffRole,
+} from "./staff";

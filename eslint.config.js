@@ -7,7 +7,6 @@ export default tseslint.config(
     ignores: [
       "**/dist/**",
       "**/.next/**",
-      "**/coverage/**",
       "apps/web/components/base/**",
       "apps/web/utils/cx.ts",
       "apps/web/utils/is-react-component.ts",

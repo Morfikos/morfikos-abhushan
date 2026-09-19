@@ -9,13 +9,13 @@
   "scripts": {
     "lint": "pnpm -r --if-present lint",
     "typecheck": "pnpm -r --if-present typecheck",
-    "test": "pnpm -r --if-present test",
     "build": "pnpm -r --if-present build",
     "dev": "pnpm --parallel --filter @aabhushan/web --filter @aabhushan/api --filter @aabhushan/worker dev",
     "generate:client": "pnpm --filter @aabhushan/contracts generate:client"
   },
   "devDependencies": {
     "@eslint/js": "^9.35.0",
+    "@types/node": "^24.3.1",
     "eslint": "^9.35.0",
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.6.2",

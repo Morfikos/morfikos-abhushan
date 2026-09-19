@@ -21,7 +21,6 @@
 | Messaging | Official WhatsApp Business provider behind an adapter | Transactional messages and reminders, subject to account/template eligibility |
 | Auth email | Custom SMTP provider configured in Supabase | Staff invitations and password recovery |
 | Logging | Pino | Structured logs with request correlation and sensitive-data redaction |
-| Testing | Vitest + Supertest + Playwright | Domain calculations, API/transaction integration, and browser workflows |
 | Repository | pnpm workspace | Shared contracts, domain code, and coordinated web/API/worker development |
 | Deployment | Docker Compose + TLS reverse proxy on an always-on host | Independently restartable web, API, and worker processes; managed Supabase services remain separate |
 
@@ -31,13 +30,11 @@
 - **`apps/api`** — Owns Express startup, `/api/v1` routes, request validation, verified authentication, authorization, idempotency, provider webhooks, and HTTP error mapping. Delegates business operations to application services. The same API supports future mobile clients without depending on Next.js cookies or rendering.
 - **`apps/worker`** — Owns pg-boss consumers, outbox dispatch, recurring reminder evaluation, PDF jobs, notification retries, and operational cleanup. Reuses the same application/domain packages as the API. Runs independently of browser sessions and HTTP request lifetimes.
 - **`packages/contracts`** — Owns Zod request/response schemas, API DTOs, OpenAPI definitions, and generated API client types. Contains no secrets or privileged database access.
-- **`packages/domain`** — Owns pure invoice and Girvi calculations, explicit decimal/rounding policies, state-transition rules, and domain invariants. Calculation behavior is versioned and testable without HTTP or external providers.
+- **`packages/domain`** — Owns pure invoice and Girvi calculations, explicit decimal/rounding policies, state-transition rules, and domain invariants. Calculation behavior is versioned without HTTP or external providers.
 - **`packages/application`** — Owns business use cases and transaction orchestration across inventory, invoices, payments, customers, and Girvi. Coordinates repositories, audit records, and outbox writes within a single unit of work where atomicity is required.
 - **`packages/db`** — Owns Drizzle schemas, repositories, migrations, indexes, database roles, organization-scoped RLS, and transaction-local access context. Only server-side applications import this package.
 - **`packages/integrations`** — Owns adapters for WhatsApp, private storage, PDF rendering, and barcode generation. Keeps provider-specific formats and credentials outside domain logic.
 - **`packages/config`** — Owns validated environment configuration and explicit separation of public frontend settings from backend secrets.
-- **`tests/integration`** — Owns real-PostgreSQL tests for locking, rollback, idempotency, payment allocation, organization isolation, and worker recovery.
-- **`tests/e2e`** — Owns browser verification of receiving, tagging, billing, collections, returns, and Girvi settlement/release workflows.
 - **`docs`** — Owns architecture decisions, API contracts, owner-approved calculation examples, setup instructions, and backup/recovery runbooks.
 
 ## Storage Model
@@ -70,7 +67,7 @@
 
 - Staff sign in through Supabase Auth using invitation-based accounts; public self-signup is disabled. Customers are business records and do not receive Auth accounts in the MVP.
 - The web application uses Supabase’s SSR session integration. Calls to Express carry a bearer access token. Future mobile clients use the same API authentication contract and platform-secure credential storage.
-- Express verifies token signature, expiry, issuer, and audience using the project's configured signing keys. Decoding a token or trusting a locally loaded session is insufficient authentication.
+- Express verifies token signature, expiry, issuer, and audience against the project's JWKS (ES256). Decoding a token or trusting a locally loaded session is insufficient authentication.
 - After verification, the backend resolves the user's active application membership and permitted organization/branch. Request-supplied roles, organization identifiers, and editable user metadata never grant access.
 - Owner/admin, billing, inventory, and Girvi roles map to explicit permissions. Sensitive actions such as refunds, rate overrides, staff changes, identity-document access, and collateral release require appropriate server-side permission checks and audit records.
 - Suspend access through the application membership check so a disabled staff member is blocked even while a previously issued access token remains valid. Page visibility alone is not authorization.

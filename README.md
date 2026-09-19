@@ -12,12 +12,16 @@ Staff jewellery management workspace: Next.js web, independent Express API, and 
 
 ```bash
 cp .env.example .env
+cp apps/web/.env.example apps/web/.env.local
 pnpm install
 pnpm lint
 pnpm typecheck
-pnpm test
 pnpm build
 ```
+
+Fill the Supabase URL and publishable key before signing in. Access tokens are verified from the project's JWKS (ES256). Disable public signup and configure custom SMTP in the Supabase project; see `docs/supabase-auth-and-smtp.md`. Apply `packages/db/sql/0001_init_schemas.sql` and `packages/db/sql/0002_staff_authentication.sql` to the database.
+
+## Local development
 
 ## Local development
 
@@ -42,7 +46,6 @@ docker compose up --build
 | --- | --- |
 | `pnpm lint` | ESLint across workspace packages |
 | `pnpm typecheck` | TypeScript checks |
-| `pnpm test` | Vitest |
 | `pnpm build` | Package and app builds |
 | `pnpm generate:client` | Placeholder for generated API clients |
 

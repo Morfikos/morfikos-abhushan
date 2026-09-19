@@ -17,7 +17,10 @@
     "incremental": true,
     "plugins": [{ "name": "next" }],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@untitledui/icons": ["./node_modules/@untitledui/icons"],
+      "next": ["./node_modules/next"],
+      "next/*": ["./node_modules/next/*"]
     }
   },
   "include": ["app/**/*.ts", "app/**/*.tsx", "components/**/*.ts", "components/**/*.tsx", "features/**/*.ts", "features/**/*.tsx", "lib/**/*.ts", "utils/**/*.ts", "next-env.d.ts", ".next/types/**/*.ts"],

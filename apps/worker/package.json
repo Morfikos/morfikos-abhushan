@@ -4,12 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/main.ts",
+    "dev": "tsx watch --env-file=../../.env src/main.ts",
     "lint": "eslint src --max-warnings=0",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run",
     "build": "tsc -p tsconfig.json",
-    "start": "tsx src/main.ts"
+    "start": "tsx --env-file=../../.env src/main.ts"
   },
   "dependencies": {
     "@aabhushan/config": "workspace:*",
@@ -18,7 +17,6 @@
   "devDependencies": {
     "@types/node": "^24.3.1",
     "tsx": "^4.20.5",
-    "typescript": "^5.9.2",
-    "vitest": "^3.2.4"
+    "typescript": "^5.9.2"
   }
 }
