@@ -10,6 +10,7 @@ export const apiErrorSchema = z.object({
   message: z.string(),
   request_id: z.string(),
   field_errors: z.array(fieldErrorSchema).default([]),
+  existing_customer_id: z.string().uuid().optional(),
 });
 
 export type FieldError = z.infer<typeof fieldErrorSchema>;
@@ -20,12 +21,14 @@ export function createApiError(input: {
   message: string;
   request_id: string;
   field_errors?: FieldError[];
+  existing_customer_id?: string;
 }): ApiError {
   return apiErrorSchema.parse({
     code: input.code,
     message: input.message,
     request_id: input.request_id,
     field_errors: input.field_errors ?? [],
+    ...(input.existing_customer_id ? { existing_customer_id: input.existing_customer_id } : {}),
   });
 }
 
@@ -164,6 +167,21 @@ export const apiVersionDocument = {
     },
     "/stock-counts": {
       post: { summary: "Reviewed physical count; discrepancies write adjustments" },
+    },
+    "/customers": {
+      get: { summary: "Paginated customer directory; q searches name and phone" },
+      post: { summary: "Create an organization-scoped customer; duplicate phone is 409" },
+    },
+    "/customers/{id}": {
+      get: { summary: "Customer profile with consents; sales and Girvi stay empty until later specs" },
+      patch: { summary: "Update customer contact fields; duplicate phone is 409" },
+    },
+    "/customers/{id}/consents": {
+      get: { summary: "Consent rows per channel and purpose" },
+      put: { summary: "Grant or revoke consents; WhatsApp grant requires a normalized phone" },
+    },
+    "/customers/{id}/identity-files": {
+      get: { summary: "Restricted identity-file metadata; billing-only staff receive 403" },
     },
   },
 } as const;
@@ -308,3 +326,36 @@ export type {
   TagPrintEvent,
   TagPrintKind,
 } from "./inventory";
+export {
+  CUSTOMER_SORT_FIELDS,
+  customerConsentChannelSchema,
+  customerConsentListSchema,
+  customerConsentPurposeSchema,
+  customerConsentSchema,
+  customerConsentStatusSchema,
+  customerConsentWriteSchema,
+  customerConsentsPutSchema,
+  customerCreateSchema,
+  customerIdentityFileListSchema,
+  customerIdentityFileSchema,
+  customerListQuerySchema,
+  customerListSchema,
+  customerPatchSchema,
+  customerSchema,
+} from "./customers";
+export type {
+  Customer,
+  CustomerConsent,
+  CustomerConsentChannel,
+  CustomerConsentList,
+  CustomerConsentPurpose,
+  CustomerConsentStatus,
+  CustomerConsentWrite,
+  CustomerConsentsPut,
+  CustomerCreate,
+  CustomerIdentityFile,
+  CustomerIdentityFileList,
+  CustomerList,
+  CustomerListItem,
+  CustomerPatch,
+} from "./customers";

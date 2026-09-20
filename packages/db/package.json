@@ -13,7 +13,9 @@
     "verify:org-context": "tsx --env-file=../../.env ./scripts/verify-org-context.ts",
     "verify:inventory": "tsx --env-file=../../.env ./scripts/verify-inventory.ts",
     "verify:barcodes": "tsx --env-file=../../.env ./scripts/verify-barcodes.ts",
-    "seed:sample-articles": "tsx --env-file=../../.env ./scripts/seed-sample-articles.ts"
+    "verify:customers": "tsx --env-file=../../.env ./scripts/verify-customers.ts",
+    "seed:sample-articles": "tsx --env-file=../../.env ./scripts/seed-sample-articles.ts",
+    "seed:sample-customers": "tsx --env-file=../../.env ./scripts/seed-sample-customers.ts"
   },
   "dependencies": {
     "@aabhushan/application": "workspace:*",

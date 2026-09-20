@@ -11,6 +11,19 @@ const REDACT_PATHS = [
   "*.password",
   "*.access_token",
   "*.refresh_token",
+  "phone",
+  "phone_normalized",
+  "phone_display",
+  "email",
+  "notes",
+  "address_line",
+  "*.phone",
+  "*.phone_normalized",
+  "*.phone_display",
+  "*.email",
+  "*.notes",
+  "*.address_line",
+  "*.object_key",
 ] as const;
 
 export function loggerOptionsFor(env: Pick<ServerEnv, "LOG_LEVEL" | "NODE_ENV">): LoggerOptions {

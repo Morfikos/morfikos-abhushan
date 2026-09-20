@@ -4,6 +4,7 @@ import { createStaffAccessRepository } from "./staff-access-repository";
 import { createShopSettingsRepository } from "./shop-settings-repository";
 import { createStaffDirectoryRepository } from "./staff-directory-repository";
 import { createInventoryRepository } from "./inventory-repository";
+import { createCustomerRepository } from "./customer-repository";
 import { createPool, withOrganizationContext } from "./organization-context";
 
 /**
@@ -29,6 +30,7 @@ export async function pingDatabase(databaseUrl: string): Promise<boolean> {
 
 export {
   createPool,
+  createCustomerRepository,
   createInventoryRepository,
   createShopSettingsRepository,
   createStaffAccessRepository,

@@ -74,4 +74,15 @@ export {
 } from "./inventory";
 export type { ArticleListFilters, InventoryRepository } from "./inventory";
 
+export {
+  createCustomer,
+  getCustomer,
+  listCustomerConsents,
+  listCustomerIdentityFiles,
+  listCustomers,
+  putCustomerConsents,
+  updateCustomer,
+} from "./customers";
+export type { CustomerListFilters, CustomerRepository } from "./customers";
+
 export type { FieldError };

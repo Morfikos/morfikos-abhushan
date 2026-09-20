@@ -1,5 +1,5 @@
-import { ModulePlaceholder } from "@/features/auth/module-placeholder";
+import { CustomerList } from "@/features/customers/customer-list";
 
 export default function CustomersPage() {
-  return <ModulePlaceholder title="Customers" permission="customers.read" />;
+  return <CustomerList />;
 }

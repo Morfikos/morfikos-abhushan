@@ -10,6 +10,7 @@ import { createStaffAuthInviter } from "./auth/supabase-admin";
 import { sendHandlerError } from "./http/errors";
 import { loadCjs } from "./load-cjs";
 import { loggerOptionsFor } from "./logger";
+import { registerCustomerRoutes } from "./routes/customers";
 import { registerInventoryRoutes } from "./routes/inventory";
 import { registerShopRoutes } from "./routes/shop";
 import { registerStaffRoutes } from "./routes/staff";
@@ -134,6 +135,7 @@ export function createApp(env: ServerEnv): Express {
   registerShopRoutes(app, pool, requireStaff, shopStorage);
   registerStaffRoutes(app, pool, env, authInviter, requireStaff);
   registerInventoryRoutes(app, pool, requireStaff, shopStorage);
+  registerCustomerRoutes(app, pool, requireStaff);
 
   app.use((error: unknown, req: Request, res: Response, _next: NextFunction) => {
     if (sendHandlerError(req, res, error)) {

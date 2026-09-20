@@ -1,6 +1,6 @@
 # 06 — Customers and Consent
 
-**Status:** Specification only — not implemented  
+**Status:** Implemented — verified on 20 September 2026  
 **Depends on:** `03-shop-settings-and-organization`  
 **Enables:** POS, payments, Girvi, WhatsApp  
 **Blocked by:** none for customer records; WhatsApp templates and reminder timing remain open  
@@ -44,7 +44,7 @@ This unit does not send WhatsApp messages and does not invent a credit-account p
 ### Create during idle time
 
 1. Staff open Customers → New customer (full page).
-2. They enter name, phone, optional email/address, and WhatsApp consent.
+2. They enter name, phone, optional email/address, and per-purpose WhatsApp consent (same purpose toggles as the profile).
 3. Save validates and returns the profile.
 
 ### Create during POS / Girvi
@@ -111,11 +111,11 @@ Search is bounded and parameterized. Sort allowlist: name, created_at, phone.
 
 ## UI/UX Requirements
 
-- Directory: local header, filters, free table, avatars, pagination
-- Create/edit: free inputs, checkbox/toggle for consent, visible help text
+- Directory: local header, single name/phone search (hidden when the directory is empty), free table, avatars, pagination
+- Create/edit: free inputs, per-purpose WhatsApp toggles (create matches profile), visible help text
 - Profile tabs via `tabs/tabs.tsx`: Profile, Sales, Girvi, Notifications
 - Empty tabs use free empty-state, not fake activity
-- Combobox for POS/Girvi customer select from approved Base components
+- Combobox for POS/Girvi customer select from approved Base components (not on the directory page)
 - No public Create account language
 
 ## Edge Cases & Error Handling
