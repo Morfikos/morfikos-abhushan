@@ -1,4 +1,4 @@
-import { Client } from "pg";
+import type { Pool } from "pg";
 
 import type {
   StaffAccessRepository,
@@ -112,24 +112,17 @@ WHERE u.id = $1
 LIMIT 1
 `;
 
-export function createStaffAccessRepository(databaseUrl: string): StaffAccessRepository {
+export function createStaffAccessRepository(pool: Pool): StaffAccessRepository {
   return {
     async findByAuthUserId(authUserId: string): Promise<StaffUserRecord | null> {
-      const client = new Client({ connectionString: databaseUrl });
-      try {
-        await client.connect();
-        const result = await client.query<StaffLookupRow>(lookupSql, [authUserId]);
-        const row = result.rows[0];
-        return row ? mapRow(row) : null;
-      } finally {
-        await client.end().catch(() => undefined);
-      }
+      const result = await pool.query<StaffLookupRow>(lookupSql, [authUserId]);
+      const row = result.rows[0];
+      return row ? mapRow(row) : null;
     },
 
     async activateInvitedMembership(input): Promise<StaffUserRecord> {
-      const client = new Client({ connectionString: databaseUrl });
+      const client = await pool.connect();
       try {
-        await client.connect();
         await client.query("BEGIN");
         await client.query(
           `
@@ -166,7 +159,7 @@ export function createStaffAccessRepository(databaseUrl: string): StaffAccessRep
         await client.query("ROLLBACK").catch(() => undefined);
         throw error;
       } finally {
-        await client.end().catch(() => undefined);
+        client.release();
       }
     },
   };

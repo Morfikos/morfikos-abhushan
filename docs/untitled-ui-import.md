@@ -23,7 +23,25 @@ Copied for spec 02 from the same commit, with required helpers:
 
 PIN input was not copied: the live Supabase invitation and recovery flow uses email links, not a verification-code endpoint. Demos, stories, and unused input variants were not copied.
 
-Treat copied Base files as vendor code after this import. Prefer composition and local feature/shared components for application screens.
+Copied for spec 03 from the same commit, excluding demos, stories, and sample JSON:
+
+- `apps/web/components/application/app-navigation/sidebar-navigation/sidebar-simple.tsx` and required `base-components` / `config.ts`
+- `apps/web/components/application/table/table.tsx`
+- `apps/web/components/application/pagination/pagination.tsx` and `pagination-base.tsx`
+- `apps/web/components/application/date-picker/date-picker.tsx`, `calendar.tsx`, `cell.tsx`
+- `apps/web/components/base/badges/`, `checkbox/`, `textarea/`, `select/` (including native select), `dropdown/`, `avatar/`, `button-group/`, `radio-buttons/`, `toggle/`
+- `apps/web/hooks/use-breakpoint.ts`, `use-resize-observer.ts`
+- `apps/web/components/foundations/dot-icon.tsx` and logo source (logo is not rendered)
+
+Documented patches (20 September 2026):
+
+- `sidebar-simple.tsx` and `mobile-header.tsx` render `AabhushanLogo` instead of `UntitledLogo`. The application identity is Aabhushan.
+- `textarea.tsx` uses named `CSSProperties` instead of a default `React` import.
+- `avatar/utils.ts` treats a missing first token as an empty initial so `noUncheckedIndexedAccess` type-checks.
+- `use-resize-observer.ts` uses React `RefObject` instead of `@react-types/shared`.
+- `nav-account-card.tsx` uses `AriaPopoverProps["placement"]` instead of `@react-types/overlays`.
+
+Staff screens compose around `SidebarNavigationSimple` with permission-filtered items and `showAccountCard={false}`. Settings is an original local composition.
 
 Cursor MCP (free components only): `.cursor/mcp.json` points at `https://www.untitledui.com/react/api/mcp` with no auth header, following [Untitled UI MCP integration](https://www.untitledui.com/react/integrations/mcp). Enable the `untitledui` server in Cursor Settings → MCP if it does not appear after a reload. Do not add a PRO API key. The official CLI init (`npx untitledui init`) was not run; later `npx untitledui add` installs need an explicit, free-only decision so they do not replace this pinned import.
 

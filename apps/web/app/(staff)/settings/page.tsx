@@ -1,5 +1,5 @@
-import { ModulePlaceholder } from "@/features/auth/module-placeholder";
+import { SettingsWorkspace } from "@/features/settings/settings-workspace";
 
 export default function SettingsPage() {
-  return <ModulePlaceholder title="Settings" permission="settings.write" />;
+  return <SettingsWorkspace />;
 }

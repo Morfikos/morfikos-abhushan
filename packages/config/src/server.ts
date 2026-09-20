@@ -13,6 +13,8 @@ const serverEnvSchema = z.object({
   SUPABASE_JWT_AUDIENCE: z.string().min(1).default("authenticated"),
   SUPABASE_JWT_ISSUER: z.string().url().optional(),
   SUPABASE_JWT_JWKS_URL: z.string().url().optional(),
+  SUPABASE_SECRET_KEY: z.string().min(1).optional(),
+  WEB_ORIGIN: z.string().url().optional(),
 });
 
 export type ServerEnv = {
@@ -27,6 +29,8 @@ export type ServerEnv = {
   SUPABASE_JWT_AUDIENCE: string;
   SUPABASE_JWT_ISSUER: string;
   SUPABASE_JWT_JWKS_URL: string;
+  SUPABASE_SECRET_KEY?: string;
+  WEB_ORIGIN: string;
 };
 
 export function deriveSupabaseJwtIssuer(supabaseUrl: string, explicitIssuer?: string): string {
@@ -59,6 +63,8 @@ export function parseServerEnv(env: Record<string, string | undefined>): ServerE
     SUPABASE_JWT_AUDIENCE: env.SUPABASE_JWT_AUDIENCE,
     SUPABASE_JWT_ISSUER: env.SUPABASE_JWT_ISSUER,
     SUPABASE_JWT_JWKS_URL: env.SUPABASE_JWT_JWKS_URL,
+    SUPABASE_SECRET_KEY: env.SUPABASE_SECRET_KEY,
+    WEB_ORIGIN: env.WEB_ORIGIN,
   });
 
   const corsOrigins = parsed.CORS_ORIGINS.split(",")
@@ -81,5 +87,7 @@ export function parseServerEnv(env: Record<string, string | undefined>): ServerE
     SUPABASE_JWT_AUDIENCE: parsed.SUPABASE_JWT_AUDIENCE,
     SUPABASE_JWT_ISSUER: deriveSupabaseJwtIssuer(parsed.SUPABASE_URL, parsed.SUPABASE_JWT_ISSUER),
     SUPABASE_JWT_JWKS_URL: deriveSupabaseJwtJwksUrl(parsed.SUPABASE_URL, parsed.SUPABASE_JWT_JWKS_URL),
+    ...(parsed.SUPABASE_SECRET_KEY ? { SUPABASE_SECRET_KEY: parsed.SUPABASE_SECRET_KEY } : {}),
+    WEB_ORIGIN: parsed.WEB_ORIGIN ?? corsOrigins[0] ?? "http://localhost:3000",
   };
 }

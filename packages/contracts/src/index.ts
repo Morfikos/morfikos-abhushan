@@ -81,6 +81,36 @@ export const apiVersionDocument = {
         },
       },
     },
+    "/shop/profile": {
+      get: { summary: "Shop legal profile and active branch" },
+      patch: { summary: "Update shop profile", security: [{ bearerAuth: [] }] },
+    },
+    "/shop/rates": {
+      get: { summary: "Paginated metal rates" },
+      post: { summary: "Insert a dated metal rate; never rewrite a previous row" },
+    },
+    "/shop/sequences": {
+      get: { summary: "Document sequence configuration" },
+      patch: { summary: "Update prefixes, padding, and next values" },
+    },
+    "/shop/devices": {
+      get: { summary: "Printer and scanner defaults (unvalidated placeholders)" },
+      patch: { summary: "Update device defaults" },
+    },
+    "/shop/reminders": {
+      get: { summary: "Reminder preference storage; nothing is sent" },
+      patch: { summary: "Update reminder preferences" },
+    },
+    "/staff": {
+      get: { summary: "Paginated staff directory" },
+      post: { summary: "Invite staff with admin, billing, inventory, or girvi" },
+    },
+    "/staff/{id}/suspend": {
+      post: { summary: "Suspend a membership; blocked on the next API call" },
+    },
+    "/audit": {
+      get: { summary: "Paginated audit events" },
+    },
   },
 } as const;
 
@@ -102,3 +132,58 @@ export type {
   StaffPermission,
   StaffRole,
 } from "./staff";
+export { paginationDirectionSchema, paginationQuerySchema, paginatedResponseSchema } from "./pagination";
+export type { PaginationQuery } from "./pagination";
+export { AUDIT_SORT_FIELDS, auditEventSchema, auditListQuerySchema, auditListSchema } from "./audit";
+export type { AuditEvent, AuditList } from "./audit";
+export {
+  invitibleStaffRoleSchema,
+  STAFF_SORT_FIELDS,
+  staffDirectoryItemSchema,
+  staffInviteRequestSchema,
+  staffListQuerySchema,
+  staffListSchema,
+} from "./staff-directory";
+export type { InvitibleStaffRole, StaffDirectoryItem, StaffInviteRequest, StaffList } from "./staff-directory";
+export {
+  METAL_RATE_SORT_FIELDS,
+  businessDateSchema,
+  deviceSettingsPatchSchema,
+  deviceSettingsSchema,
+  documentSequenceSchema,
+  documentSequencesPatchSchema,
+  documentSequencesSchema,
+  documentTypeSchema,
+  invoicePaperSizeSchema,
+  localTimeSchema,
+  metalRateCreateSchema,
+  metalRateListQuerySchema,
+  metalRateListSchema,
+  metalRateSchema,
+  metalSchema,
+  reminderLanguageSchema,
+  reminderSettingsPatchSchema,
+  reminderSettingsSchema,
+  scanTerminatorSchema,
+  shopProfilePatchSchema,
+  shopProfileSchema,
+} from "./shop";
+export type {
+  DeviceSettings,
+  DeviceSettingsPatch,
+  DocumentSequence,
+  DocumentSequences,
+  DocumentSequencesPatch,
+  DocumentType,
+  InvoicePaperSize,
+  Metal,
+  MetalRate,
+  MetalRateCreate,
+  MetalRateList,
+  ReminderLanguage,
+  ReminderSettings,
+  ReminderSettingsPatch,
+  ScanTerminator,
+  ShopProfile,
+  ShopProfilePatch,
+} from "./shop";

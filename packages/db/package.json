@@ -9,7 +9,8 @@
   "scripts": {
     "lint": "eslint src --max-warnings=0",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "verify:org-context": "tsx --env-file=../../.env ./scripts/verify-org-context.ts"
   },
   "dependencies": {
     "@aabhushan/application": "workspace:*",
@@ -17,7 +18,9 @@
     "pg": "^8.16.3"
   },
   "devDependencies": {
+    "@types/node": "^24.3.1",
     "@types/pg": "^8.15.5",
+    "tsx": "^4.20.5",
     "typescript": "^5.9.2"
   }
 }
