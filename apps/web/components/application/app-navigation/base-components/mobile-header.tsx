@@ -9,14 +9,18 @@ import {
     Modal as AriaModal,
     ModalOverlay as AriaModalOverlay,
 } from "react-aria-components";
-import { AabhushanLogo } from "@/components/shared/aabhushan-logo";
+import { ShopMark } from "@/components/shared/shop-mark";
 import { cx } from "@/utils/cx";
 
-export const MobileNavigationHeader = ({ children }: PropsWithChildren) => {
+export const MobileNavigationHeader = ({
+    children,
+    shopLegalName = "Aabhushan",
+    shopLogoUrl = null,
+}: PropsWithChildren<{ shopLegalName?: string; shopLogoUrl?: string | null }>) => {
     return (
         <AriaDialogTrigger>
             <header className="flex h-14 items-center justify-between border-b border-secondary bg-primary p-3 pl-4 lg:hidden">
-                <AabhushanLogo className="h-6" />
+                <ShopMark legalName={shopLegalName} logoUrl={shopLogoUrl} size="sm" className="min-w-0" />
 
                 <AriaButton
                     aria-label="Expand navigation menu"

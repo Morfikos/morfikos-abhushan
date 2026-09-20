@@ -1,6 +1,6 @@
-# Database roles (spec 03)
+# Database roles (spec 03–06)
 
-`packages/db/sql/0001_init_schemas.sql` creates the empty `app` schema. `0002_staff_authentication.sql` adds staff identity tables and seeds the single organization and branch. `0003_shop_settings_and_organization.sql` adds shop profile, rates, sequences, device/reminder defaults, audit events, runtime roles, and organization-scoped RLS.
+`packages/db/sql/0001_init_schemas.sql` creates the empty `app` schema. `0002_staff_authentication.sql` adds staff identity tables and seeds the single organization and branch. `0003_shop_settings_and_organization.sql` adds shop profile, rates, sequences, device/reminder defaults, audit events, runtime roles, and organization-scoped RLS. `0004_inventory_and_article_receiving.sql` adds saleable inventory. `0005_barcode_tagging_and_hardware.sql` adds `device_settings.hardware_validated_at` (kept null until a physical drill) and append-only `tag_print_events`. Canonical article barcodes stay on `app.articles.barcode`. `0006_shop_logo_metadata.sql` adds logo content-type / byte-size / checksum columns on `shop_profiles` (object bytes stay in private Storage bucket `shop-assets`; see `docs/shop-logo-storage.md`).
 
 | Role | Purpose |
 | --- | --- |
@@ -22,5 +22,10 @@ Apply:
 psql "$DATABASE_URL" -f packages/db/sql/0001_init_schemas.sql
 psql "$DATABASE_URL" -f packages/db/sql/0002_staff_authentication.sql
 psql "$DATABASE_URL" -f packages/db/sql/0003_shop_settings_and_organization.sql
+psql "$DATABASE_URL" -f packages/db/sql/0004_inventory_and_article_receiving.sql
+psql "$DATABASE_URL" -f packages/db/sql/0005_barcode_tagging_and_hardware.sql
+psql "$DATABASE_URL" -f packages/db/sql/0006_shop_logo_metadata.sql
 pnpm verify:org-context
+pnpm verify:inventory
+pnpm verify:barcodes
 ```

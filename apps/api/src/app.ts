@@ -13,6 +13,7 @@ import { loggerOptionsFor } from "./logger";
 import { registerInventoryRoutes } from "./routes/inventory";
 import { registerShopRoutes } from "./routes/shop";
 import { registerStaffRoutes } from "./routes/staff";
+import { createShopAssetStorage } from "@aabhushan/integrations";
 
 const cors = loadCjs<typeof import("cors")>("cors");
 const express = loadCjs<typeof import("express")>("express");
@@ -56,6 +57,9 @@ export function createApp(env: ServerEnv): Express {
   const staffAccessRepository = createStaffAccessRepository(pool);
   const requireStaff = requireStaffAccess(env, staffAccessRepository);
   const authInviter = createStaffAuthInviter(env);
+  const shopStorage = env.SUPABASE_SECRET_KEY
+    ? createShopAssetStorage(env.SUPABASE_URL, env.SUPABASE_SECRET_KEY)
+    : null;
 
   app.disable("x-powered-by");
   app.use(express.json({ limit: "32kb" }));
@@ -127,9 +131,9 @@ export function createApp(env: ServerEnv): Express {
     });
   });
 
-  registerShopRoutes(app, pool, requireStaff);
+  registerShopRoutes(app, pool, requireStaff, shopStorage);
   registerStaffRoutes(app, pool, env, authInviter, requireStaff);
-  registerInventoryRoutes(app, pool, requireStaff);
+  registerInventoryRoutes(app, pool, requireStaff, shopStorage);
 
   app.use((error: unknown, req: Request, res: Response, _next: NextFunction) => {
     if (sendHandlerError(req, res, error)) {

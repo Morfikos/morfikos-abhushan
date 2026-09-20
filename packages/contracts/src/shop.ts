@@ -28,7 +28,9 @@ export const shopProfileSchema = z.object({
   address_line: z.string().nullable(),
   phone: z.string().nullable(),
   invoice_footer: z.string().nullable(),
-  logo_object_key: z.string().nullable(),
+  /** Short-lived signed URL; never persist. Null when no logo is stored. */
+  logo_url: z.string().url().nullable(),
+  has_logo: z.boolean(),
   time_zone: z.literal("Asia/Kolkata"),
   branch: z.object({
     id: z.string().uuid(),
@@ -36,6 +38,11 @@ export const shopProfileSchema = z.object({
     address_line: z.string().nullable(),
     is_active: z.boolean(),
   }),
+});
+
+export const shopBrandingPublicSchema = z.object({
+  legal_name: z.string().min(1),
+  logo_url: z.string().url().nullable(),
 });
 
 export const shopProfilePatchSchema = z
@@ -130,6 +137,7 @@ export const reminderSettingsPatchSchema = reminderSettingsSchema.partial().stri
 
 export type ShopProfile = z.infer<typeof shopProfileSchema>;
 export type ShopProfilePatch = z.infer<typeof shopProfilePatchSchema>;
+export type ShopBrandingPublic = z.infer<typeof shopBrandingPublicSchema>;
 export type MetalRate = z.infer<typeof metalRateSchema>;
 export type MetalRateCreate = z.infer<typeof metalRateCreateSchema>;
 export type MetalRateList = z.infer<typeof metalRateListSchema>;

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import { useRouter } from "next/navigation";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ArticleListItem, ArticleStatus } from "@aabhushan/contracts";
-import { FilterLines, Package, Scan, SearchLg, Trash01 } from "@untitledui/icons";
+import { FilterLines, Package, SearchLg, Trash01 } from "@untitledui/icons";
 
 import { EmptyState } from "@/components/application/empty-state/empty-state";
 import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
@@ -14,6 +14,7 @@ import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { ListTableFooter } from "@/components/shared/list-table-footer";
+import { ScanField } from "@/components/shared/scan-field";
 import { SelectField } from "@/components/shared/select-field";
 import { staffHasPermission, useStaff } from "@/features/auth/staff-shell";
 import {
@@ -22,14 +23,16 @@ import {
   formatGrams,
   inventoryAccessToken,
   inventoryErrorMessage,
+  scanLookupErrorMessage,
+  tagPrintHref,
 } from "@/features/inventory/inventory-shared";
 import {
   bulkDeleteArticlesRequest,
   deleteArticleRequest,
   fetchArticles,
   fetchCatalogueCategories,
+  fetchDevices,
   lookupArticle,
-  StaffApiError,
 } from "@/lib/staff-api";
 
 type TableSelection = "all" | Set<string | number>;
@@ -92,6 +95,7 @@ export function InventoryList() {
   const [search, setSearch] = useState("");
   const [scan, setScan] = useState("");
   const [scanError, setScanError] = useState<string | null>(null);
+  const [scannedThisSession, setScannedThisSession] = useState<Set<string>>(() => new Set());
   const [status, setStatus] = useState<"" | ArticleStatus>("");
   const [categoryId, setCategoryId] = useState("");
   const [purity, setPurity] = useState("");
@@ -124,6 +128,12 @@ export function InventoryList() {
   const categories = useQuery({
     queryKey: ["inventory", "categories", staff.membership.organization_id],
     queryFn: async () => fetchCatalogueCategories(await inventoryAccessToken()),
+    enabled: allowed,
+  });
+
+  const devices = useQuery({
+    queryKey: ["shop", "devices", staff.membership.organization_id],
+    queryFn: async () => fetchDevices(await inventoryAccessToken()),
     enabled: allowed,
   });
 
@@ -233,30 +243,18 @@ export function InventoryList() {
     setShowMoreFilters(false);
   }
 
-  function onScanEnter(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key !== "Enter") {
-      return;
-    }
-    event.preventDefault();
-    const barcode = scan.trim();
-    if (!barcode) {
-      return;
-    }
-    void lookupScannedArticle(barcode);
-  }
-
-  async function lookupScannedArticle(barcode: string) {
+  function lookupScannedArticle(barcode: string) {
     setScanError(null);
-    try {
-      const article = await lookupArticle(await inventoryAccessToken(), barcode);
-      router.push(`/inventory/${article.id}`);
-    } catch (error) {
-      if (error instanceof StaffApiError && error.status === 404) {
-        setScanError("No article matches that barcode. Try a manual search.");
-        return;
+    void (async () => {
+      try {
+        const article = await lookupArticle(await inventoryAccessToken(), barcode);
+        setScannedThisSession((current) => new Set(current).add(barcode));
+        setScan("");
+        router.push(`/inventory/${article.id}`);
+      } catch (error) {
+        setScanError(scanLookupErrorMessage(error));
       }
-      setScanError(inventoryErrorMessage(error));
-    }
+    })();
   }
 
   function onSearchEnter(event: KeyboardEvent<HTMLInputElement>) {
@@ -285,6 +283,15 @@ export function InventoryList() {
     setPendingDelete({ kind: "bulk", items: deletable, skipped });
   }
 
+  function openBatchPrint() {
+    if (selectedIds.length === 0) {
+      setActionError("Select at least one article to print tags.");
+      return;
+    }
+    setActionError(null);
+    router.push(tagPrintHref({ ids: selectedIds, kind: selectedIds.length === 1 ? "initial" : "batch" }));
+  }
+
   return (
     <section className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -308,16 +315,21 @@ export function InventoryList() {
 
       <div className="flex flex-col gap-3 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-5">
         <div className={`grid gap-3 ${catalogueEmpty ? "md:grid-cols-2" : "md:grid-cols-2 xl:grid-cols-4"}`}>
-          <Input
-            label="Scan barcode"
+          <ScanField
             value={scan}
-            placeholder="Barcode from the scanner"
-            hint="Press Enter after a scan."
-            tooltip="This field looks up an article. It does not finalize sales."
-            icon={Scan}
-            ref={scanRef}
+            terminator={devices.data?.scan_terminator ?? "Enter"}
+            expectedSuffix={devices.data?.expected_suffix ?? ""}
+            alreadyScanned={scannedThisSession}
+            inputRef={scanRef}
             onChange={setScan}
-            onKeyDown={onScanEnter}
+            onScan={lookupScannedArticle}
+            onDuplicate={(payload) => {
+              setScanError(`Already scanned in this session: ${payload}`);
+              setScan("");
+            }}
+            onUnexpectedSuffix={(raw) => {
+              setScanError(`Scanner suffix was unexpected. Raw scan: ${raw}`);
+            }}
           />
           <Input
             label="Search"
@@ -439,9 +451,14 @@ export function InventoryList() {
             badge={String(total)}
             contentTrailing={
               canWrite && selectedCount > 0 ? (
-                <Button color="secondary-destructive" size="sm" iconLeading={Trash01} onPress={openBulkDelete}>
-                  Delete selected ({selectedCount})
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button color="secondary" size="sm" onPress={openBatchPrint}>
+                    Print tags ({selectedCount})
+                  </Button>
+                  <Button color="secondary-destructive" size="sm" iconLeading={Trash01} onPress={openBulkDelete}>
+                    Delete selected ({selectedCount})
+                  </Button>
+                </div>
               ) : null
             }
           />

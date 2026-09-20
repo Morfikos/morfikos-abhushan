@@ -37,10 +37,14 @@ import {
   patchReminders,
   patchSequences,
   patchShopProfile,
+  removeShopLogoRequest,
   StaffApiError,
   suspendStaffRequest,
+  uploadShopLogoRequest,
 } from "@/lib/staff-api";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
+import { FileUpload, getReadableFileSize } from "@/components/application/file-upload/file-upload-base";
+import { SHOP_LOGO_MAX_BYTES } from "@aabhushan/domain";
 
 type SettingsTab = "profile" | "staff" | "rates" | "sequences" | "devices" | "reminders" | "audit";
 
@@ -148,6 +152,7 @@ function ProfilePanel() {
   });
   const [form, setForm] = useState<ShopProfile | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [logoError, setLogoError] = useState<string | null>(null);
 
   useEffect(() => {
     if (query.data) {
@@ -169,7 +174,36 @@ function ProfilePanel() {
     },
     onSuccess: (profile) => {
       queryClient.setQueryData(["shop", "profile"], profile);
+      queryClient.invalidateQueries({ queryKey: ["shop", "profile"] });
       setMessage("Shop profile saved.");
+    },
+  });
+
+  const logoUpload = useMutation({
+    mutationFn: async (file: File) => uploadShopLogoRequest(await accessToken(), file),
+    onSuccess: (profile) => {
+      setForm(profile);
+      queryClient.setQueryData(["shop", "profile"], profile);
+      queryClient.invalidateQueries({ queryKey: ["shop", "profile"] });
+      setLogoError(null);
+      setMessage("Shop logo updated.");
+    },
+    onError: (error) => {
+      setLogoError(errorMessage(error));
+    },
+  });
+
+  const logoRemove = useMutation({
+    mutationFn: async () => removeShopLogoRequest(await accessToken()),
+    onSuccess: (profile) => {
+      setForm(profile);
+      queryClient.setQueryData(["shop", "profile"], profile);
+      queryClient.invalidateQueries({ queryKey: ["shop", "profile"] });
+      setLogoError(null);
+      setMessage("Shop logo removed.");
+    },
+    onError: (error) => {
+      setLogoError(errorMessage(error));
     },
   });
 
@@ -178,29 +212,89 @@ function ProfilePanel() {
   }
 
   return (
-    <form
-      className="flex max-w-xl flex-col gap-4"
-      onSubmit={(event) => {
-        event.preventDefault();
-        setMessage(null);
-        mutation.mutate();
-      }}
-    >
-      <Input label="Legal name" value={form.legal_name} isRequired onChange={(value) => setForm({ ...form, legal_name: value })} />
-      <Input label="Address" value={form.address_line ?? ""} onChange={(value) => setForm({ ...form, address_line: value || null })} />
-      <Input label="Phone" value={form.phone ?? ""} onChange={(value) => setForm({ ...form, phone: value || null })} />
-      <TextArea
-        label="Invoice footer"
-        value={form.invoice_footer ?? ""}
-        onChange={(value) => setForm({ ...form, invoice_footer: value || null })}
-      />
-      <p className="text-sm text-tertiary">Time zone is {form.time_zone}. Branch: {form.branch.name}.</p>
-      {mutation.isError ? <p className="text-sm text-error-primary">{errorMessage(mutation.error)}</p> : null}
-      {message ? <p className="text-sm text-success-primary">{message}</p> : null}
-      <Button type="submit" color="primary" size="md" isLoading={mutation.isPending}>
-        Save profile
-      </Button>
-    </form>
+    <div className="flex max-w-xl flex-col gap-8">
+      <div className="flex flex-col gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-primary">Shop logo</h2>
+          <p className="mt-1 text-sm text-tertiary">
+            Square PNG, JPEG, or WebP (max. 1 MB). High contrast works best on small jewellery tags. Logo upload is
+            separate from saving the profile fields below.
+          </p>
+        </div>
+        {form.logo_url ? (
+          <div className="flex items-center gap-3">
+            <img
+              src={form.logo_url}
+              alt="Shop logo"
+              className="size-16 rounded-lg object-contain ring-1 ring-secondary"
+            />
+            <Button
+              color="secondary"
+              size="sm"
+              isLoading={logoRemove.isPending}
+              onPress={() => {
+                setMessage(null);
+                logoRemove.mutate();
+              }}
+            >
+              Remove logo
+            </Button>
+          </div>
+        ) : (
+          <p className="text-sm text-tertiary">No logo uploaded yet. Tags will print the shop name instead.</p>
+        )}
+        <FileUpload.Root>
+          <FileUpload.DropZone
+            className="py-4"
+            accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+            allowsMultiple={false}
+            maxSize={SHOP_LOGO_MAX_BYTES}
+            hint={`JPEG, PNG, or WebP (max. ${getReadableFileSize(SHOP_LOGO_MAX_BYTES)}).`}
+            onDropFiles={(files) => {
+              const file = files[0];
+              if (!file) {
+                return;
+              }
+              setMessage(null);
+              setLogoError(null);
+              logoUpload.mutate(file);
+            }}
+            onDropUnacceptedFiles={() => {
+              setLogoError("Use JPEG, PNG, or WebP.");
+            }}
+            onSizeLimitExceed={() => {
+              setLogoError("Logo is too large. Maximum size is 1 MB.");
+            }}
+          />
+        </FileUpload.Root>
+        {logoUpload.isPending ? <p className="text-sm text-tertiary">Uploading logo…</p> : null}
+        {logoError ? <p className="text-sm text-error-primary">{logoError}</p> : null}
+      </div>
+
+      <form
+        className="flex flex-col gap-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          setMessage(null);
+          mutation.mutate();
+        }}
+      >
+        <Input label="Legal name" value={form.legal_name} isRequired onChange={(value) => setForm({ ...form, legal_name: value })} />
+        <Input label="Address" value={form.address_line ?? ""} onChange={(value) => setForm({ ...form, address_line: value || null })} />
+        <Input label="Phone" value={form.phone ?? ""} onChange={(value) => setForm({ ...form, phone: value || null })} />
+        <TextArea
+          label="Invoice footer"
+          value={form.invoice_footer ?? ""}
+          onChange={(value) => setForm({ ...form, invoice_footer: value || null })}
+        />
+        <p className="text-sm text-tertiary">Time zone is {form.time_zone}. Branch: {form.branch.name}.</p>
+        {mutation.isError ? <p className="text-sm text-error-primary">{errorMessage(mutation.error)}</p> : null}
+        {message ? <p className="text-sm text-success-primary">{message}</p> : null}
+        <Button type="submit" color="primary" size="md" isLoading={mutation.isPending}>
+          Save profile
+        </Button>
+      </form>
+    </div>
   );
 }
 
@@ -589,7 +683,9 @@ function DevicesPanel() {
         ]}
       />
       <p className="text-sm text-tertiary">
-        Printer and scanner values are unvalidated placeholders until hardware checks in a later unit.
+        Printer not confirmed. These millimetre and scanner values stay unverified until a physical drill
+        succeeds. A preview is not hardware acceptance. Short tags (under about 16 mm height) drop the logo and
+        print the shop name instead so the barcode stays tall enough to scan.
       </p>
       {mutation.isError ? <p className="text-sm text-error-primary">{errorMessage(mutation.error)}</p> : null}
       {message ? <p className="text-sm text-success-primary">{message}</p> : null}

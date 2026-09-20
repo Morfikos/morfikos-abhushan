@@ -82,8 +82,15 @@ export const apiVersionDocument = {
       },
     },
     "/shop/profile": {
-      get: { summary: "Shop legal profile and active branch" },
+      get: { summary: "Shop legal profile and active branch; logo_url is short-lived when present" },
       patch: { summary: "Update shop profile", security: [{ bearerAuth: [] }] },
+    },
+    "/shop/logo": {
+      post: { summary: "Upload or replace the shop logo (multipart image)" },
+      delete: { summary: "Remove the shop logo" },
+    },
+    "/public/shop-branding": {
+      get: { summary: "Public shop name and optional logo URL for auth chrome" },
     },
     "/shop/rates": {
       get: { summary: "Paginated metal rates" },
@@ -124,7 +131,19 @@ export const apiVersionDocument = {
       post: { summary: "Receive an article and write a receipt movement" },
     },
     "/articles/lookup": {
-      get: { summary: "Lookup by barcode; sellable is true only for available stock" },
+      get: { summary: "Lookup by barcode; unknown, unavailable, and sold POS add fail explicitly" },
+    },
+    "/articles/barcodes/batch": {
+      post: { summary: "Assign missing Code 128 barcodes only; existing identifiers are kept" },
+    },
+    "/articles/{id}/barcode": {
+      post: { summary: "Idempotent assign of a permanent Code 128 barcode" },
+    },
+    "/articles/{id}/tag-preview": {
+      get: { summary: "Tag print DTO with inline Code 128 SVG; not a public image URL" },
+    },
+    "/articles/{id}/tag-prints": {
+      post: { summary: "Record a physical tag print or reprint; reprint requires a reason" },
     },
     "/articles/bulk-delete": {
       post: { summary: "Hard-delete mistaken receipt articles; skips ineligible ids" },
@@ -202,6 +221,7 @@ export {
   scanTerminatorSchema,
   shopProfilePatchSchema,
   shopProfileSchema,
+  shopBrandingPublicSchema,
 } from "./shop";
 export type {
   DeviceSettings,
@@ -219,6 +239,7 @@ export type {
   ReminderSettings,
   ReminderSettingsPatch,
   ScanTerminator,
+  ShopBrandingPublic,
   ShopProfile,
   ShopProfilePatch,
 } from "./shop";
@@ -227,6 +248,8 @@ export {
   ARTICLE_SORT_FIELDS,
   articleAdjustmentSchema,
   articleBulkDeleteResultSchema,
+  articleBarcodeBatchResultSchema,
+  articleBarcodeBatchSchema,
   articleBulkDeleteSchema,
   articleCreateSchema,
   articleFileSchema,
@@ -247,12 +270,18 @@ export {
   stockCountCreateSchema,
   stockCountSchema,
   storageLocationCreateSchema,
+  tagPreviewSchema,
+  tagPrintCreateSchema,
+  tagPrintEventSchema,
+  tagPrintKindSchema,
   storageLocationListSchema,
   storageLocationSchema,
 } from "./inventory";
 export type {
   Article,
   ArticleAdjustment,
+  ArticleBarcodeBatch,
+  ArticleBarcodeBatchResult,
   ArticleBulkDelete,
   ArticleBulkDeleteResult,
   ArticleCreate,
@@ -274,4 +303,8 @@ export type {
   StorageLocation,
   StorageLocationCreate,
   StorageLocationList,
+  TagPreview,
+  TagPrintCreate,
+  TagPrintEvent,
+  TagPrintKind,
 } from "./inventory";

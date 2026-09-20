@@ -7,13 +7,19 @@ import type {
   MetalRateCreate,
   ReminderSettings,
   ReminderSettingsPatch,
+  ShopBrandingPublic,
   ShopProfile,
   ShopProfilePatch,
 } from "@aabhushan/contracts";
-import { kolkataBusinessDate } from "@aabhushan/domain";
+import {
+  detectShopLogoContentType,
+  kolkataBusinessDate,
+  SHOP_LOGO_MAX_BYTES,
+  type ShopLogoContentType,
+} from "@aabhushan/domain";
 
-import { assertPermission } from "./authorize";
-import { conflictError, validationError } from "./http-error";
+import { assertAnyPermission, assertPermission } from "./authorize";
+import { configurationError, conflictError, validationError } from "./http-error";
 import type { ResolvedStaffAccess } from "./staff-access";
 
 export type PaginationInput = {
@@ -36,9 +42,49 @@ export type AuditWrite = {
   payload?: Record<string, unknown>;
 };
 
+export type ShopAssetStorage = {
+  uploadLogo(input: {
+    organizationId: string;
+    bytes: Buffer;
+    contentType: ShopLogoContentType;
+    previousObjectKey: string | null;
+  }): Promise<{ objectKey: string; checksumSha256: string; byteSize: number; contentType: ShopLogoContentType }>;
+  removeObject(objectKey: string): Promise<void>;
+  createSignedUrl(objectKey: string, expiresInSeconds?: number): Promise<string>;
+  downloadAsDataUri(objectKey: string, contentType: ShopLogoContentType): Promise<string | null>;
+};
+
+/** Persistence shape; object keys never leave the server on client DTOs. */
+export type ShopProfileRecord = {
+  id: string;
+  organization_id: string;
+  legal_name: string;
+  address_line: string | null;
+  phone: string | null;
+  invoice_footer: string | null;
+  logo_object_key: string | null;
+  logo_content_type: ShopLogoContentType | null;
+  logo_byte_size: number | null;
+  logo_checksum_sha256: string | null;
+  time_zone: "Asia/Kolkata";
+  branch: {
+    id: string;
+    name: string;
+    address_line: string | null;
+    is_active: boolean;
+  };
+};
+
 export type ShopSettingsRepository = {
-  getProfile(): Promise<ShopProfile>;
-  updateProfile(patch: ShopProfilePatch): Promise<ShopProfile>;
+  getProfile(): Promise<ShopProfileRecord>;
+  updateProfile(patch: ShopProfilePatch): Promise<ShopProfileRecord>;
+  updateLogo(input: {
+    objectKey: string;
+    contentType: ShopLogoContentType;
+    byteSize: number;
+    checksumSha256: string;
+  }): Promise<ShopProfileRecord>;
+  clearLogo(): Promise<ShopProfileRecord>;
   listRates(input: PaginationInput): Promise<PaginatedRows<MetalRate>>;
   insertRate(input: {
     metal: MetalRateCreate["metal"];
@@ -56,25 +102,155 @@ export type ShopSettingsRepository = {
   writeAudit(event: AuditWrite & { actorStaffUserId: string | null }): Promise<void>;
 };
 
-export async function getShopProfile(repository: ShopSettingsRepository): Promise<ShopProfile> {
-  return repository.getProfile();
+export async function toShopProfileDto(
+  record: ShopProfileRecord,
+  storage: ShopAssetStorage | null,
+): Promise<ShopProfile> {
+  let logoUrl: string | null = null;
+  if (record.logo_object_key && storage) {
+    try {
+      logoUrl = await storage.createSignedUrl(record.logo_object_key);
+    } catch {
+      logoUrl = null;
+    }
+  }
+  return {
+    id: record.id,
+    organization_id: record.organization_id,
+    legal_name: record.legal_name,
+    address_line: record.address_line,
+    phone: record.phone,
+    invoice_footer: record.invoice_footer,
+    logo_url: logoUrl,
+    has_logo: Boolean(record.logo_object_key),
+    time_zone: "Asia/Kolkata",
+    branch: record.branch,
+  };
+}
+
+export async function getShopProfile(
+  repository: ShopSettingsRepository,
+  storage: ShopAssetStorage | null,
+): Promise<ShopProfile> {
+  return toShopProfileDto(await repository.getProfile(), storage);
+}
+
+export async function getPublicShopBranding(
+  repository: ShopSettingsRepository,
+  storage: ShopAssetStorage | null,
+): Promise<ShopBrandingPublic> {
+  const profile = await toShopProfileDto(await repository.getProfile(), storage);
+  return {
+    legal_name: profile.legal_name,
+    logo_url: profile.logo_url,
+  };
 }
 
 export async function updateShopProfile(
   repository: ShopSettingsRepository,
   access: ResolvedStaffAccess,
   patch: ShopProfilePatch,
+  storage: ShopAssetStorage | null,
 ): Promise<ShopProfile> {
   assertPermission(access, "settings.write");
-  const profile = await repository.updateProfile(patch);
+  const record = await repository.updateProfile(patch);
   await repository.writeAudit({
     actorStaffUserId: access.staff_user_id,
     action: "shop.profile.update",
     entityType: "shop_profile",
-    entityId: profile.id,
+    entityId: record.id,
     payload: patch,
   });
-  return profile;
+  return toShopProfileDto(record, storage);
+}
+
+export async function uploadShopLogo(
+  repository: ShopSettingsRepository,
+  access: ResolvedStaffAccess,
+  storage: ShopAssetStorage | null,
+  input: { bytes: Buffer; declaredContentType: string },
+): Promise<ShopProfile> {
+  assertPermission(access, "settings.write");
+  if (!storage) {
+    throw configurationError(
+      "Shop logo storage is not configured. Set SUPABASE_SECRET_KEY and create the shop-assets bucket.",
+    );
+  }
+  if (input.bytes.length === 0 || input.bytes.length > SHOP_LOGO_MAX_BYTES) {
+    throw validationError("Shop logo must be between 1 byte and 1 MB.", [
+      { field: "file", message: "Maximum size is 1 MB." },
+    ]);
+  }
+  const detected = detectShopLogoContentType(input.bytes);
+  if (!detected) {
+    throw validationError("Shop logo must be a JPEG, PNG, or WebP image.", [
+      { field: "file", message: "Unrecognized image bytes." },
+    ]);
+  }
+  if (
+    input.declaredContentType &&
+    input.declaredContentType !== detected &&
+    !(input.declaredContentType === "image/jpg" && detected === "image/jpeg")
+  ) {
+    throw validationError("Declared content type does not match the image bytes.", [
+      { field: "file", message: `Expected ${detected}.` },
+    ]);
+  }
+
+  const current = await repository.getProfile();
+  const uploaded = await storage.uploadLogo({
+    organizationId: access.membership.organization_id,
+    bytes: input.bytes,
+    contentType: detected,
+    previousObjectKey: current.logo_object_key,
+  });
+  const record = await repository.updateLogo({
+    objectKey: uploaded.objectKey,
+    contentType: uploaded.contentType,
+    byteSize: uploaded.byteSize,
+    checksumSha256: uploaded.checksumSha256,
+  });
+  await repository.writeAudit({
+    actorStaffUserId: access.staff_user_id,
+    action: "shop.logo.upload",
+    entityType: "shop_profile",
+    entityId: record.id,
+    payload: {
+      content_type: uploaded.contentType,
+      byte_size: uploaded.byteSize,
+      checksum_sha256: uploaded.checksumSha256,
+    },
+  });
+  return toShopProfileDto(record, storage);
+}
+
+export async function removeShopLogo(
+  repository: ShopSettingsRepository,
+  access: ResolvedStaffAccess,
+  storage: ShopAssetStorage | null,
+): Promise<ShopProfile> {
+  assertPermission(access, "settings.write");
+  const current = await repository.getProfile();
+  if (!current.logo_object_key) {
+    return toShopProfileDto(current, storage);
+  }
+  const previousKey = current.logo_object_key;
+  const record = await repository.clearLogo();
+  if (storage) {
+    try {
+      await storage.removeObject(previousKey);
+    } catch {
+      // Metadata already cleared; orphan cleanup can follow later.
+    }
+  }
+  await repository.writeAudit({
+    actorStaffUserId: access.staff_user_id,
+    action: "shop.logo.remove",
+    entityType: "shop_profile",
+    entityId: record.id,
+    payload: {},
+  });
+  return toShopProfileDto(record, storage);
 }
 
 export async function listMetalRates(
@@ -162,7 +338,7 @@ export async function getDeviceSettings(
   repository: ShopSettingsRepository,
   access: ResolvedStaffAccess,
 ): Promise<DeviceSettings> {
-  assertPermission(access, "settings.write");
+  assertAnyPermission(access, ["settings.write", "inventory.read", "billing.write"]);
   return repository.getDevices();
 }
 

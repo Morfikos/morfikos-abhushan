@@ -25,3 +25,18 @@ export {
   netMetalWeightMatches,
 } from "./article-inventory";
 export type { ArticleStatus, InventoryMovementType } from "./article-inventory";
+export {
+  TAG_BARCODE_MIN_HEIGHT_MM,
+  TAG_FOOTER_HEIGHT_MM,
+  TAG_HEADER_HEIGHT_MM,
+  TAG_INSET_MM,
+  TAG_LOGO_MAX_MM,
+  TAG_TEMPLATE_VERSION,
+  articleBarcodePayload,
+  isCode128SafePayload,
+  tagBarcodeHeightMm,
+  tagCanShowLogo,
+  tagUsableHeightMm,
+} from "./article-barcode";
+export { SHOP_LOGO_MAX_BYTES, detectShopLogoContentType } from "./shop-logo";
+export type { ShopLogoContentType } from "./shop-logo";

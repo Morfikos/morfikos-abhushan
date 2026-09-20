@@ -12,6 +12,7 @@ export type ConfirmDialogProps = {
   title: string;
   message: ReactNode;
   confirmLabel?: string;
+  confirmColor?: "primary" | "primary-destructive";
   cancelLabel?: string;
   isConfirming?: boolean;
   onConfirm: () => void;
@@ -24,6 +25,7 @@ export function ConfirmDialog({
   title,
   message,
   confirmLabel = "Delete",
+  confirmColor = "primary-destructive",
   cancelLabel = "Cancel",
   isConfirming = false,
   onConfirm,
@@ -64,7 +66,7 @@ export function ConfirmDialog({
                 {cancelLabel}
               </Button>
               <Button
-                color="primary-destructive"
+                color={confirmColor}
                 size="md"
                 isLoading={isConfirming}
                 isDisabled={isConfirming}

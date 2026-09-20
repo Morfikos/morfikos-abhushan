@@ -11,6 +11,12 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "build": "tsc -p tsconfig.json"
   },
+  "dependencies": {
+    "@aabhushan/application": "workspace:*",
+    "@aabhushan/domain": "workspace:*",
+    "@supabase/supabase-js": "^2.116.0",
+    "bwip-js": "^4.8.0"
+  },
   "devDependencies": {
     "typescript": "^5.9.2"
   }

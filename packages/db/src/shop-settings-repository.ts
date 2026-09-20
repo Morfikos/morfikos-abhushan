@@ -8,10 +8,15 @@ import type {
   MetalRate,
   ReminderSettings,
   ReminderSettingsPatch,
-  ShopProfile,
   ShopProfilePatch,
 } from "@aabhushan/contracts";
-import type { PaginationInput, PaginatedRows, ShopSettingsRepository } from "@aabhushan/application";
+import type {
+  PaginationInput,
+  PaginatedRows,
+  ShopProfileRecord,
+  ShopSettingsRepository,
+} from "@aabhushan/application";
+import type { ShopLogoContentType } from "@aabhushan/domain";
 
 import { asBusinessDate, asDecimalString, asIsoDateTime, asLocalTime } from "./pg-values";
 
@@ -36,6 +41,9 @@ type ProfileRow = {
   phone: string | null;
   invoice_footer: string | null;
   logo_object_key: string | null;
+  logo_content_type: string | null;
+  logo_byte_size: number | null;
+  logo_checksum_sha256: string | null;
   time_zone: string;
   branch_id: string;
   branch_name: string;
@@ -87,7 +95,14 @@ type AuditRow = {
   created_at: Date;
 };
 
-function mapProfile(row: ProfileRow): ShopProfile {
+function asLogoContentType(value: string | null): ShopLogoContentType | null {
+  if (value === "image/jpeg" || value === "image/png" || value === "image/webp") {
+    return value;
+  }
+  return null;
+}
+
+function mapProfile(row: ProfileRow): ShopProfileRecord {
   return {
     id: row.id,
     organization_id: row.organization_id,
@@ -96,6 +111,9 @@ function mapProfile(row: ProfileRow): ShopProfile {
     phone: row.phone,
     invoice_footer: row.invoice_footer,
     logo_object_key: row.logo_object_key,
+    logo_content_type: asLogoContentType(row.logo_content_type),
+    logo_byte_size: row.logo_byte_size,
+    logo_checksum_sha256: row.logo_checksum_sha256,
     time_zone: "Asia/Kolkata",
     branch: {
       id: row.branch_id,
@@ -178,6 +196,9 @@ SELECT
   p.phone,
   p.invoice_footer,
   p.logo_object_key,
+  p.logo_content_type,
+  p.logo_byte_size,
+  p.logo_checksum_sha256,
   o.time_zone,
   b.id AS branch_id,
   b.name AS branch_name,
@@ -193,7 +214,7 @@ export function createShopSettingsRepository(client: PoolClient, organizationId:
   listAudit(input: PaginationInput): Promise<PaginatedRows<AuditEvent>>;
 } {
   return {
-    async getProfile(): Promise<ShopProfile> {
+    async getProfile(): Promise<ShopProfileRecord> {
       const result = await client.query<ProfileRow>(profileSql);
       const row = result.rows[0];
       if (!row) {
@@ -202,7 +223,7 @@ export function createShopSettingsRepository(client: PoolClient, organizationId:
       return mapProfile(row);
     },
 
-    async updateProfile(patch: ShopProfilePatch): Promise<ShopProfile> {
+    async updateProfile(patch: ShopProfilePatch): Promise<ShopProfileRecord> {
       await client.query(
         `
         UPDATE app.shop_profiles
@@ -224,6 +245,40 @@ export function createShopSettingsRepository(client: PoolClient, organizationId:
           patch.invoice_footer !== undefined,
           patch.invoice_footer ?? null,
         ],
+      );
+      return this.getProfile();
+    },
+
+    async updateLogo(input) {
+      await client.query(
+        `
+        UPDATE app.shop_profiles
+        SET
+          logo_object_key = $2,
+          logo_content_type = $3,
+          logo_byte_size = $4,
+          logo_checksum_sha256 = $5,
+          updated_at = timezone('utc', now())
+        WHERE organization_id = $1
+        `,
+        [organizationId, input.objectKey, input.contentType, input.byteSize, input.checksumSha256],
+      );
+      return this.getProfile();
+    },
+
+    async clearLogo() {
+      await client.query(
+        `
+        UPDATE app.shop_profiles
+        SET
+          logo_object_key = NULL,
+          logo_content_type = NULL,
+          logo_byte_size = NULL,
+          logo_checksum_sha256 = NULL,
+          updated_at = timezone('utc', now())
+        WHERE organization_id = $1
+        `,
+        [organizationId],
       );
       return this.getProfile();
     },

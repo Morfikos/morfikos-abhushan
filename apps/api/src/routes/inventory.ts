@@ -3,23 +3,28 @@ import type { Pool } from "@aabhushan/db";
 
 import {
   adjustArticle,
+  assignArticleBarcode,
+  assignArticleBarcodesBatch,
   bulkDeleteArticles,
   createCatalogueCategory,
   createStockCount,
   createStorageLocation,
   deleteArticle,
   getArticle,
+  getArticleTagPreview,
   listArticleMovements,
   listArticles,
   listCatalogueCategories,
   listStorageLocations,
   lookupArticleByBarcode,
   receiveArticle,
+  recordArticleTagPrint,
   releaseArticleFromInspection,
   updateArticle,
 } from "@aabhushan/application";
 import {
   articleAdjustmentSchema,
+  articleBarcodeBatchSchema,
   articleBulkDeleteSchema,
   articleCreateSchema,
   articleInspectionReleaseSchema,
@@ -29,8 +34,11 @@ import {
   catalogueCategoryCreateSchema,
   stockCountCreateSchema,
   storageLocationCreateSchema,
+  tagPrintCreateSchema,
 } from "@aabhushan/contracts";
 import { createInventoryRepository, withOrganizationContext } from "@aabhushan/db";
+import { renderCode128Svg } from "@aabhushan/integrations";
+import type { ShopAssetStorage } from "@aabhushan/application";
 
 import type { StaffRequest } from "../auth/require-staff-access";
 import { parseBody, parsePathUuid, parseQuery, sendHandlerError } from "../http/errors";
@@ -61,6 +69,7 @@ export function registerInventoryRoutes(
   app: Express,
   pool: Pool,
   requireStaff: (req: Request, res: Response, next: NextFunction) => void,
+  storage: ShopAssetStorage | null,
 ): void {
   app.get(
     "/api/v1/catalogue-categories",
@@ -109,6 +118,18 @@ export function registerInventoryRoutes(
         lookupArticleByBarcode(repo, req.staffAccess, query.barcode, query.for_sale === "true"),
       );
       res.status(200).json(article);
+    }),
+  );
+
+  app.post(
+    "/api/v1/articles/barcodes/batch",
+    requireStaff,
+    handle(async (req, res) => {
+      const body = parseBody(articleBarcodeBatchSchema, req.body);
+      const items = await withInventoryRepo(pool, req, (repo) =>
+        assignArticleBarcodesBatch(repo, req.staffAccess, body.ids),
+      );
+      res.status(200).json({ items });
     }),
   );
 
@@ -195,6 +216,52 @@ export function registerInventoryRoutes(
         releaseArticleFromInspection(repo, req.staffAccess, articleId, body),
       );
       res.status(200).json(article);
+    }),
+  );
+
+  app.post(
+    "/api/v1/articles/:id/barcode",
+    requireStaff,
+    handle(async (req, res) => {
+      const articleId = parsePathUuid(req.params.id, "id");
+      const article = await withInventoryRepo(pool, req, (repo) => assignArticleBarcode(repo, req.staffAccess, articleId));
+      res.status(200).json(article);
+    }),
+  );
+
+  app.get(
+    "/api/v1/articles/:id/tag-preview",
+    requireStaff,
+    handle(async (req, res) => {
+      const articleId = parsePathUuid(req.params.id, "id");
+      const preview = await withInventoryRepo(pool, req, (repo) =>
+        getArticleTagPreview(
+          repo,
+          req.staffAccess,
+          articleId,
+          renderCode128Svg,
+          async (objectKey, contentType) => {
+            if (!storage) {
+              return null;
+            }
+            return storage.downloadAsDataUri(objectKey, contentType);
+          },
+        ),
+      );
+      res.status(200).json(preview);
+    }),
+  );
+
+  app.post(
+    "/api/v1/articles/:id/tag-prints",
+    requireStaff,
+    handle(async (req, res) => {
+      const articleId = parsePathUuid(req.params.id, "id");
+      const body = parseBody(tagPrintCreateSchema, req.body);
+      const event = await withInventoryRepo(pool, req, (repo) =>
+        recordArticleTagPrint(repo, req.staffAccess, articleId, body),
+      );
+      res.status(201).json(event);
     }),
   );
 

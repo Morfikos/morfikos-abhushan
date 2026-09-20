@@ -13,6 +13,7 @@ import type {
   Metal,
   StockCount,
   StorageLocation,
+  TagPrintEvent,
 } from "@aabhushan/contracts";
 import type { ArticleListFilters, InventoryRepository } from "@aabhushan/application";
 
@@ -755,6 +756,129 @@ export function createInventoryRepository(
       } satisfies StockCount;
     },
 
+    async assignBarcodeIfMissing(articleId, payload) {
+      const locked = await client.query<{ id: string }>(
+        `
+        SELECT id
+        FROM app.articles
+        WHERE organization_id = $1 AND id = $2
+        FOR UPDATE
+        `,
+        [organizationId, articleId],
+      );
+      if (!locked.rows[0]) {
+        return null;
+      }
+      const assigned = await client.query<{ id: string }>(
+        `
+        UPDATE app.articles
+        SET barcode = $3, updated_at = timezone('utc', now())
+        WHERE organization_id = $1 AND id = $2 AND barcode IS NULL
+        RETURNING id
+        `,
+        [organizationId, articleId, payload],
+      );
+      const article = await loadArticle(articleId);
+      if (!article) {
+        return null;
+      }
+      return { article, assigned: Boolean(assigned.rows[0]) };
+    },
+
+    async getDeviceTagLayout() {
+      const result = await client.query<{ tag_width_mm: string; tag_height_mm: string }>(
+        `
+        SELECT tag_width_mm::text, tag_height_mm::text
+        FROM app.device_settings
+        WHERE organization_id = $1
+        `,
+        [organizationId],
+      );
+      const row = result.rows[0];
+      if (!row) {
+        return null;
+      }
+      return {
+        tagWidthMm: asDecimalString(row.tag_width_mm),
+        tagHeightMm: asDecimalString(row.tag_height_mm),
+      };
+    },
+
+    async getShopTagBranding() {
+      const result = await client.query<{
+        legal_name: string;
+        logo_object_key: string | null;
+        logo_content_type: string | null;
+      }>(
+        `
+        SELECT legal_name, logo_object_key, logo_content_type
+        FROM app.shop_profiles
+        WHERE organization_id = $1
+        LIMIT 1
+        `,
+        [organizationId],
+      );
+      const row = result.rows[0];
+      if (!row) {
+        return null;
+      }
+      const logoContentType =
+        row.logo_content_type === "image/jpeg" ||
+        row.logo_content_type === "image/png" ||
+        row.logo_content_type === "image/webp"
+          ? row.logo_content_type
+          : null;
+      return {
+        legalName: row.legal_name,
+        logoObjectKey: row.logo_object_key,
+        logoContentType,
+      };
+    },
+
+    async insertTagPrintEvent(input) {
+      const result = await client.query<{
+        id: string;
+        article_id: string;
+        barcode: string;
+        print_kind: string;
+        reason: string | null;
+        template_version: string;
+        actor_staff_user_id: string;
+        created_at: Date;
+      }>(
+        `
+        INSERT INTO app.tag_print_events (
+          organization_id, article_id, barcode, print_kind, reason, template_version, actor_staff_user_id
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING id, article_id, barcode, print_kind, reason, template_version, actor_staff_user_id, created_at
+        `,
+        [
+          organizationId,
+          input.articleId,
+          input.barcode,
+          input.printKind,
+          input.reason,
+          input.templateVersion,
+          input.actorStaffUserId,
+        ],
+      );
+      const row = result.rows[0];
+      if (!row) {
+        throw new Error("Tag print insert returned no row.");
+      }
+      return {
+        id: row.id,
+        article_id: row.article_id,
+        barcode: row.barcode,
+        print_kind: row.print_kind === "reprint" || row.print_kind === "batch" ? row.print_kind : "initial",
+        reason: row.reason,
+        template_version: row.template_version,
+        actor_staff_user_id: row.actor_staff_user_id,
+        created_at: asIsoDateTime(row.created_at),
+      } satisfies TagPrintEvent;
+    },
+
     async writeAudit(event) {
       await client.query(
         `
@@ -822,6 +946,10 @@ export function createInventoryRepository(
     },
 
     async deleteMistakenReceiptArticle(articleId) {
+      await client.query(`DELETE FROM app.tag_print_events WHERE organization_id = $1 AND article_id = $2`, [
+        organizationId,
+        articleId,
+      ]);
       await client.query(`DELETE FROM app.article_stones WHERE organization_id = $1 AND article_id = $2`, [
         organizationId,
         articleId,
