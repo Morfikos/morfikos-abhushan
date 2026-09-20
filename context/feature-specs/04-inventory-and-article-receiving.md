@@ -49,9 +49,11 @@ This unit records saleable inventory only. Customer-owned Girvi collateral is a 
 ### Receive an article
 
 1. Inventory staff open Inventory → Receive article (full page form, not a premium modal).
-2. They enter category, metal, purity, weights, source, location, optional HUID, optional cost, and photo.
-3. The backend validates weights and uniqueness, writes the article and a `receipt` movement, and returns the new record.
-4. Staff may continue to tag printing in spec 05.
+2. They enter category, metal, purity, and weights (and optional source/location/photo).
+3. The API creates an `available` article with a `receipt` movement and allocates the next article number.
+4. Barcode assignment is a separate step (spec 05).
+
+Billing staff may also create the same kind of minimal `available`+`receipt` article from POS via **Receive & add** (`POST /invoices/drafts/:id/quick-articles` under `billing.write`) when selling a piece that was not received yet. That path does not replace full Inventory receive and does not assign a barcode in the same request.
 
 ### Search and inspect
 
@@ -157,6 +159,7 @@ Indexes: `(organization_id, barcode)`, `(organization_id, article_number)`, `(or
 | `GET` | `/api/v1/articles/:id` | `inventory.read` |
 | `GET` | `/api/v1/articles/lookup?barcode=` | `inventory.read` or billing read |
 | `POST` | `/api/v1/articles` | `inventory.write` |
+| `POST` | `/api/v1/invoices/drafts/:id/quick-articles` | `billing.write` — POS minimal receive into draft (same `available`+`receipt` article; see spec 08) |
 | `PATCH` | `/api/v1/articles/:id` | `inventory.write` |
 | `DELETE` | `/api/v1/articles/:id` | `inventory.write` — mistaken receipts only |
 | `POST` | `/api/v1/articles/bulk-delete` | `inventory.write` — mistaken receipts only; returns deleted and skipped |

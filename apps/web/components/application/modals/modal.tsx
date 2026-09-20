@@ -9,6 +9,9 @@ export const DialogTrigger = AriaDialogTrigger;
 export const ModalOverlay = (props: AriaModalOverlayProps) => {
     return (
         <AriaModalOverlay
+            // RAC defaults isDismissable to false; staff modals dismiss on backdrop/Escape.
+            // Spread props after so callers can force false while a mutation is pending.
+            isDismissable
             {...props}
             className={(state) =>
                 cx(

@@ -30,6 +30,7 @@ type CustomerRow = {
   address_line: string | null;
   notes: string | null;
   is_active: boolean;
+  is_walk_in: boolean;
   whatsapp_consent: string | null;
   created_at: Date;
   updated_at: Date;
@@ -105,6 +106,7 @@ function mapListItem(row: CustomerRow): CustomerListItem {
     phone_display: row.phone_display,
     email: row.email,
     is_active: row.is_active,
+    is_walk_in: row.is_walk_in,
     whatsapp_consent: asWhatsAppConsent(row.whatsapp_consent),
     created_at: asIsoDateTime(row.created_at),
   };
@@ -137,6 +139,7 @@ SELECT
   c.address_line,
   c.notes,
   c.is_active,
+  c.is_walk_in,
   c.created_at,
   c.updated_at,
   (
@@ -189,36 +192,103 @@ export function createCustomerRepository(client: PoolClient, organizationId: str
       const direction = input.direction === "asc" ? "ASC" : "DESC";
       const offset = (input.page - 1) * input.pageSize;
       const q = input.q?.trim() ? likePattern(input.q.trim()) : null;
+      const isWalkIn = input.isWalkIn;
+      const isActive = input.isActive;
+      const whatsappConsent = input.whatsappConsent ?? null;
       const list = await client.query<CustomerRow>(
         `
         ${customerSelect}
         WHERE c.organization_id = $1
-          AND c.is_active = $2
+          AND ($2::boolean IS NULL OR c.is_active = $2)
+          AND ($6::boolean IS NULL OR c.is_walk_in = $6)
           AND (
             $3::text IS NULL
             OR c.display_name ILIKE $3 ESCAPE '\\'
             OR COALESCE(c.phone_display, '') ILIKE $3 ESCAPE '\\'
             OR COALESCE(c.phone_normalized, '') ILIKE $3 ESCAPE '\\'
           )
+          AND (
+            $7::text IS NULL
+            OR (
+              $7 = 'none'
+              AND (
+                SELECT CASE
+                  WHEN bool_or(cc.status = 'granted') THEN 'granted'
+                  WHEN bool_or(cc.status = 'revoked') THEN 'revoked'
+                  ELSE NULL
+                END
+                FROM app.customer_consents cc
+                WHERE cc.organization_id = c.organization_id
+                  AND cc.customer_id = c.id
+                  AND cc.channel = 'whatsapp'
+              ) IS NULL
+            )
+            OR (
+              $7 IN ('granted', 'revoked')
+              AND (
+                SELECT CASE
+                  WHEN bool_or(cc.status = 'granted') THEN 'granted'
+                  WHEN bool_or(cc.status = 'revoked') THEN 'revoked'
+                  ELSE NULL
+                END
+                FROM app.customer_consents cc
+                WHERE cc.organization_id = c.organization_id
+                  AND cc.customer_id = c.id
+                  AND cc.channel = 'whatsapp'
+              ) = $7
+            )
+          )
         ORDER BY ${sort} ${direction} NULLS LAST, c.id ASC
         LIMIT $4 OFFSET $5
         `,
-        [organizationId, input.isActive, q, input.pageSize, offset],
+        [organizationId, isActive ?? null, q, input.pageSize, offset, isWalkIn ?? null, whatsappConsent],
       );
       const count = await client.query<{ total: string }>(
         `
         SELECT count(*)::text AS total
         FROM app.customers c
         WHERE c.organization_id = $1
-          AND c.is_active = $2
+          AND ($2::boolean IS NULL OR c.is_active = $2)
+          AND ($4::boolean IS NULL OR c.is_walk_in = $4)
           AND (
             $3::text IS NULL
             OR c.display_name ILIKE $3 ESCAPE '\\'
             OR COALESCE(c.phone_display, '') ILIKE $3 ESCAPE '\\'
             OR COALESCE(c.phone_normalized, '') ILIKE $3 ESCAPE '\\'
           )
+          AND (
+            $5::text IS NULL
+            OR (
+              $5 = 'none'
+              AND (
+                SELECT CASE
+                  WHEN bool_or(cc.status = 'granted') THEN 'granted'
+                  WHEN bool_or(cc.status = 'revoked') THEN 'revoked'
+                  ELSE NULL
+                END
+                FROM app.customer_consents cc
+                WHERE cc.organization_id = c.organization_id
+                  AND cc.customer_id = c.id
+                  AND cc.channel = 'whatsapp'
+              ) IS NULL
+            )
+            OR (
+              $5 IN ('granted', 'revoked')
+              AND (
+                SELECT CASE
+                  WHEN bool_or(cc.status = 'granted') THEN 'granted'
+                  WHEN bool_or(cc.status = 'revoked') THEN 'revoked'
+                  ELSE NULL
+                END
+                FROM app.customer_consents cc
+                WHERE cc.organization_id = c.organization_id
+                  AND cc.customer_id = c.id
+                  AND cc.channel = 'whatsapp'
+              ) = $5
+            )
+          )
         `,
-        [organizationId, input.isActive, q],
+        [organizationId, isActive ?? null, q, isWalkIn ?? null, whatsappConsent],
       );
       return {
         items: list.rows.map(mapListItem),

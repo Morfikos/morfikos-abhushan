@@ -1,0 +1,81 @@
+{
+  "id": "04-round-off-half-up-igst",
+  "policyVersion": "invoice.v1",
+  "policy": {
+    "version": "invoice.v1",
+    "status": "approved",
+    "currency": "INR",
+    "weightUnit": "g",
+    "rateUnit": "per_g",
+    "makingChargeMethod": "line_fixed_per_gram_or_percent",
+    "wastageMethod": "percent_of_net_weight",
+    "discountMethod": "line_then_invoice_amount_or_percent",
+    "taxMethod": "gst_jewellery_3pct_exclusive",
+    "roundingMode": "ROUND_HALF_UP",
+    "roundingScale": 2
+  },
+  "input": {
+    "policyVersion": "invoice.v1",
+    "businessDate": "2026-09-20",
+    "lines": [
+      {
+        "lineId": "line-1",
+        "metal": "gold",
+        "purity": "22K",
+        "grossWeightGrams": "3.3333",
+        "nonMetalWeightGrams": "0.0000",
+        "netMetalWeightGrams": "3.3333",
+        "ratePerGram": "6111.111111",
+        "makingChargeInput": {
+          "method": "fixed",
+          "amountInr": "100.00"
+        },
+        "wastageInput": {
+          "method": "none"
+        },
+        "stoneCharges": [],
+        "lineDiscountInput": null
+      }
+    ],
+    "invoiceDiscountInput": null,
+    "taxInput": {
+      "method": "gst_jewellery_igst"
+    }
+  },
+  "expected": {
+    "policyVersion": "invoice.v1",
+    "currency": "INR",
+    "lines": [
+      {
+        "lineId": "line-1",
+        "articleId": null,
+        "metalValueInr": "20370.17",
+        "makingChargeInr": "100.00",
+        "wastageInr": "0.00",
+        "stoneChargesInr": "0.00",
+        "lineDiscountInr": "0.00",
+        "invoiceDiscountAllocatedInr": "0.00",
+        "taxableInr": "20470.17",
+        "lineSubtotalInr": "20470.17"
+      }
+    ],
+    "metalValueInr": "20370.17",
+    "makingChargeInr": "100.00",
+    "wastageInr": "0.00",
+    "stoneChargesInr": "0.00",
+    "lineDiscountsInr": "0.00",
+    "invoiceDiscountInr": "0.00",
+    "taxableInr": "20470.17",
+    "cgstInr": "0.00",
+    "sgstInr": "0.00",
+    "igstInr": "614.11",
+    "taxInr": "614.11",
+    "roundOffInr": "-0.28",
+    "grandTotalInr": "21084.00",
+    "roundingApplied": {
+      "mode": "ROUND_HALF_UP",
+      "scale": 0,
+      "stage": "grand_total"
+    }
+  }
+}

@@ -1,0 +1,117 @@
+{
+  "id": "03-making-percent-line-invoice-discount",
+  "policyVersion": "invoice.v1",
+  "policy": {
+    "version": "invoice.v1",
+    "status": "approved",
+    "currency": "INR",
+    "weightUnit": "g",
+    "rateUnit": "per_g",
+    "makingChargeMethod": "line_fixed_per_gram_or_percent",
+    "wastageMethod": "percent_of_net_weight",
+    "discountMethod": "line_then_invoice_amount_or_percent",
+    "taxMethod": "gst_jewellery_3pct_exclusive",
+    "roundingMode": "ROUND_HALF_UP",
+    "roundingScale": 2
+  },
+  "input": {
+    "policyVersion": "invoice.v1",
+    "businessDate": "2026-09-20",
+    "lines": [
+      {
+        "lineId": "line-1",
+        "metal": "gold",
+        "purity": "18K",
+        "grossWeightGrams": "5.0000",
+        "nonMetalWeightGrams": "0.0000",
+        "netMetalWeightGrams": "5.0000",
+        "ratePerGram": "5500.000000",
+        "makingChargeInput": {
+          "method": "percent_of_metal",
+          "percent": "10.000000"
+        },
+        "wastageInput": {
+          "method": "none"
+        },
+        "stoneCharges": [],
+        "lineDiscountInput": {
+          "method": "amount",
+          "amountInr": "500.00"
+        }
+      },
+      {
+        "lineId": "line-2",
+        "metal": "silver",
+        "purity": "925",
+        "grossWeightGrams": "20.0000",
+        "nonMetalWeightGrams": "0.0000",
+        "netMetalWeightGrams": "20.0000",
+        "ratePerGram": "95.000000",
+        "makingChargeInput": {
+          "method": "fixed",
+          "amountInr": "200.00"
+        },
+        "wastageInput": {
+          "method": "none"
+        },
+        "stoneCharges": [],
+        "lineDiscountInput": null
+      }
+    ],
+    "invoiceDiscountInput": {
+      "method": "percent",
+      "percent": "5.000000"
+    },
+    "taxInput": {
+      "method": "gst_jewellery_intra"
+    }
+  },
+  "expected": {
+    "policyVersion": "invoice.v1",
+    "currency": "INR",
+    "lines": [
+      {
+        "lineId": "line-1",
+        "articleId": null,
+        "metalValueInr": "27500.00",
+        "makingChargeInr": "2750.00",
+        "wastageInr": "0.00",
+        "stoneChargesInr": "0.00",
+        "lineDiscountInr": "500.00",
+        "invoiceDiscountAllocatedInr": "1487.50",
+        "taxableInr": "28262.50",
+        "lineSubtotalInr": "28262.50"
+      },
+      {
+        "lineId": "line-2",
+        "articleId": null,
+        "metalValueInr": "1900.00",
+        "makingChargeInr": "200.00",
+        "wastageInr": "0.00",
+        "stoneChargesInr": "0.00",
+        "lineDiscountInr": "0.00",
+        "invoiceDiscountAllocatedInr": "105.00",
+        "taxableInr": "1995.00",
+        "lineSubtotalInr": "1995.00"
+      }
+    ],
+    "metalValueInr": "29400.00",
+    "makingChargeInr": "2950.00",
+    "wastageInr": "0.00",
+    "stoneChargesInr": "0.00",
+    "lineDiscountsInr": "500.00",
+    "invoiceDiscountInr": "1592.50",
+    "taxableInr": "30257.50",
+    "cgstInr": "453.86",
+    "sgstInr": "453.86",
+    "igstInr": "0.00",
+    "taxInr": "907.72",
+    "roundOffInr": "-0.22",
+    "grandTotalInr": "31165.00",
+    "roundingApplied": {
+      "mode": "ROUND_HALF_UP",
+      "scale": 0,
+      "stage": "grand_total"
+    }
+  }
+}

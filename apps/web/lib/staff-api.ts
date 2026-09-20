@@ -5,6 +5,8 @@ import {
   documentSequencesSchema,
   metalRateListSchema,
   metalRateSchema,
+  makingChargeDefaultListSchema,
+  makingChargeDefaultSchema,
   reminderSettingsSchema,
   shopBrandingPublicSchema,
   shopProfileSchema,
@@ -43,6 +45,9 @@ import {
   type MetalRate,
   type MetalRateCreate,
   type MetalRateList,
+  type MakingChargeDefault,
+  type MakingChargeDefaultList,
+  type MakingChargeDefaultUpsert,
   type ReminderSettings,
   type ReminderSettingsPatch,
   type ShopBrandingPublic,
@@ -70,6 +75,38 @@ import {
   type CustomerIdentityFileList,
   type CustomerList,
   type CustomerPatch,
+  invoiceListSchema,
+  invoiceQuoteResponseSchema,
+  invoiceSchema,
+  customerSalesStatementSchema,
+  dailyCollectionsSchema,
+  invoicePaymentsSchema,
+  invoiceReturnAcceptResultSchema,
+  invoiceCorrectionsSchema,
+  paymentCreateResultSchema,
+  paymentListSchema,
+  paymentSchema,
+  type CustomerSalesStatement,
+  type DailyCollections,
+  type InvoiceCorrections,
+  type InvoicePayments,
+  type InvoiceReturnAcceptResult,
+  type InvoiceReturnCreate,
+  type Payment,
+  type PaymentCreate,
+  type PaymentCreateResult,
+  type PaymentList,
+  type PaymentMethod,
+  type PaymentRefundCreate,
+  type PaymentReversalCreate,
+  type Invoice,
+  type InvoiceDraftCreate,
+  type InvoiceDraftPatch,
+  type InvoiceDraftQuickArticle,
+  type InvoiceFinalize,
+  type InvoiceList,
+  type InvoiceQuoteRequest,
+  type InvoiceQuoteResponse,
 } from "@aabhushan/contracts";
 
 import { publicEnv } from "@/lib/public-env";
@@ -103,7 +140,12 @@ function apiUrl(path: string): string {
 async function staffRequest<T>(
   accessToken: string,
   path: string,
-  options: { method?: string; body?: unknown; schema: { parse: (value: unknown) => T } },
+  options: {
+    method?: string;
+    body?: unknown;
+    schema: { parse: (value: unknown) => T };
+    headers?: Record<string, string>;
+  },
 ): Promise<T> {
   const response = await fetch(apiUrl(path), {
     method: options.method ?? "GET",
@@ -111,6 +153,7 @@ async function staffRequest<T>(
       Authorization: `Bearer ${accessToken}`,
       Accept: "application/json",
       ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
+      ...(options.headers ?? {}),
     },
     body: options.body !== undefined ? JSON.stringify(options.body) : null,
     cache: "no-store",
@@ -220,6 +263,58 @@ export async function createMetalRateRequest(accessToken: string, input: MetalRa
   return staffRequest(accessToken, "/api/v1/shop/rates", { method: "POST", body: input, schema: metalRateSchema });
 }
 
+export async function fetchMakingChargeDefaults(
+  accessToken: string,
+  query: { page: number; pageSize: number },
+): Promise<MakingChargeDefaultList> {
+  const params = new URLSearchParams({
+    page: String(query.page),
+    page_size: String(query.pageSize),
+    sort: "metal",
+    direction: "asc",
+  });
+  return staffRequest(accessToken, `/api/v1/shop/making-defaults?${params.toString()}`, {
+    schema: makingChargeDefaultListSchema,
+  });
+}
+
+export async function upsertMakingChargeDefaultRequest(
+  accessToken: string,
+  input: MakingChargeDefaultUpsert,
+): Promise<MakingChargeDefault> {
+  return staffRequest(accessToken, "/api/v1/shop/making-defaults", {
+    method: "PUT",
+    body: input,
+    schema: makingChargeDefaultSchema,
+  });
+}
+
+export async function deleteMakingChargeDefaultRequest(accessToken: string, id: string): Promise<void> {
+  const response = await fetch(apiUrl(`/api/v1/shop/making-defaults/${id}`), {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "application/json",
+    },
+  });
+  if (response.status === 204) {
+    return;
+  }
+  let body: unknown = null;
+  try {
+    body = await response.json();
+  } catch {
+    body = null;
+  }
+  const record =
+    typeof body === "object" && body !== null
+      ? (body as { code?: unknown; message?: unknown; field_errors?: unknown })
+      : {};
+  const code = typeof record.code === "string" ? record.code : "REQUEST_FAILED";
+  const message = typeof record.message === "string" ? record.message : "The request failed.";
+  throw new StaffApiError(response.status, code, message);
+}
+
 export async function fetchSequences(accessToken: string): Promise<DocumentSequences> {
   return staffRequest(accessToken, "/api/v1/shop/sequences", { schema: documentSequencesSchema });
 }
@@ -313,6 +408,7 @@ export type ArticleListQuery = {
   barcode?: string;
   articleNumber?: string;
   categoryId?: string;
+  metal?: "gold" | "silver";
   purity?: string;
   status?: string;
   minGrossWeightGrams?: string;
@@ -330,6 +426,7 @@ export async function fetchArticles(accessToken: string, query: ArticleListQuery
   if (query.barcode) params.set("barcode", query.barcode);
   if (query.articleNumber) params.set("article_number", query.articleNumber);
   if (query.categoryId) params.set("category_id", query.categoryId);
+  if (query.metal) params.set("metal", query.metal);
   if (query.purity) params.set("purity", query.purity);
   if (query.status) params.set("status", query.status);
   if (query.minGrossWeightGrams) params.set("min_gross_weight_grams", query.minGrossWeightGrams);
@@ -470,6 +567,8 @@ export async function fetchCustomers(
     direction?: "asc" | "desc";
     q?: string;
     isActive?: boolean;
+    isWalkIn?: boolean;
+    whatsappConsent?: "granted" | "revoked" | "none";
   },
 ): Promise<CustomerList> {
   const params = new URLSearchParams({
@@ -483,6 +582,16 @@ export async function fetchCustomers(
   }
   if (input.isActive === false) {
     params.set("is_active", "false");
+  } else if (input.isActive === true) {
+    params.set("is_active", "true");
+  }
+  if (input.isWalkIn === true) {
+    params.set("is_walk_in", "true");
+  } else if (input.isWalkIn === false) {
+    params.set("is_walk_in", "false");
+  }
+  if (input.whatsappConsent) {
+    params.set("whatsapp_consent", input.whatsappConsent);
   }
   return staffRequest(accessToken, `/api/v1/customers?${params.toString()}`, { schema: customerListSchema });
 }
@@ -529,5 +638,258 @@ export async function fetchCustomerIdentityFiles(
 ): Promise<CustomerIdentityFileList> {
   return staffRequest(accessToken, `/api/v1/customers/${customerId}/identity-files`, {
     schema: customerIdentityFileListSchema,
+  });
+}
+
+export async function quoteInvoiceRequest(
+  accessToken: string,
+  input: InvoiceQuoteRequest,
+): Promise<InvoiceQuoteResponse> {
+  return staffRequest(accessToken, "/api/v1/invoices/quote", {
+    method: "POST",
+    body: input,
+    schema: invoiceQuoteResponseSchema,
+  });
+}
+
+export async function createInvoiceDraftRequest(
+  accessToken: string,
+  input: InvoiceDraftCreate,
+): Promise<Invoice> {
+  return staffRequest(accessToken, "/api/v1/invoices/drafts", {
+    method: "POST",
+    body: input,
+    schema: invoiceSchema,
+  });
+}
+
+export async function fetchInvoiceDraft(accessToken: string, invoiceId: string): Promise<Invoice> {
+  return staffRequest(accessToken, `/api/v1/invoices/drafts/${invoiceId}`, { schema: invoiceSchema });
+}
+
+export async function patchInvoiceDraftRequest(
+  accessToken: string,
+  invoiceId: string,
+  input: InvoiceDraftPatch,
+): Promise<Invoice> {
+  return staffRequest(accessToken, `/api/v1/invoices/drafts/${invoiceId}`, {
+    method: "PATCH",
+    body: input,
+    schema: invoiceSchema,
+  });
+}
+
+export async function quickReceiveArticleOntoDraftRequest(
+  accessToken: string,
+  invoiceId: string,
+  input: InvoiceDraftQuickArticle,
+): Promise<Invoice> {
+  return staffRequest(accessToken, `/api/v1/invoices/drafts/${invoiceId}/quick-articles`, {
+    method: "POST",
+    body: input,
+    schema: invoiceSchema,
+  });
+}
+
+export async function fetchInvoices(
+  accessToken: string,
+  query: {
+    page: number;
+    pageSize: number;
+    sort?: "updated_at" | "business_date" | "grand_total_inr" | "status";
+    direction?: "asc" | "desc";
+    status?: "draft" | "finalized";
+    customerId?: string;
+    businessDateFrom?: string;
+    businessDateTo?: string;
+    q?: string;
+  },
+): Promise<InvoiceList> {
+  const params = new URLSearchParams({
+    page: String(query.page),
+    page_size: String(query.pageSize),
+    sort: query.sort ?? "updated_at",
+    direction: query.direction ?? "desc",
+  });
+  if (query.status) {
+    params.set("status", query.status);
+  }
+  if (query.customerId) {
+    params.set("customer_id", query.customerId);
+  }
+  if (query.businessDateFrom) {
+    params.set("business_date_from", query.businessDateFrom);
+  }
+  if (query.businessDateTo) {
+    params.set("business_date_to", query.businessDateTo);
+  }
+  if (query.q) {
+    params.set("q", query.q);
+  }
+  return staffRequest(accessToken, `/api/v1/invoices?${params.toString()}`, { schema: invoiceListSchema });
+}
+
+export async function fetchInvoice(accessToken: string, invoiceId: string): Promise<Invoice> {
+  return staffRequest(accessToken, `/api/v1/invoices/${invoiceId}`, { schema: invoiceSchema });
+}
+
+export async function finalizeInvoiceRequest(
+  accessToken: string,
+  invoiceId: string,
+  input: InvoiceFinalize,
+  idempotencyKey: string,
+): Promise<Invoice> {
+  return staffRequest(accessToken, `/api/v1/invoices/${invoiceId}/finalize`, {
+    method: "POST",
+    body: input,
+    schema: invoiceSchema,
+    headers: { "Idempotency-Key": idempotencyKey },
+  });
+}
+
+export async function acceptInvoiceReturnRequest(
+  accessToken: string,
+  invoiceId: string,
+  input: InvoiceReturnCreate,
+  idempotencyKey: string,
+): Promise<InvoiceReturnAcceptResult> {
+  return staffRequest(accessToken, `/api/v1/invoices/${invoiceId}/returns`, {
+    method: "POST",
+    body: input,
+    schema: invoiceReturnAcceptResultSchema,
+    headers: { "Idempotency-Key": idempotencyKey },
+  });
+}
+
+export async function fetchInvoiceCorrections(
+  accessToken: string,
+  invoiceId: string,
+): Promise<InvoiceCorrections> {
+  return staffRequest(accessToken, `/api/v1/invoices/${invoiceId}/corrections`, {
+    schema: invoiceCorrectionsSchema,
+  });
+}
+
+export async function recordPaymentRequest(
+  accessToken: string,
+  input: PaymentCreate,
+  idempotencyKey: string,
+): Promise<PaymentCreateResult> {
+  return staffRequest(accessToken, "/api/v1/payments", {
+    method: "POST",
+    body: input,
+    schema: paymentCreateResultSchema,
+    headers: { "Idempotency-Key": idempotencyKey },
+  });
+}
+
+export async function fetchPayments(
+  accessToken: string,
+  query: {
+    page: number;
+    pageSize: number;
+    sort?: "received_at" | "received_business_date" | "amount_inr";
+    direction?: "asc" | "desc";
+    customerId?: string;
+    invoiceId?: string;
+    method?: PaymentMethod;
+    receivedBusinessDate?: string;
+    receivedBusinessDateFrom?: string;
+    receivedBusinessDateTo?: string;
+    q?: string;
+  },
+): Promise<PaymentList> {
+  const params = new URLSearchParams({
+    page: String(query.page),
+    page_size: String(query.pageSize),
+    sort: query.sort ?? "received_at",
+    direction: query.direction ?? "desc",
+  });
+  if (query.customerId) {
+    params.set("customer_id", query.customerId);
+  }
+  if (query.invoiceId) {
+    params.set("invoice_id", query.invoiceId);
+  }
+  if (query.method) {
+    params.set("method", query.method);
+  }
+  if (query.receivedBusinessDate) {
+    params.set("received_business_date", query.receivedBusinessDate);
+  }
+  if (query.receivedBusinessDateFrom) {
+    params.set("received_business_date_from", query.receivedBusinessDateFrom);
+  }
+  if (query.receivedBusinessDateTo) {
+    params.set("received_business_date_to", query.receivedBusinessDateTo);
+  }
+  if (query.q) {
+    params.set("q", query.q);
+  }
+  return staffRequest(accessToken, `/api/v1/payments?${params.toString()}`, { schema: paymentListSchema });
+}
+
+export async function fetchPayment(accessToken: string, paymentId: string): Promise<Payment> {
+  return staffRequest(accessToken, `/api/v1/payments/${paymentId}`, { schema: paymentSchema });
+}
+
+export async function refundPaymentRequest(
+  accessToken: string,
+  paymentId: string,
+  input: PaymentRefundCreate,
+  idempotencyKey: string,
+): Promise<Payment> {
+  return staffRequest(accessToken, `/api/v1/payments/${paymentId}/refunds`, {
+    method: "POST",
+    body: input,
+    schema: paymentSchema,
+    headers: { "Idempotency-Key": idempotencyKey },
+  });
+}
+
+export async function reversePaymentRequest(
+  accessToken: string,
+  paymentId: string,
+  input: PaymentReversalCreate,
+  idempotencyKey: string,
+): Promise<Payment> {
+  return staffRequest(accessToken, `/api/v1/payments/${paymentId}/reversals`, {
+    method: "POST",
+    body: input,
+    schema: paymentSchema,
+    headers: { "Idempotency-Key": idempotencyKey },
+  });
+}
+
+export async function fetchInvoicePayments(accessToken: string, invoiceId: string): Promise<InvoicePayments> {
+  return staffRequest(accessToken, `/api/v1/invoices/${invoiceId}/payments`, { schema: invoicePaymentsSchema });
+}
+
+export async function fetchCustomerSalesStatement(
+  accessToken: string,
+  customerId: string,
+): Promise<CustomerSalesStatement> {
+  return staffRequest(accessToken, `/api/v1/customers/${customerId}/sales-statement`, {
+    schema: customerSalesStatementSchema,
+  });
+}
+
+export async function fetchDailyCollections(
+  accessToken: string,
+  period?: { businessDate?: string; from?: string; to?: string },
+): Promise<DailyCollections> {
+  const params = new URLSearchParams();
+  if (period?.businessDate) {
+    params.set("business_date", period.businessDate);
+  }
+  if (period?.from) {
+    params.set("business_date_from", period.from);
+  }
+  if (period?.to) {
+    params.set("business_date_to", period.to);
+  }
+  const query = params.toString();
+  return staffRequest(accessToken, `/api/v1/collections/daily${query ? `?${query}` : ""}`, {
+    schema: dailyCollectionsSchema,
   });
 }

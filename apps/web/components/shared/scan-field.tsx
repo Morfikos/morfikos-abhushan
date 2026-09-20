@@ -18,7 +18,9 @@ export type ScanFieldProps = {
   onDuplicate?: (payload: string) => void;
   onUnexpectedSuffix?: (raw: string) => void;
   isDisabled?: boolean;
-  hint?: string;
+  /** Helper under the input. Pass `null` to hide; omit to use the terminator default. */
+  hint?: string | null;
+  placeholder?: string;
   tooltip?: string;
   inputRef?: Ref<HTMLInputElement>;
 };
@@ -66,6 +68,7 @@ export function ScanField({
   onUnexpectedSuffix,
   isDisabled,
   hint,
+  placeholder = "Scan barcode",
   tooltip = "This field looks up an article. It does not finalize sales.",
   inputRef,
 }: ScanFieldProps) {
@@ -76,6 +79,7 @@ export function ScanField({
     terminator === "None"
       ? "Configured terminator is None. Use Lookup after the scanner finishes."
       : `Scanner ${terminator} completes lookup. It does not finalize payment.`;
+  const resolvedHint = hint === null ? undefined : (hint ?? terminatorHint);
 
   function finishScan() {
     const result = completeScanBuffer({ raw: value, expectedSuffix });
@@ -103,23 +107,22 @@ export function ScanField({
   }
 
   return (
-    <div className="rounded-xl bg-brand-primary p-3 ring-1 ring-brand">
+    <div className="flex flex-col gap-2">
       <Input
         label={label}
         value={value}
-        placeholder="Dedicated scanner input"
-        hint={hint ?? terminatorHint}
+        placeholder={placeholder}
+        hint={resolvedHint}
         tooltip={tooltip}
         icon={Scan}
         ref={resolvedRef}
         isDisabled={isDisabled}
         autoComplete="off"
-        wrapperClassName="bg-primary"
         onChange={onChange}
         onKeyDown={onKeyDown}
       />
       {terminator === "None" ? (
-        <div className="mt-2">
+        <div>
           <Button color="secondary" size="sm" isDisabled={isDisabled} onPress={finishScan}>
             Lookup
           </Button>

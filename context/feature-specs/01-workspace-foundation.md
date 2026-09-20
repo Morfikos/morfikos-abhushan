@@ -91,7 +91,7 @@ Monetary and weight values are not used yet. When they appear later they travel 
 
 Follow `ui-context.md`. This unit only sets the presentation baseline.
 
-- Official free Untitled UI Next.js integration, Inter via Next.js fonts, and the burgundy brand ramp in `ui-context.md` (`#7e143a` as `brand-600`)
+- Official free Untitled UI Next.js integration, Inter via Next.js fonts, and the blue brand ramp in `ui-context.md` (`#2c5ce6` as `brand-600`)
 - Theme providers, global styles, and CSS variables from the installed free theme
 - Copied free Base/Application primitives only as needed for the placeholder page
 - Source layout: `apps/web/components/base/`, `apps/web/components/application/`, `apps/web/components/shared/`, `apps/web/features/`

@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ARTICLE_PHOTO_MAX_BYTES, type ArticlePhotographInput, type Metal } from "@aabhushan/contracts";
 import { kolkataBusinessDate, netMetalWeightGrams, netMetalWeightIsPositive } from "@aabhushan/domain";
+import { ChevronDown } from "@untitledui/icons";
 
 import { FileUpload, getReadableFileSize } from "@/components/application/file-upload/file-upload-base";
 import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
@@ -21,16 +22,38 @@ import {
   sha256Hex,
 } from "@/features/inventory/inventory-shared";
 import { fetchCatalogueCategories, fetchStorageLocations, receiveArticleRequest, StaffApiError } from "@/lib/staff-api";
+import { cx } from "@/utils/cx";
 
 const WEIGHT_PATTERN = /^\d+(\.\d{1,4})?$/;
 
+function FormCard({ title, description, children, className }: { title: string; description: string; children: ReactNode; className?: string }) {
+  return (
+    <div className={cx("flex flex-col gap-4 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-5", className)}>
+      <div>
+        <h2 className="text-lg font-semibold text-primary">{title}</h2>
+        <p className="text-sm text-tertiary">{description}</p>
+      </div>
+      {children}
+    </div>
+  );
+}
+
 function OptionalSection({ title, children, defaultOpen = false }: { title: string; children: ReactNode; defaultOpen?: boolean }) {
   return (
-    <details className="rounded-lg ring-1 ring-secondary open:bg-secondary/40" open={defaultOpen || undefined}>
-      <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-primary marker:content-none [&::-webkit-details-marker]:hidden">
+    <details
+      className="group rounded-xl bg-primary shadow-xs ring-1 ring-secondary open:bg-secondary/40"
+      open={defaultOpen || undefined}
+    >
+      <summary className="cursor-pointer list-none px-4 py-3 marker:content-none [&::-webkit-details-marker]:hidden">
         <span className="flex items-center justify-between gap-2">
-          {title}
-          <span className="text-xs font-medium text-tertiary">Optional</span>
+          <span className="text-sm font-semibold text-primary">{title}</span>
+          <span className="flex items-center gap-2">
+            <span className="text-xs font-medium text-tertiary">Optional</span>
+            <ChevronDown
+              aria-hidden="true"
+              className="size-4 shrink-0 stroke-[2.5px] text-fg-quaternary transition-transform in-open:-scale-y-100"
+            />
+          </span>
         </span>
       </summary>
       <div className="grid gap-4 border-t border-secondary px-4 py-4 md:grid-cols-2">{children}</div>
@@ -167,6 +190,7 @@ export function ReceiveArticleForm() {
   const netFieldError = fieldError(mutationError, "net_metal_weight_grams");
   const costFieldError = fieldError(mutationError, "acquisition_cost_inr");
   const locationFieldError = fieldError(mutationError, "location_id");
+  const netInvalid = Boolean(netFieldError) || (Boolean(gross.trim()) && computedNet === null);
   const formLevelError =
     mutation.isError &&
     !(
@@ -182,7 +206,7 @@ export function ReceiveArticleForm() {
       : clientError;
 
   return (
-    <section className="flex max-w-3xl flex-col gap-6">
+    <section className="mx-auto flex w-full max-w-3xl flex-col gap-5">
       <div>
         <p className="text-sm text-tertiary">
           <Button color="link-color" size="sm" href="/inventory">
@@ -190,13 +214,11 @@ export function ReceiveArticleForm() {
           </Button>
         </p>
         <h1 className="text-display-xs font-semibold text-primary">Receive article</h1>
-        <p className="text-md text-tertiary">
-          Creates a unique article number and a receipt movement. Tag printing is a later unit.
-        </p>
+        <p className="text-md text-tertiary">Creates a unique article number and a receipt movement.</p>
       </div>
 
       <form
-        className="flex flex-col gap-6 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-6"
+        className="flex flex-col gap-5"
         onSubmit={(event) => {
           event.preventDefault();
           setClientError(null);
@@ -218,196 +240,208 @@ export function ReceiveArticleForm() {
           </p>
         ) : null}
 
-        <fieldset className="grid gap-4 md:grid-cols-2">
-          <legend className="mb-2 text-sm font-semibold text-primary">Identification</legend>
-          <SelectField
-            label="Category"
-            value={categoryId}
-            onChange={onCategoryChange}
-            placeholder="Select category"
-            isRequired
-            isDisabled={!hasCategories}
-            isInvalid={Boolean(categoryFieldError)}
-            hint={categoryFieldError}
-            options={activeCategories.map((item) => ({
-              label: item.name,
-              value: item.id,
-            }))}
-          />
-          <SelectField
-            label="Metal"
-            value={metal}
-            onChange={(value) => {
-              setMetalTouched(true);
-              setMetal(value as Metal);
-            }}
-            options={[
-              { label: "Gold", value: "gold" },
-              { label: "Silver", value: "silver" },
-            ]}
-          />
-          <Input
-            label="Purity"
-            value={purity}
-            placeholder="e.g. 22K"
-            isRequired
-            isInvalid={Boolean(purityFieldError)}
-            hint={purityFieldError}
-            onChange={setPurity}
-          />
-          <Input
-            label="HUID"
-            value={huid}
-            tooltip="Optional until category rules are confirmed."
-            onChange={setHuid}
-          />
-        </fieldset>
+        <FormCard title="Identification" description="Category, metal, purity, and optional HUID.">
+          <div className="grid gap-4 md:grid-cols-2">
+            <SelectField
+              label="Category"
+              value={categoryId}
+              onChange={onCategoryChange}
+              placeholder="Select category"
+              isRequired
+              isDisabled={!hasCategories}
+              isInvalid={Boolean(categoryFieldError)}
+              hint={categoryFieldError}
+              options={activeCategories.map((item) => ({
+                label: item.name,
+                value: item.id,
+              }))}
+            />
+            <SelectField
+              label="Metal"
+              value={metal}
+              onChange={(value) => {
+                setMetalTouched(true);
+                setMetal(value as Metal);
+              }}
+              options={[
+                { label: "Gold", value: "gold" },
+                { label: "Silver", value: "silver" },
+              ]}
+            />
+            <Input
+              label="Purity"
+              value={purity}
+              placeholder="e.g. 22K"
+              isRequired
+              isInvalid={Boolean(purityFieldError)}
+              hint={purityFieldError}
+              onChange={setPurity}
+            />
+            <Input
+              label="HUID"
+              value={huid}
+              tooltip="Optional until category rules are confirmed."
+              onChange={setHuid}
+            />
+          </div>
+        </FormCard>
 
-        <fieldset className="grid gap-4 md:grid-cols-3">
-          <legend className="mb-2 text-sm font-semibold text-primary">Weights</legend>
-          <Input
-            label="Gross weight (g)"
-            value={gross}
-            isRequired
-            isInvalid={Boolean(grossFieldError)}
-            hint={grossFieldError}
-            onChange={setGross}
-          />
-          <Input
-            label="Non-metal weight (g)"
-            value={nonMetal}
-            isInvalid={Boolean(nonMetalFieldError)}
-            hint={nonMetalFieldError}
-            onChange={setNonMetal}
-          />
-          <div className="flex flex-col gap-1.5">
+        <FormCard
+          title="Weights"
+          description="Net metal is gross minus non-metal. The server rejects a mismatch."
+        >
+          <div className="grid gap-4 md:grid-cols-2">
+            <Input
+              label="Gross weight (g)"
+              value={gross}
+              isRequired
+              isInvalid={Boolean(grossFieldError)}
+              hint={grossFieldError}
+              onChange={setGross}
+            />
+            <Input
+              label="Non-metal weight (g)"
+              value={nonMetal}
+              isInvalid={Boolean(nonMetalFieldError)}
+              hint={nonMetalFieldError}
+              onChange={setNonMetal}
+            />
+          </div>
+          <div
+            className={cx(
+              "rounded-lg bg-secondary px-3 py-3 ring-1 ring-secondary",
+              netInvalid && "ring-error-primary",
+            )}
+          >
             <Input
               label="Net metal weight (g)"
               value={computedNet ?? ""}
               isRequired
               isReadOnly
-              isInvalid={Boolean(netFieldError) || (Boolean(gross.trim()) && computedNet === null)}
+              isInvalid={netInvalid}
               hint={
                 netFieldError ??
                 (computedNet
                   ? `${gross.trim()} − ${nonMetal.trim() || "0"} = ${computedNet} g`
-                  : "Calculated as gross minus non-metal. The server still rejects a mismatch.")
+                  : "Calculated as gross minus non-metal.")
               }
               onChange={() => undefined}
             />
           </div>
-        </fieldset>
+        </FormCard>
 
-        <OptionalSection title="Source and location">
-          <Input
-            label="Supplier reference"
-            value={supplierRef}
-            tooltip="Reference only, not a payable ledger."
-            onChange={setSupplierRef}
-          />
-          <Input
-            label="Karigar reference"
-            value={karigarRef}
-            tooltip="Reference only, not job-work accounting."
-            onChange={setKarigarRef}
-          />
-          <SelectField
-            label="Storage location"
-            value={locationId}
-            onChange={setLocationId}
-            isDisabled={locations.isLoading}
-            isInvalid={Boolean(locationFieldError)}
-            hint={locationFieldError}
-            options={[
-              { label: "Unspecified", value: "" },
-              ...(locations.data?.items ?? []).map((item) => ({ label: item.name, value: item.id })),
-            ]}
-          />
-          <Input
-            label="Acquisition cost (₹)"
-            value={cost}
-            tooltip="Internal only. This is never a customer-facing price."
-            isInvalid={Boolean(costFieldError)}
-            hint={costFieldError}
-            onChange={setCost}
-          />
-          <InputDate
-            label="Receipt business date"
-            value={receiptDate}
-            onChange={(value) => setReceiptDate(value ? parseDate(value.toString()) : parseDate(kolkataBusinessDate()))}
-            hint="Defaults to today in Asia/Kolkata."
-          />
-        </OptionalSection>
+        <div className="flex flex-col gap-3">
+          <OptionalSection title="Source and location">
+            <Input
+              label="Supplier reference"
+              value={supplierRef}
+              tooltip="Reference only, not a payable ledger."
+              onChange={setSupplierRef}
+            />
+            <Input
+              label="Karigar reference"
+              value={karigarRef}
+              tooltip="Reference only, not job-work accounting."
+              onChange={setKarigarRef}
+            />
+            <SelectField
+              label="Storage location"
+              value={locationId}
+              onChange={setLocationId}
+              isDisabled={locations.isLoading}
+              isInvalid={Boolean(locationFieldError)}
+              hint={locationFieldError}
+              options={[
+                { label: "Unspecified", value: "" },
+                ...(locations.data?.items ?? []).map((item) => ({ label: item.name, value: item.id })),
+              ]}
+            />
+            <Input
+              label="Acquisition cost (₹)"
+              value={cost}
+              tooltip="Internal only. This is never a customer-facing price."
+              isInvalid={Boolean(costFieldError)}
+              hint={costFieldError}
+              onChange={setCost}
+            />
+            <InputDate
+              label="Receipt business date"
+              value={receiptDate}
+              onChange={(value) => setReceiptDate(value ? parseDate(value.toString()) : parseDate(kolkataBusinessDate()))}
+              hint="Defaults to today in Asia/Kolkata."
+            />
+          </OptionalSection>
 
-        <OptionalSection title="Stones (descriptive)">
-          <Input label="Stone description" value={stoneDescription} onChange={setStoneDescription} />
-          <Input
-            label="Stone weight (g)"
-            value={stoneWeight}
-            tooltip="No stone pricing until invoice examples are approved."
-            onChange={setStoneWeight}
-          />
-        </OptionalSection>
+          <OptionalSection title="Stones (descriptive)">
+            <Input label="Stone description" value={stoneDescription} onChange={setStoneDescription} />
+            <Input
+              label="Stone weight (g)"
+              value={stoneWeight}
+              tooltip="No stone pricing until invoice examples are approved."
+              onChange={setStoneWeight}
+            />
+          </OptionalSection>
 
-        <OptionalSection title="Photograph">
-          <div className="md:col-span-2">
-            <FileUpload.Root>
-              <FileUpload.DropZone
-                className="py-4"
-                accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
-                allowsMultiple={false}
-                maxSize={ARTICLE_PHOTO_MAX_BYTES}
-                hint="JPEG, PNG, or WebP (max. 5 MB). Stores filename and checksum only — image bytes come later."
-                onDropFiles={(files) => {
-                  const file = files[0];
-                  if (!file) {
-                    return;
-                  }
-                  setPhotoError(null);
-                  void sha256Hex(file).then((checksum) => {
-                    const contentType =
-                      file.type === "image/png" || file.type === "image/webp" || file.type === "image/jpeg"
-                        ? file.type
-                        : null;
-                    if (!contentType) {
-                      setPhoto(null);
-                      setPhotoName(null);
-                      setPhotoError("Use JPEG, PNG, or WebP.");
+          <OptionalSection title="Photograph">
+            <div className="md:col-span-2">
+              <FileUpload.Root>
+                <FileUpload.DropZone
+                  className="py-4"
+                  accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                  allowsMultiple={false}
+                  maxSize={ARTICLE_PHOTO_MAX_BYTES}
+                  hint="JPEG, PNG, or WebP (max. 5 MB). Stores filename and checksum only — image bytes come later."
+                  onDropFiles={(files) => {
+                    const file = files[0];
+                    if (!file) {
                       return;
                     }
-                    setPhotoName(file.name);
-                    setPhoto({
-                      original_filename: file.name,
-                      content_type: contentType,
-                      byte_size: file.size,
-                      checksum_sha256: checksum,
+                    setPhotoError(null);
+                    void sha256Hex(file).then((checksum) => {
+                      const contentType =
+                        file.type === "image/png" || file.type === "image/webp" || file.type === "image/jpeg"
+                          ? file.type
+                          : null;
+                      if (!contentType) {
+                        setPhoto(null);
+                        setPhotoName(null);
+                        setPhotoError("Use JPEG, PNG, or WebP.");
+                        return;
+                      }
+                      setPhotoName(file.name);
+                      setPhoto({
+                        original_filename: file.name,
+                        content_type: contentType,
+                        byte_size: file.size,
+                        checksum_sha256: checksum,
+                      });
                     });
-                  });
-                }}
-                onDropUnacceptedFiles={() => {
-                  setPhoto(null);
-                  setPhotoName(null);
-                  setPhotoError("Use JPEG, PNG, or WebP.");
-                }}
-                onSizeLimitExceed={() => {
-                  setPhoto(null);
-                  setPhotoName(null);
-                  setPhotoError("Photograph is too large. Maximum size is 5 MB.");
-                }}
-              />
-            </FileUpload.Root>
-            {photoName && photo ? (
-              <p className="mt-2 text-sm text-tertiary">
-                Attached {photoName} ({getReadableFileSize(photo.byte_size)}). No public URL is stored.
-              </p>
-            ) : null}
-            {photoError ? <p className="mt-2 text-sm text-error-primary">{photoError}</p> : null}
-          </div>
-        </OptionalSection>
+                  }}
+                  onDropUnacceptedFiles={() => {
+                    setPhoto(null);
+                    setPhotoName(null);
+                    setPhotoError("Use JPEG, PNG, or WebP.");
+                  }}
+                  onSizeLimitExceed={() => {
+                    setPhoto(null);
+                    setPhotoName(null);
+                    setPhotoError("Photograph is too large. Maximum size is 5 MB.");
+                  }}
+                />
+              </FileUpload.Root>
+              {photoName && photo ? (
+                <p className="mt-2 text-sm text-tertiary">
+                  Attached {photoName} ({getReadableFileSize(photo.byte_size)}). No public URL is stored.
+                </p>
+              ) : null}
+              {photoError ? <p className="mt-2 text-sm text-error-primary">{photoError}</p> : null}
+            </div>
+          </OptionalSection>
+        </div>
 
         {formLevelError ? <p className="text-sm text-error-primary">{formLevelError}</p> : null}
 
-        <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap gap-3 border-t border-secondary bg-primary px-4 py-4 md:-mx-6 md:px-6">
+        <div className="sticky bottom-0 z-10 flex flex-wrap gap-3 rounded-xl border border-secondary bg-primary px-4 py-4 shadow-xs md:px-5">
           <Button type="submit" color="primary" size="md" isLoading={mutation.isPending} isDisabled={!hasCategories}>
             Receive article
           </Button>

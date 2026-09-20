@@ -3,7 +3,7 @@
 Source: https://github.com/untitleduico/react  
 Pinned commit: `c981a73bcd6b6c68d2a54070f20f020191212828`  
 License: MIT (see `apps/web/components/base/LICENSE`)  
-Setup path: official free Next.js integration, Inter via `--font-inter`. Brand tokens in `apps/web/styles/theme.css` use Aabhushan burgundy (`#7e143a` as `brand-600`) instead of the library default purple.  
+Setup path: official free Next.js integration, Inter via `--font-inter`. Brand tokens in `apps/web/styles/theme.css` use Aabhushan blue (`#2c5ce6` as `brand-600`) instead of the library default purple.  
 No PRO CLI, paid registry, or premium page templates were used.
 
 Copied for spec 01 only as needed:
@@ -28,7 +28,7 @@ Copied for spec 03 from the same commit, excluding demos, stories, and sample JS
 - `apps/web/components/application/app-navigation/sidebar-navigation/sidebar-simple.tsx` and required `base-components` / `config.ts`
 - `apps/web/components/application/table/table.tsx`
 - `apps/web/components/application/pagination/pagination.tsx` and `pagination-base.tsx`
-- `apps/web/components/application/date-picker/date-picker.tsx`, `calendar.tsx`, `cell.tsx`
+- `apps/web/components/application/date-picker/date-picker.tsx`, `calendar.tsx`, `cell.tsx`, `date-range-picker.tsx`, `range-calendar.tsx`
 - `apps/web/components/base/badges/`, `checkbox/`, `textarea/`, `select/` (including native select), `dropdown/`, `avatar/`, `button-group/`, `radio-buttons/`, `toggle/`
 - `apps/web/hooks/use-breakpoint.ts`, `use-resize-observer.ts`
 - `apps/web/components/foundations/dot-icon.tsx` and logo source (logo is not rendered)
@@ -45,7 +45,7 @@ Copied for spec 06 from the same commit, excluding demos and stories:
 
 - `apps/web/components/application/tabs/tabs.tsx`
 
-Staff screens compose around `SidebarNavigationSimple` with permission-filtered items and `showAccountCard={false}`. Settings is an original local composition.
+Staff screens compose around `SidebarNavigationSimple` with permission-filtered items and `showAccountCard={false}`. Settings is an original local composition. Desktop collapse (`collapsed` / `onCollapsedChange`, 72px icon rail) is an intentional patch on the pinned `sidebar-simple.tsx` / `nav-list.tsx`; do not import `sidebar-slim` as a second system. Sidebar rail uses Aabhushan `--color-bg-sidebar` (`#fafafa`); selected nav styles on `nav-item.tsx` / `nav-button.tsx` use `bg-quaternary` for contrast.
 
 Cursor MCP (free components only): `.cursor/mcp.json` points at `https://www.untitledui.com/react/api/mcp` with no auth header, following [Untitled UI MCP integration](https://www.untitledui.com/react/integrations/mcp). Enable the `untitledui` server in Cursor Settings → MCP if it does not appear after a reload. Do not add a PRO API key. The official CLI init (`npx untitledui init`) was not run; later `npx untitledui add` installs need an explicit, free-only decision so they do not replace this pinned import.
 

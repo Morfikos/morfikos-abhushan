@@ -1,13 +1,12 @@
 # 07 — Invoice Calculation Engine
 
-**Status:** Specification only — not implemented  
+**Status:** Implemented — owner-approved `invoice.v1`  
 **Depends on:** `03-shop-settings-and-organization`, `04-inventory-and-article-receiving`  
 **Enables:** `08-pos-billing-and-finalization`  
-**Blocked by:** owner-approved invoice examples for purity, making charges, wastage, stones, discounts, tax, and rounding  
 
 ## Feature Overview & Objectives
 
-Provide one pure, versioned, decimal invoice calculator that both the API and any UI preview use. Staff today calculate totals by hand. The engine must reproduce owner-approved examples and refuse unsupported rules instead of guessing.
+Provide one pure, versioned, decimal invoice calculator that both the API and any UI preview use. Staff today calculate totals by hand. The engine reproduces owner-approved `invoice.v1` rules and refuses unsupported methods instead of guessing.
 
 This unit is domain-only. It does not finalize invoices, print PDFs, or post stock. Frontend previews are non-authoritative.
 
@@ -15,12 +14,12 @@ This unit is domain-only. It does not finalize invoices, print PDFs, or post sto
 
 ### In this unit
 
-- `packages/domain` invoice pricing policy interface
+- `packages/domain` invoice pricing policy and `quoteInvoice`
 - decimal.js arithmetic with explicit units, scale, and rounding stage
-- Versioned calculation policy records
+- Versioned calculation policy records (`invoice.v1` methods approved)
 - Quote breakdown DTO: metal value, making, wastage, stones, discounts, tax, round-off, grand total
-- Fixture harness for owner-approved examples
-- Visible failure for unconfirmed rule combinations
+- Owner-approved fixtures under `packages/domain/fixtures/invoice-examples/`
+- Fail-closed behavior for draft/incomplete policies and invalid inputs
 
 ### Explicitly out of this unit
 
@@ -29,6 +28,8 @@ This unit is domain-only. It does not finalize invoices, print PDFs, or post sto
 - Girvi interest (spec 12)
 - JavaScript `Number`, `parseFloat`, or `toFixed` as the engine
 - Payment allocation
+- Per-carat stone pricing and loose-stone tax classifications (later)
+- Place-of-supply UI (MVP defaults to intra-state CGST+SGST; IGST available when selected)
 
 ## Acceptance Conditions
 
@@ -40,16 +41,34 @@ This unit is domain-only. It does not finalize invoices, print PDFs, or post sto
 - Changing a later default policy does not change fixture results for old versions
 - No HTTP, React, or provider SDK imports in `packages/domain`
 
+## Owner-approved invoice.v1 rules (20 September 2026)
+
+| Topic | Rule |
+| --- | --- |
+| Purity / rate | Separate daily ₹/g rate per metal+purity; metal value = net metal weight × rate; no 22/24 conversion |
+| Making | Fixed ₹, ₹/g net metal, or % of metal value; one method per line; ₹0 allowed |
+| Wastage | Default none; optional % of net metal × rate; does not change making weight or inventory weight |
+| Stones | Fixed ₹ charge + optional description; weight does not set price |
+| Discounts | Line then invoice, ₹ or %; reject excessive discounts; allocate invoice discount across lines |
+| Tax | Tax-exclusive 3% GST on taxable jewellery value (intra 1.5+1.5; inter 3% IGST) |
+| Rounding | Components and tax to paise HALF_UP; payable to nearest ₹1 with separate round-off |
+| Weights | Preserve scale precision; do not round weights to two decimals |
+
+Calculation order per line:
+
+Metal → Making → Wastage → Stones → Line discount → Allocated invoice discount = Taxable  
+Sum taxable + GST + round-off = Invoice total
+
 ## User Flows & Interactions
 
 There is no staff page whose only job is “the engine.” POS (spec 08) calls it.
 
 Developer/owner flow:
 
-1. Owner supplies invoice samples and expected totals.
-2. Engineers encode each sample as a fixture: inputs, policy version, expected breakdown.
-3. The calculator is implemented until fixtures pass.
-4. Unsupported samples stay listed as blocked, not approximated.
+1. Owner supplies invoice rules (done for `invoice.v1`).
+2. Engineers encode samples as fixtures: inputs, policy version, expected breakdown.
+3. The calculator matches fixtures exactly.
+4. Seed approved policy: `pnpm seed:calculation-policy`.
 
 ## Data Models & Schema Changes
 
@@ -64,48 +83,22 @@ Developer/owner flow:
 | `currency` | `text` not null default `'INR'` | |
 | `weight_unit` | `text` not null default `'g'` | |
 | `rate_unit` | `text` not null default `'per_g'` | |
-| `making_charge_method` | `text` | set only when approved |
-| `wastage_method` | `text` | set only when approved |
-| `discount_method` | `text` | |
-| `tax_method` | `text` | |
-| `rounding_mode` | `text` | decimal rounding mode |
-| `rounding_scale` | `integer` | typically 2 for INR |
+| `making_charge_method` | `text` | `line_fixed_per_gram_or_percent` for invoice.v1 |
+| `wastage_method` | `text` | `percent_of_net_weight` |
+| `discount_method` | `text` | `line_then_invoice_amount_or_percent` |
+| `tax_method` | `text` | `gst_jewellery_3pct_exclusive` |
+| `rounding_mode` | `text` | `ROUND_HALF_UP` |
+| `rounding_scale` | `integer` | `2` for component/tax paise |
 | `approved_at` | `timestamptz` | |
 | `approved_by_staff_user_id` | `uuid` | |
 
-Do not fill methods with guessed defaults. A policy used for live finalization must be `approved`.
-
-### Domain input (not a table)
-
-```text
-policyVersion
-businessDate
-lines[]:
-  articleId? (optional for fixtures)
-  metal, purity
-  grossWeightGrams, nonMetalWeightGrams, netMetalWeightGrams
-  ratePerGram
-  makingChargeInput (shape depends on approved method)
-  wastageInput
-  stoneCharges[]
-  lineDiscountInput
-invoiceDiscountInput
-taxInput
-```
-
-### Domain output
-
-Breakdown per line and invoice totals as decimal strings, plus `policyVersion` and `roundingApplied`.
+A policy used for live finalization must be `approved` with methods set.
 
 ## API Contracts
-
-This unit may expose a quote helper used by POS:
 
 | Method | Path | Permission | Notes |
 | --- | --- | --- | --- |
 | `POST` | `/api/v1/invoices/quote` | `billing.write` | server-authoritative quote; not a sale |
-
-The HTTP handler only validates input and calls the domain/application service. It does not reimplement math.
 
 Error codes:
 
@@ -115,35 +108,27 @@ Error codes:
 
 ## UI/UX Requirements
 
-No dedicated calculator settings page beyond showing the active approved policy name/version on POS later.
+No dedicated calculator settings page beyond showing the active approved policy name/version on POS.
 
-If a quote fails because rules are unapproved, show a local inline alert: calculations are blocked pending owner examples. Do not display a plausible but unofficial total.
+When a quote fails (missing rate, invalid input), show a local inline alert. Do not display a plausible but unofficial total.
 
-When a quote succeeds, render the server breakdown with tabular numerals, ₹ labels, and right-aligned amounts. Local preview, if any, must call the same policy and still be revalidated on the server.
+When a quote succeeds, render the server breakdown with tabular numerals, ₹ labels, and right-aligned amounts.
 
 ## Edge Cases & Error Handling
 
 - Purity without a rate for that business date: `422`
 - Weight precision beyond `NUMERIC(14,4)`: reject
-- Mixing approved and unsupported making-charge bases: reject the unsupported line
-- Discount greater than taxable base: reject unless an approved rule allows it
+- Discount greater than taxable base: reject (no silent cap)
 - Fixture drift after policy edit: old version fixtures must still pass; new version gets new fixtures
 - UI rounding for display must not feed the next calculation
 
 ## Open Questions
 
-These block live calculator approval, not workspace setup:
+Resolved for `invoice.v1` by owner decision (20 September 2026). Remaining operational confirmations:
 
-- Purity and rate handling
-- Making-charge method(s)
-- Wastage convention
-- Stone charges
-- Discounts
-- Tax treatment
-- Rounding
-- Required invoice fields
-
-Until approved, implement the engine interface and fixture harness only.
+- Shop accountant should confirm GST registration treatment and place-of-supply before live inter-state invoices
+- POS line-level making/wastage/stone/discount UI (shipped in spec 08; defaults remain ₹0 making / no wastage until staff edit)
+- Hallmark / HUID print policy on finalized documents (spec 13)
 
 ## Step-by-Step Implementation Sub-tasks
 
@@ -151,11 +136,12 @@ Until approved, implement the engine interface and fixture harness only.
 2. Define the calculation policy schema and `approved` gate.
 3. Implement `quoteInvoice(input, policy)` with discriminated method unions.
 4. Return structured unsupported-rule errors.
-5. Add a fixture folder for owner examples; keep it empty-but-failing until samples arrive, or skip live totals.
+5. Encode owner-approved fixtures; verify exact matches.
 6. Expose `POST /invoices/quote` as a thin wrapper.
-7. Add unit tests that fail closed without fixtures rather than generating fake gold prices.
-8. When examples arrive, encode them and do not mark this unit complete until they pass.
+7. Seed approved `invoice.v1` for the shop organization.
 
 ## Verification
 
-Owner-approved fixtures are mandatory before POS finalization uses the engine. Do not mark billing complete on synthetic placeholder math.
+- `pnpm verify:invoice-calculation` — fixtures + RLS + approved quote sample
+- `pnpm seed:calculation-policy` — idempotent approved policy upsert
+- POS finalization (spec 08) uses the same engine; live sale requires an applicable metal rate for the business date

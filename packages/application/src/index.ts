@@ -12,12 +12,14 @@ export {
 export { assertAnyPermission, assertPermission } from "./authorize";
 export {
   createMetalRate,
+  deleteMakingChargeDefault,
   getDeviceSettings,
   getDocumentSequences,
   getPublicShopBranding,
   getReminderSettings,
   getShopProfile,
   listAuditEvents,
+  listMakingChargeDefaults,
   listMetalRates,
   removeShopLogo,
   updateDeviceSettings,
@@ -25,6 +27,7 @@ export {
   updateReminderSettings,
   updateShopProfile,
   uploadShopLogo,
+  upsertMakingChargeDefault,
 } from "./shop-settings";
 export type {
   AuditWrite,
@@ -84,5 +87,59 @@ export {
   updateCustomer,
 } from "./customers";
 export type { CustomerListFilters, CustomerRepository } from "./customers";
+
+export {
+  createInvoiceDraft,
+  finalizeInvoice,
+  getInvoice,
+  hashFinalizePayload,
+  listInvoices,
+  patchInvoiceDraft,
+  quickReceiveArticleOntoDraft,
+  quoteInvoiceForStaff,
+  refreshDraftQuote,
+} from "./invoices";
+export type {
+  InvoiceDraftLineInput,
+  InvoiceListFilters,
+  InvoiceQuoteRepository,
+  InvoiceQuoteTotals,
+  InvoiceRepository,
+  LockedArticle,
+} from "./invoices";
+
+export {
+  collectionsPeriodFromQuery,
+  getCustomerSalesStatement,
+  getDailyCollections,
+  getPayment,
+  hashPaymentPayload,
+  listInvoicePayments,
+  listPayments,
+  paymentListDateFilters,
+  recordPayment,
+  splitTendersAcrossAllocations,
+} from "./payments";
+export type {
+  CollectionsPeriodFilter,
+  LockedInvoiceForAllocation,
+  PaymentListFilters,
+  PaymentRepository,
+} from "./payments";
+
+export {
+  acceptInvoiceReturn,
+  creditAmountForReturnedLine,
+  getInvoiceCorrections,
+  refundPayment,
+  reversePayment,
+} from "./returns";
+export type {
+  LockedArticleForReturn,
+  LockedFinalizedInvoice,
+  LockedPaymentForCorrection,
+  PaymentCorrectionRepository,
+  ReturnsRepository,
+} from "./returns";
 
 export type { FieldError };

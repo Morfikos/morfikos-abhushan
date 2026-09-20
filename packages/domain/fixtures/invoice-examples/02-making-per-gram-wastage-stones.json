@@ -1,0 +1,87 @@
+{
+  "id": "02-making-per-gram-wastage-stones",
+  "policyVersion": "invoice.v1",
+  "policy": {
+    "version": "invoice.v1",
+    "status": "approved",
+    "currency": "INR",
+    "weightUnit": "g",
+    "rateUnit": "per_g",
+    "makingChargeMethod": "line_fixed_per_gram_or_percent",
+    "wastageMethod": "percent_of_net_weight",
+    "discountMethod": "line_then_invoice_amount_or_percent",
+    "taxMethod": "gst_jewellery_3pct_exclusive",
+    "roundingMode": "ROUND_HALF_UP",
+    "roundingScale": 2
+  },
+  "input": {
+    "policyVersion": "invoice.v1",
+    "businessDate": "2026-09-20",
+    "lines": [
+      {
+        "lineId": "line-1",
+        "metal": "gold",
+        "purity": "22K",
+        "grossWeightGrams": "8.2500",
+        "nonMetalWeightGrams": "0.2500",
+        "netMetalWeightGrams": "8.0000",
+        "ratePerGram": "7200.000000",
+        "makingChargeInput": {
+          "method": "per_gram",
+          "ratePerGram": "150.000000"
+        },
+        "wastageInput": {
+          "method": "percent_of_net_weight",
+          "percent": "2.000000"
+        },
+        "stoneCharges": [
+          {
+            "description": "Ruby",
+            "amountInr": "2500.00"
+          }
+        ],
+        "lineDiscountInput": null
+      }
+    ],
+    "invoiceDiscountInput": null,
+    "taxInput": {
+      "method": "gst_jewellery_intra"
+    }
+  },
+  "expected": {
+    "policyVersion": "invoice.v1",
+    "currency": "INR",
+    "lines": [
+      {
+        "lineId": "line-1",
+        "articleId": null,
+        "metalValueInr": "57600.00",
+        "makingChargeInr": "1200.00",
+        "wastageInr": "1152.00",
+        "stoneChargesInr": "2500.00",
+        "lineDiscountInr": "0.00",
+        "invoiceDiscountAllocatedInr": "0.00",
+        "taxableInr": "62452.00",
+        "lineSubtotalInr": "62452.00"
+      }
+    ],
+    "metalValueInr": "57600.00",
+    "makingChargeInr": "1200.00",
+    "wastageInr": "1152.00",
+    "stoneChargesInr": "2500.00",
+    "lineDiscountsInr": "0.00",
+    "invoiceDiscountInr": "0.00",
+    "taxableInr": "62452.00",
+    "cgstInr": "936.78",
+    "sgstInr": "936.78",
+    "igstInr": "0.00",
+    "taxInr": "1873.56",
+    "roundOffInr": "0.44",
+    "grandTotalInr": "64326.00",
+    "roundingApplied": {
+      "mode": "ROUND_HALF_UP",
+      "scale": 0,
+      "stage": "grand_total"
+    }
+  }
+}

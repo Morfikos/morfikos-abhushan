@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { ArticleListItem, ArticleStatus } from "@aabhushan/contracts";
-import { FilterLines, Package, SearchLg, Trash01 } from "@untitledui/icons";
+import type { ArticleListItem, ArticleStatus, Metal } from "@aabhushan/contracts";
+import { ChevronRight, FilterLines, Package, SearchLg, Trash01 } from "@untitledui/icons";
 
 import { EmptyState } from "@/components/application/empty-state/empty-state";
 import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
@@ -34,6 +34,7 @@ import {
   fetchDevices,
   lookupArticle,
 } from "@/lib/staff-api";
+import { cx } from "@/utils/cx";
 
 type TableSelection = "all" | Set<string | number>;
 
@@ -41,6 +42,7 @@ type AppliedFilters = {
   q: string;
   status: "" | ArticleStatus;
   categoryId: string;
+  metal: "" | Metal;
   purity: string;
   minWeight: string;
   maxWeight: string;
@@ -50,13 +52,22 @@ const emptyApplied: AppliedFilters = {
   q: "",
   status: "",
   categoryId: "",
+  metal: "",
   purity: "",
   minWeight: "",
   maxWeight: "",
 };
 
 function hasAppliedFilters(applied: AppliedFilters): boolean {
-  return Boolean(applied.q || applied.status || applied.categoryId || applied.purity || applied.minWeight || applied.maxWeight);
+  return Boolean(
+    applied.q ||
+      applied.status ||
+      applied.categoryId ||
+      applied.metal ||
+      applied.purity ||
+      applied.minWeight ||
+      applied.maxWeight,
+  );
 }
 
 function hasAdvancedApplied(applied: AppliedFilters): boolean {
@@ -98,6 +109,7 @@ export function InventoryList() {
   const [scannedThisSession, setScannedThisSession] = useState<Set<string>>(() => new Set());
   const [status, setStatus] = useState<"" | ArticleStatus>("");
   const [categoryId, setCategoryId] = useState("");
+  const [metal, setMetal] = useState<"" | Metal>("");
   const [purity, setPurity] = useState("");
   const [minWeight, setMinWeight] = useState("");
   const [maxWeight, setMaxWeight] = useState("");
@@ -146,6 +158,7 @@ export function InventoryList() {
         ...(applied.q ? { q: applied.q } : {}),
         ...(applied.status ? { status: applied.status } : {}),
         ...(applied.categoryId ? { categoryId: applied.categoryId } : {}),
+        ...(applied.metal ? { metal: applied.metal } : {}),
         ...(applied.purity ? { purity: applied.purity } : {}),
         ...(applied.minWeight ? { minGrossWeightGrams: applied.minWeight } : {}),
         ...(applied.maxWeight ? { maxGrossWeightGrams: applied.maxWeight } : {}),
@@ -195,6 +208,7 @@ export function InventoryList() {
   const catalogueEmpty = !query.isLoading && total === 0 && !filtersActive;
   const filteredEmpty = !query.isLoading && items.length === 0 && filtersActive;
   const showInitialLoading = query.isLoading && !query.data;
+  const showArticlesCard = !catalogueEmpty && !showInitialLoading;
   const selectedIds =
     selectedKeys === "all" ? items.map((item) => item.id) : [...selectedKeys].map((key) => String(key));
   const selectedCount = selectedIds.length;
@@ -211,6 +225,13 @@ export function InventoryList() {
     setPage(1);
     setSelectedKeys(new Set());
     setApplied((current) => ({ ...current, categoryId: value }));
+  }
+
+  function applyMetal(value: "" | Metal) {
+    setMetal(value);
+    setPage(1);
+    setSelectedKeys(new Set());
+    setApplied((current) => ({ ...current, metal: value }));
   }
 
   function applySearch() {
@@ -234,6 +255,7 @@ export function InventoryList() {
     setSearch("");
     setStatus("");
     setCategoryId("");
+    setMetal("");
     setPurity("");
     setMinWeight("");
     setMaxWeight("");
@@ -292,6 +314,52 @@ export function InventoryList() {
     router.push(tagPrintHref({ ids: selectedIds, kind: selectedIds.length === 1 ? "initial" : "batch" }));
   }
 
+  const filterToolbar = (
+    <InventoryFilterToolbar
+      catalogueEmpty={catalogueEmpty}
+      scan={scan}
+      search={search}
+      status={status}
+      categoryId={categoryId}
+      metal={metal}
+      purity={purity}
+      minWeight={minWeight}
+      maxWeight={maxWeight}
+      showMoreFilters={showMoreFilters}
+      filtersActive={filtersActive}
+      scanError={scanError}
+      scanRef={scanRef}
+      terminator={devices.data?.scan_terminator ?? "Enter"}
+      expectedSuffix={devices.data?.expected_suffix ?? ""}
+      alreadyScanned={scannedThisSession}
+      categoriesLoading={categories.isLoading}
+      categoryOptions={[
+        { label: "All categories", value: "" },
+        ...(categories.data?.items ?? []).map((item) => ({ label: item.name, value: item.id })),
+      ]}
+      onScanChange={setScan}
+      onScan={lookupScannedArticle}
+      onDuplicate={(payload) => {
+        setScanError(`Already scanned in this session: ${payload}`);
+        setScan("");
+      }}
+      onUnexpectedSuffix={(raw) => {
+        setScanError(`Scanner suffix was unexpected. Raw scan: ${raw}`);
+      }}
+      onSearchChange={setSearch}
+      onSearchEnter={onSearchEnter}
+      onStatusChange={applyStatus}
+      onCategoryChange={applyCategory}
+      onMetalChange={applyMetal}
+      onPurityChange={setPurity}
+      onMinWeightChange={setMinWeight}
+      onMaxWeightChange={setMaxWeight}
+      onToggleMoreFilters={() => setShowMoreFilters((current) => !current)}
+      onClearFilters={clearFilters}
+      onApplyAdvanced={applyAdvancedFilters}
+    />
+  );
+
   return (
     <section className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -313,93 +381,11 @@ export function InventoryList() {
         ) : null}
       </div>
 
-      <div className="flex flex-col gap-3 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-5">
-        <div className={`grid gap-3 ${catalogueEmpty ? "md:grid-cols-2" : "md:grid-cols-2 xl:grid-cols-4"}`}>
-          <ScanField
-            value={scan}
-            terminator={devices.data?.scan_terminator ?? "Enter"}
-            expectedSuffix={devices.data?.expected_suffix ?? ""}
-            alreadyScanned={scannedThisSession}
-            inputRef={scanRef}
-            onChange={setScan}
-            onScan={lookupScannedArticle}
-            onDuplicate={(payload) => {
-              setScanError(`Already scanned in this session: ${payload}`);
-              setScan("");
-            }}
-            onUnexpectedSuffix={(raw) => {
-              setScanError(`Scanner suffix was unexpected. Raw scan: ${raw}`);
-            }}
-          />
-          <Input
-            label="Search"
-            value={search}
-            placeholder="Article number, HUID, or source"
-            icon={SearchLg}
-            onChange={setSearch}
-            onKeyDown={onSearchEnter}
-          />
-          {!catalogueEmpty ? (
-            <>
-              <SelectField
-                label="Status"
-                value={status}
-                onChange={(value) => applyStatus(value as "" | ArticleStatus)}
-                options={[
-                  { label: "All statuses", value: "" },
-                  { label: "Available", value: "available" },
-                  { label: "Sold", value: "sold" },
-                  { label: "Under review", value: "return_inspection" },
-                  { label: "Unavailable", value: "unavailable" },
-                ]}
-              />
-              <SelectField
-                label="Category"
-                value={categoryId}
-                onChange={applyCategory}
-                isDisabled={categories.isLoading}
-                options={[
-                  { label: "All categories", value: "" },
-                  ...(categories.data?.items ?? []).map((item) => ({ label: item.name, value: item.id })),
-                ]}
-              />
-            </>
-          ) : null}
+      {catalogueEmpty ? (
+        <div className="flex flex-col gap-3 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-5">
+          {filterToolbar}
         </div>
-
-        {!catalogueEmpty ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              color="secondary"
-              size="sm"
-              iconLeading={FilterLines}
-              onPress={() => setShowMoreFilters((current) => !current)}
-            >
-              {showMoreFilters ? "Hide filters" : "More filters"}
-            </Button>
-            {filtersActive ? (
-              <Button color="tertiary" size="sm" onPress={clearFilters}>
-                Clear filters
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
-
-        {showMoreFilters && !catalogueEmpty ? (
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <Input label="Purity" value={purity} onChange={setPurity} />
-            <Input label="Min gross weight (g)" value={minWeight} onChange={setMinWeight} />
-            <Input label="Max gross weight (g)" value={maxWeight} onChange={setMaxWeight} />
-            <div className="flex items-end">
-              <Button color="secondary" size="md" onPress={applyAdvancedFilters}>
-                Apply filters
-              </Button>
-            </div>
-          </div>
-        ) : null}
-
-        {scanError ? <p className="text-sm text-error-primary">{scanError}</p> : null}
-      </div>
+      ) : null}
 
       {showInitialLoading ? <LoadingIndicator size="md" label="Loading articles" /> : null}
       {query.isError ? <p className="text-sm text-error-primary">{inventoryErrorMessage(query.error)}</p> : null}
@@ -428,23 +414,7 @@ export function InventoryList() {
         </EmptyState>
       ) : null}
 
-      {filteredEmpty ? (
-        <EmptyState size="md" className="mx-auto py-10">
-          <EmptyState.Header pattern="none">
-            <EmptyState.Content>
-              <p className="text-lg font-semibold text-primary">No articles match these filters</p>
-              <EmptyState.Description>Try clearing filters or adjusting purity and weight ranges.</EmptyState.Description>
-            </EmptyState.Content>
-          </EmptyState.Header>
-          <EmptyState.Footer>
-            <Button color="secondary" size="md" onPress={clearFilters}>
-              Clear filters
-            </Button>
-          </EmptyState.Footer>
-        </EmptyState>
-      ) : null}
-
-      {items.length > 0 ? (
+      {showArticlesCard ? (
         <TableCard.Root>
           <TableCard.Header
             title="Articles"
@@ -462,80 +432,112 @@ export function InventoryList() {
               ) : null
             }
           />
-          <Table
-            aria-label="Articles"
-            selectionMode={canWrite ? "multiple" : "none"}
-            selectedKeys={selectedKeys}
-            onSelectionChange={setSelectedKeys}
-          >
-            <Table.Header>
-              <Table.Head id="number" isRowHeader label="Article" />
-              <Table.Head id="category" label="Category" />
-              <Table.Head id="metal" label="Metal" />
-              <Table.Head id="purity" label="Purity" />
-              <Table.Head id="gross" label="Gross" className="text-right" />
-              <Table.Head id="net" label="Net metal" className="text-right" />
-              <Table.Head id="status" label="Status" />
-              <Table.Head id="location" label="Location" />
-              {canWrite ? <Table.Head id="actions" label="Actions" className="w-16" /> : null}
-            </Table.Header>
-            <Table.Body items={items}>
-              {(item: ArticleListItem) => {
-                const blocked = deleteBlockedReason(item);
-                return (
-                  <Table.Row id={item.id} href={`/inventory/${item.id}`} className="cursor-pointer">
-                    <Table.Cell>
-                      <span className="font-mono text-sm font-medium text-primary">{item.article_number}</span>
-                    </Table.Cell>
-                    <Table.Cell>{item.category_name}</Table.Cell>
-                    <Table.Cell className="capitalize">{item.metal}</Table.Cell>
-                    <Table.Cell>{item.purity}</Table.Cell>
-                    <Table.Cell className="text-right font-medium tabular-nums">{formatGrams(item.gross_weight_grams)}</Table.Cell>
-                    <Table.Cell className="text-right font-medium tabular-nums">{formatGrams(item.net_metal_weight_grams)}</Table.Cell>
-                    <Table.Cell>
-                      <Badge color={articleStatusColor(item.status)} size="sm">
-                        {articleStatusLabel(item.status)}
-                      </Badge>
-                    </Table.Cell>
-                    <Table.Cell>{item.location_name ?? "—"}</Table.Cell>
-                    {canWrite ? (
-                      <Table.Cell>
-                        <Button
-                          aria-label={
-                            blocked
-                              ? `Cannot delete ${item.article_number}. ${blocked}`
-                              : `Delete ${item.article_number}`
-                          }
-                          color="tertiary-destructive"
-                          size="sm"
-                          iconLeading={Trash01}
-                          isDisabled={!item.deletable || deleteMutation.isPending}
-                          onPress={() => {
-                            setActionError(null);
-                            setPendingDelete({ kind: "single", item });
-                          }}
-                        />
-                      </Table.Cell>
-                    ) : null}
-                  </Table.Row>
-                );
-              }}
-            </Table.Body>
-          </Table>
-          <ListTableFooter
-            page={page}
-            totalPages={totalPages}
-            pageSize={pageSize}
-            onPageChange={(next) => {
-              setPage(next);
-              setSelectedKeys(new Set());
-            }}
-            onPageSizeChange={(next) => {
-              setPageSize(next);
-              setPage(1);
-              setSelectedKeys(new Set());
-            }}
-          />
+          <div className="border-b border-secondary px-4 py-4 md:px-6">{filterToolbar}</div>
+
+          {filteredEmpty ? (
+            <EmptyState size="md" className="mx-auto py-10">
+              <EmptyState.Header pattern="none">
+                <EmptyState.Content>
+                  <p className="text-lg font-semibold text-primary">No articles match these filters</p>
+                  <EmptyState.Description>
+                    Try clearing filters or adjusting purity and weight ranges.
+                  </EmptyState.Description>
+                </EmptyState.Content>
+              </EmptyState.Header>
+              <EmptyState.Footer>
+                <Button color="secondary" size="md" onPress={clearFilters}>
+                  Clear filters
+                </Button>
+              </EmptyState.Footer>
+            </EmptyState>
+          ) : null}
+
+          {items.length > 0 ? (
+            <>
+              <Table
+                aria-label="Articles"
+                selectionMode={canWrite ? "multiple" : "none"}
+                selectedKeys={selectedKeys}
+                onSelectionChange={setSelectedKeys}
+              >
+                <Table.Header>
+                  <Table.Head id="number" isRowHeader label="Article" />
+                  <Table.Head id="category" label="Category" />
+                  <Table.Head id="metal" label="Metal" />
+                  <Table.Head id="purity" label="Purity" />
+                  <Table.Head id="gross" label="Gross" className="text-right" />
+                  <Table.Head id="net" label="Net metal" className="text-right" />
+                  <Table.Head id="status" label="Status" />
+                  <Table.Head id="location" label="Location" />
+                  {canWrite ? <Table.Head id="actions" label="Actions" className="w-16" /> : null}
+                  <Table.Head id="open" label="" />
+                </Table.Header>
+                <Table.Body items={items}>
+                  {(item: ArticleListItem) => {
+                    const blocked = deleteBlockedReason(item);
+                    return (
+                      <Table.Row id={item.id} href={`/inventory/${item.id}`} className="cursor-pointer">
+                        <Table.Cell>
+                          <span className="font-mono text-sm font-medium text-primary">{item.article_number}</span>
+                        </Table.Cell>
+                        <Table.Cell>{item.category_name}</Table.Cell>
+                        <Table.Cell className="capitalize">{item.metal}</Table.Cell>
+                        <Table.Cell>{item.purity}</Table.Cell>
+                        <Table.Cell className="text-right font-medium tabular-nums">
+                          {formatGrams(item.gross_weight_grams)}
+                        </Table.Cell>
+                        <Table.Cell className="text-right font-medium tabular-nums">
+                          {formatGrams(item.net_metal_weight_grams)}
+                        </Table.Cell>
+                        <Table.Cell>
+                          <Badge color={articleStatusColor(item.status)} size="sm">
+                            {articleStatusLabel(item.status)}
+                          </Badge>
+                        </Table.Cell>
+                        <Table.Cell>{item.location_name ?? "—"}</Table.Cell>
+                        {canWrite ? (
+                          <Table.Cell>
+                            <Button
+                              aria-label={
+                                blocked
+                                  ? `Cannot delete ${item.article_number}. ${blocked}`
+                                  : `Delete ${item.article_number}`
+                              }
+                              color="tertiary-destructive"
+                              size="sm"
+                              iconLeading={Trash01}
+                              isDisabled={!item.deletable || deleteMutation.isPending}
+                              onPress={() => {
+                                setActionError(null);
+                                setPendingDelete({ kind: "single", item });
+                              }}
+                            />
+                          </Table.Cell>
+                        ) : null}
+                        <Table.Cell>
+                          <ChevronRight className="size-4 text-fg-quaternary" aria-hidden="true" />
+                        </Table.Cell>
+                      </Table.Row>
+                    );
+                  }}
+                </Table.Body>
+              </Table>
+              <ListTableFooter
+                page={page}
+                totalPages={totalPages}
+                pageSize={pageSize}
+                onPageChange={(next) => {
+                  setPage(next);
+                  setSelectedKeys(new Set());
+                }}
+                onPageSizeChange={(next) => {
+                  setPageSize(next);
+                  setPage(1);
+                  setSelectedKeys(new Set());
+                }}
+              />
+            </>
+          ) : null}
         </TableCard.Root>
       ) : null}
 
@@ -579,5 +581,165 @@ export function InventoryList() {
         }}
       />
     </section>
+  );
+}
+
+function InventoryFilterToolbar({
+  catalogueEmpty,
+  scan,
+  search,
+  status,
+  categoryId,
+  metal,
+  purity,
+  minWeight,
+  maxWeight,
+  showMoreFilters,
+  filtersActive,
+  scanError,
+  scanRef,
+  terminator,
+  expectedSuffix,
+  alreadyScanned,
+  categoriesLoading,
+  categoryOptions,
+  onScanChange,
+  onScan,
+  onDuplicate,
+  onUnexpectedSuffix,
+  onSearchChange,
+  onSearchEnter,
+  onStatusChange,
+  onCategoryChange,
+  onMetalChange,
+  onPurityChange,
+  onMinWeightChange,
+  onMaxWeightChange,
+  onToggleMoreFilters,
+  onClearFilters,
+  onApplyAdvanced,
+}: {
+  catalogueEmpty: boolean;
+  scan: string;
+  search: string;
+  status: "" | ArticleStatus;
+  categoryId: string;
+  metal: "" | Metal;
+  purity: string;
+  minWeight: string;
+  maxWeight: string;
+  showMoreFilters: boolean;
+  filtersActive: boolean;
+  scanError: string | null;
+  scanRef: React.RefObject<HTMLInputElement | null>;
+  terminator: "Enter" | "Tab" | "None";
+  expectedSuffix: string;
+  alreadyScanned: Set<string>;
+  categoriesLoading: boolean;
+  categoryOptions: { label: string; value: string }[];
+  onScanChange: (value: string) => void;
+  onScan: (payload: string) => void;
+  onDuplicate: (payload: string) => void;
+  onUnexpectedSuffix: (raw: string) => void;
+  onSearchChange: (value: string) => void;
+  onSearchEnter: (event: KeyboardEvent<HTMLInputElement>) => void;
+  onStatusChange: (value: "" | ArticleStatus) => void;
+  onCategoryChange: (value: string) => void;
+  onMetalChange: (value: "" | Metal) => void;
+  onPurityChange: (value: string) => void;
+  onMinWeightChange: (value: string) => void;
+  onMaxWeightChange: (value: string) => void;
+  onToggleMoreFilters: () => void;
+  onClearFilters: () => void;
+  onApplyAdvanced: () => void;
+}): ReactNode {
+  return (
+    <div className="flex flex-col gap-3">
+      <div
+        className={cx(
+          "grid gap-3",
+          catalogueEmpty ? "md:grid-cols-2" : "md:grid-cols-2 xl:grid-cols-6",
+        )}
+      >
+        <ScanField
+          value={scan}
+          terminator={terminator}
+          expectedSuffix={expectedSuffix}
+          alreadyScanned={alreadyScanned}
+          inputRef={scanRef}
+          hint=""
+          onChange={onScanChange}
+          onScan={onScan}
+          onDuplicate={onDuplicate}
+          onUnexpectedSuffix={onUnexpectedSuffix}
+        />
+        <Input
+          label="Search"
+          value={search}
+          placeholder="Article number, HUID, or source"
+          icon={SearchLg}
+          onChange={onSearchChange}
+          onKeyDown={onSearchEnter}
+        />
+        {!catalogueEmpty ? (
+          <>
+            <SelectField
+              label="Status"
+              value={status}
+              onChange={(value) => onStatusChange(value as "" | ArticleStatus)}
+              options={[
+                { label: "All statuses", value: "" },
+                { label: "Available", value: "available" },
+                { label: "Sold", value: "sold" },
+                { label: "Under review", value: "return_inspection" },
+                { label: "Unavailable", value: "unavailable" },
+              ]}
+            />
+            <SelectField
+              label="Metal"
+              value={metal}
+              onChange={(value) => onMetalChange(value === "gold" || value === "silver" ? value : "")}
+              options={[
+                { label: "All metals", value: "" },
+                { label: "Gold", value: "gold" },
+                { label: "Silver", value: "silver" },
+              ]}
+            />
+            <SelectField
+              label="Category"
+              value={categoryId}
+              onChange={onCategoryChange}
+              isDisabled={categoriesLoading}
+              options={categoryOptions}
+            />
+            <div className="flex flex-wrap items-end gap-2">
+              <Button color="secondary" size="md" iconLeading={FilterLines} onPress={onToggleMoreFilters}>
+                {showMoreFilters ? "Hide filters" : "More filters"}
+              </Button>
+              {filtersActive ? (
+                <Button color="tertiary" size="md" onPress={onClearFilters}>
+                  Clear filters
+                </Button>
+              ) : null}
+            </div>
+          </>
+        ) : null}
+      </div>
+
+      {showMoreFilters && !catalogueEmpty ? (
+        <div className="grid gap-3 border-t border-secondary pt-3 md:grid-cols-2 xl:grid-cols-4">
+          <Input label="Purity" value={purity} onChange={onPurityChange} />
+          <Input label="Min gross weight (g)" value={minWeight} onChange={onMinWeightChange} />
+          <Input label="Max gross weight (g)" value={maxWeight} onChange={onMaxWeightChange} />
+          <div className="flex items-end">
+            <Button color="secondary" size="md" onPress={onApplyAdvanced}>
+              Apply filters
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
+      {scanError ? <p className="text-sm text-error-primary">{scanError}</p> : null}
+    </div>
   );
 }

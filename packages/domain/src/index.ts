@@ -1,5 +1,5 @@
 /**
- * Pure invoice and Girvi calculations live here in later units.
+ * Pure invoice and Girvi calculations live here.
  * This package must stay free of HTTP, React, database, and provider SDKs.
  */
 export const domainPackage = "domain" as const;
@@ -57,3 +57,70 @@ export type {
   CustomerConsentStatus,
   NormalizedShopPhone,
 } from "./customer-contact";
+export {
+  DECIMAL_ROUNDING_MODES,
+  MONEY_MAX_FRACTIONAL_DIGITS,
+  MONEY_MAX_INTEGER_DIGITS,
+  PERCENT_MAX_FRACTIONAL_DIGITS,
+  RATE_MAX_FRACTIONAL_DIGITS,
+  RATE_MAX_INTEGER_DIGITS,
+  WEIGHT_MAX_FRACTIONAL_DIGITS,
+  WEIGHT_MAX_INTEGER_DIGITS,
+  assertFiniteDecimal,
+  assertMoneyAmount,
+  assertPercent,
+  assertRatePerGram,
+  assertWeightGrams,
+  decimalFromString,
+  decimalToPlainString,
+  isDecimalRoundingMode,
+  roundDecimal,
+} from "./decimal";
+export type { DecimalRoundingMode } from "./decimal";
+export {
+  APPROVED_DISCOUNT_METHODS,
+  APPROVED_MAKING_CHARGE_METHODS,
+  APPROVED_TAX_METHODS,
+  APPROVED_WASTAGE_METHODS,
+  CALCULATION_CURRENCIES,
+  CALCULATION_POLICY_STATUSES,
+  CALCULATION_RATE_UNITS,
+  CALCULATION_WEIGHT_UNITS,
+  INVOICE_V1_POLICY_METHODS,
+  assertRoundingConfigured,
+  calculationPolicyIsApproved,
+  isApprovedDiscountMethod,
+  isApprovedMakingChargeMethod,
+  isApprovedTaxMethod,
+  isApprovedWastageMethod,
+  isCalculationPolicyStatus,
+} from "./calculation-policy";
+export type {
+  ApprovedDiscountMethod,
+  ApprovedMakingChargeMethod,
+  ApprovedTaxMethod,
+  ApprovedWastageMethod,
+  CalculationCurrency,
+  CalculationPolicy,
+  CalculationPolicyStatus,
+  CalculationRateUnit,
+  CalculationWeightUnit,
+} from "./calculation-policy";
+export {
+  CALCULATION_ERROR_CODES,
+  CalculationDomainError,
+  quoteInvoice,
+} from "./invoice-quote";
+export type {
+  CalculationErrorCode,
+  InvoiceDiscountInput,
+  InvoiceQuoteInput,
+  InvoiceQuoteLineBreakdown,
+  InvoiceQuoteLineInput,
+  InvoiceQuoteResult,
+  LineDiscountInput,
+  MakingChargeInput,
+  StoneChargeInput,
+  TaxInput,
+  WastageInput,
+} from "./invoice-quote";

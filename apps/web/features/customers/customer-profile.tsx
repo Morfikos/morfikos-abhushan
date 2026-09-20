@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CustomerConsentPurpose, CustomerConsentStatus } from "@aabhushan/contracts";
-import { customerInitials } from "@aabhushan/domain";
-import { File06, NotificationBox, Scale01, ShoppingBag03 } from "@untitledui/icons";
+import { customerInitials, normalizeShopPhone } from "@aabhushan/domain";
+import { File06, NotificationBox, Scale01 } from "@untitledui/icons";
 
 import { EmptyState } from "@/components/application/empty-state/empty-state";
 import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
@@ -23,8 +23,9 @@ import {
   customerErrorMessage,
   fieldError,
   WHATSAPP_PURPOSES,
-  whatsappConsentLabel,
+  whatsappConsentShortLabel,
 } from "@/features/customers/customer-shared";
+import { CustomerSalesPanel } from "@/features/payments/customer-sales-panel";
 import {
   fetchCustomer,
   fetchCustomerIdentityFiles,
@@ -37,7 +38,7 @@ function ActivityEmpty({
   title,
   description,
 }: {
-  icon: typeof ShoppingBag03;
+  icon: typeof Scale01;
   title: string;
   description: string;
 }) {
@@ -54,6 +55,26 @@ function ActivityEmpty({
       </EmptyState.Header>
     </EmptyState>
   );
+}
+
+function profilePhoneHint(phone: string, apiPhoneError: string | undefined): {
+  hint: string;
+  isInvalid: boolean;
+} {
+  if (apiPhoneError) {
+    return { hint: apiPhoneError, isInvalid: true };
+  }
+  const parsed = normalizeShopPhone(phone);
+  if (parsed.kind === "ok") {
+    return { hint: `Stored as ${parsed.normalized}.`, isInvalid: false };
+  }
+  if (parsed.kind === "invalid") {
+    return { hint: parsed.message, isInvalid: true };
+  }
+  return {
+    hint: "Required for WhatsApp consent. 10-digit Indian numbers are stored as +91.",
+    isInvalid: false,
+  };
 }
 
 export function CustomerProfile({ customerId }: { customerId: string }) {
@@ -143,6 +164,11 @@ export function CustomerProfile({ customerId }: { customerId: string }) {
     },
   });
 
+  const phoneField = useMemo(
+    () => profilePhoneHint(phone, fieldError(saveMutation.error, "phone")),
+    [phone, saveMutation.error],
+  );
+
   if (!allowed) {
     return null;
   }
@@ -173,10 +199,17 @@ export function CustomerProfile({ customerId }: { customerId: string }) {
         <div className="flex items-start gap-3">
           <Avatar size="lg" initials={customerInitials(customer.display_name)} alt="" />
           <div>
+            <p className="text-sm text-tertiary">
+              <Button color="link-color" size="sm" href="/customers">
+                Customers
+              </Button>
+            </p>
             <h1 className="text-display-xs font-semibold text-primary">{customer.display_name}</h1>
-            <p className="text-md text-tertiary">{customer.phone_display ?? "No phone"}</p>
+            <p className="font-mono text-sm tabular-nums text-tertiary">
+              {customer.phone_display ?? "No phone"}
+            </p>
             <Badge color={customer.whatsapp_consent === "granted" ? "success" : "gray"} size="sm" className="mt-2">
-              {whatsappConsentLabel(customer.whatsapp_consent)}
+              {whatsappConsentShortLabel(customer.whatsapp_consent)}
             </Badge>
           </div>
         </div>
@@ -193,126 +226,151 @@ export function CustomerProfile({ customerId }: { customerId: string }) {
           <Tabs.Item id="notifications" label="Notifications" />
         </Tabs.List>
 
-        <Tabs.Panel id="profile" className="flex flex-col gap-6 pt-2">
-          <div className="grid gap-4 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:grid-cols-2 md:p-5">
-            <Input
-              label="Name"
-              isRequired
-              value={displayName}
-              isDisabled={!canWrite}
-              onChange={setDisplayName}
-              isInvalid={Boolean(fieldError(saveMutation.error, "display_name"))}
-              hint={fieldError(saveMutation.error, "display_name")}
-            />
-            <Input
-              label="Phone"
-              value={phone}
-              isDisabled={!canWrite}
-              onChange={setPhone}
-              isInvalid={Boolean(fieldError(saveMutation.error, "phone"))}
-              hint={fieldError(saveMutation.error, "phone") ?? "Required for WhatsApp consent."}
-            />
-            <Input
-              label="Email"
-              value={email}
-              isDisabled={!canWrite}
-              onChange={setEmail}
-              isInvalid={Boolean(fieldError(saveMutation.error, "email"))}
-              hint={fieldError(saveMutation.error, "email")}
-            />
-            <Input label="Address" value={addressLine} isDisabled={!canWrite} onChange={setAddressLine} />
-            <div className="md:col-span-2">
-              <TextArea
-                label="Staff notes"
-                value={notes}
-                isDisabled={!canWrite}
-                onChange={setNotes}
-                rows={4}
-                hint="Staff only. Not shown to the customer."
-              />
-            </div>
-            {saveMutation.error ? (
-              <p className="text-sm text-error-primary md:col-span-2">{customerErrorMessage(saveMutation.error)}</p>
-            ) : null}
-            {canWrite ? (
-              <div className="md:col-span-2">
-                <Button
-                  color="primary"
-                  size="md"
-                  isLoading={saveMutation.isPending}
-                  isDisabled={saveMutation.isPending}
-                  onPress={() => saveMutation.mutate()}
-                >
-                  Save profile
-                </Button>
+        <Tabs.Panel id="profile" className="pt-2">
+          <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
+            <div className="flex flex-col gap-4 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-5">
+              <div>
+                <h2 className="text-lg font-semibold text-primary">Contact</h2>
+                <p className="text-sm text-tertiary">Staff-only record. Customers do not have an account or portal.</p>
               </div>
-            ) : null}
-          </div>
-
-          <div className="flex flex-col gap-4 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-5">
-            <div>
-              <h2 className="text-lg font-semibold text-primary">WhatsApp consent</h2>
-              <p className="text-sm text-tertiary">
-                Stored per purpose. Revoking is immediate for future sends and does not delete notification history.
-                A phone number is required to grant consent. Nothing is sent from this screen.
-              </p>
-            </div>
-            {WHATSAPP_PURPOSES.map((purpose) => {
-              const status = consentsByPurpose.get(purpose) ?? null;
-              const granted = status === "granted";
-              return (
-                <Toggle
-                  key={purpose}
-                  className="w-full"
-                  isSelected={granted}
-                  isDisabled={!canWrite || consentMutation.isPending}
-                  onChange={(selected) =>
-                    consentMutation.mutate({ purpose, status: selected ? "granted" : "revoked" })
-                  }
-                  label={consentPurposeLabel(purpose)}
-                  hint={granted ? "Granted for future sends." : "Not granted."}
+              <div className="grid gap-4 md:grid-cols-2">
+                <Input
+                  label="Name"
+                  isRequired
+                  value={displayName}
+                  isDisabled={!canWrite}
+                  onChange={setDisplayName}
+                  isInvalid={Boolean(fieldError(saveMutation.error, "display_name"))}
+                  hint={fieldError(saveMutation.error, "display_name")}
                 />
-              );
-            })}
-            {consentMutation.error ? (
-              <p className="text-sm text-error-primary">{customerErrorMessage(consentMutation.error)}</p>
-            ) : null}
-          </div>
+                <Input
+                  label="Phone"
+                  type="tel"
+                  value={phone}
+                  isDisabled={!canWrite}
+                  onChange={setPhone}
+                  isInvalid={phoneField.isInvalid}
+                  hint={phoneField.hint}
+                />
+              </div>
+            </div>
 
-          {canReadIdentity ? (
-            <div className="rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-5">
-              <h2 className="text-lg font-semibold text-primary">Identity documents</h2>
-              {identityQuery.isLoading ? <LoadingIndicator size="sm" label="Loading identity files" /> : null}
-              {identityQuery.isError ? (
-                <p className="text-sm text-error-primary">{customerErrorMessage(identityQuery.error)}</p>
+            <div className="flex flex-col gap-4 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-5">
+              <div>
+                <h2 className="text-lg font-semibold text-primary">Details</h2>
+                <p className="text-sm text-tertiary">Optional email, address, and staff notes.</p>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Input
+                  label="Email"
+                  value={email}
+                  isDisabled={!canWrite}
+                  onChange={setEmail}
+                  isInvalid={Boolean(fieldError(saveMutation.error, "email"))}
+                  hint={fieldError(saveMutation.error, "email")}
+                />
+                <Input label="Address" value={addressLine} isDisabled={!canWrite} onChange={setAddressLine} />
+                <div className="md:col-span-2">
+                  <TextArea
+                    label="Staff notes"
+                    value={notes}
+                    isDisabled={!canWrite}
+                    onChange={setNotes}
+                    rows={4}
+                    hint="Staff only. Not shown to the customer."
+                  />
+                </div>
+              </div>
+              {saveMutation.error ? (
+                <p className="text-sm text-error-primary">{customerErrorMessage(saveMutation.error)}</p>
               ) : null}
-              {(identityQuery.data?.items.length ?? 0) === 0 && !identityQuery.isLoading ? (
-                <ActivityEmpty
-                  icon={File06}
-                  title="No identity documents"
-                  description="Metadata only in this unit. File bytes are stored in a later documents spec."
-                />
-              ) : (
-                <ul className="mt-3 flex flex-col gap-2">
-                  {(identityQuery.data?.items ?? []).map((file) => (
-                    <li key={file.id} className="text-sm text-secondary">
-                      {file.purpose} · checksum {file.checksum_sha256.slice(0, 12)}…
-                    </li>
-                  ))}
-                </ul>
-              )}
+              {canWrite ? (
+                <div className="sticky bottom-0 z-10 -mx-4 border-t border-secondary bg-primary px-4 py-4 md:-mx-5 md:px-5">
+                  <Button
+                    color="primary"
+                    size="md"
+                    isLoading={saveMutation.isPending}
+                    isDisabled={saveMutation.isPending}
+                    onPress={() => saveMutation.mutate()}
+                  >
+                    Save profile
+                  </Button>
+                </div>
+              ) : null}
             </div>
-          ) : (
-            <p className="text-sm text-tertiary">Identity documents are restricted to authorized staff.</p>
-          )}
+
+            <div className="flex flex-col gap-4 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-5">
+              <div>
+                <h2 className="text-lg font-semibold text-primary">WhatsApp consent</h2>
+                <p className="text-sm text-tertiary">
+                  Phone required to grant. Revoking applies to future sends. Nothing is sent from this screen.
+                </p>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                {WHATSAPP_PURPOSES.map((purpose) => {
+                  const status = consentsByPurpose.get(purpose) ?? null;
+                  const granted = status === "granted";
+                  return (
+                    <Toggle
+                      key={purpose}
+                      className="w-full"
+                      isSelected={granted}
+                      isDisabled={!canWrite || consentMutation.isPending}
+                      onChange={(selected) =>
+                        consentMutation.mutate({ purpose, status: selected ? "granted" : "revoked" })
+                      }
+                      label={consentPurposeLabel(purpose)}
+                      hint={granted ? "Granted for future sends." : "Not granted."}
+                    />
+                  );
+                })}
+              </div>
+              {consentMutation.error ? (
+                <p className="text-sm text-error-primary">{customerErrorMessage(consentMutation.error)}</p>
+              ) : null}
+            </div>
+
+            {canReadIdentity ? (
+              <div className="flex flex-col gap-3 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-5">
+                <div>
+                  <h2 className="text-lg font-semibold text-primary">Identity documents</h2>
+                  <p className="text-sm text-tertiary">Metadata only in this unit. File bytes come in a later documents spec.</p>
+                </div>
+                {identityQuery.isLoading ? <LoadingIndicator size="sm" label="Loading identity files" /> : null}
+                {identityQuery.isError ? (
+                  <p className="text-sm text-error-primary">{customerErrorMessage(identityQuery.error)}</p>
+                ) : null}
+                {(identityQuery.data?.items.length ?? 0) === 0 && !identityQuery.isLoading ? (
+                  <div className="flex items-center gap-3 rounded-lg bg-secondary px-3 py-3 ring-1 ring-secondary">
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary ring-1 ring-secondary ring-inset">
+                      <File06 className="size-4 text-fg-quaternary" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-primary">No identity documents</p>
+                      <p className="text-xs text-tertiary">Nothing recorded for this customer yet.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <ul className="flex flex-col gap-2">
+                    {(identityQuery.data?.items ?? []).map((file) => (
+                      <li key={file.id} className="rounded-lg bg-secondary px-3 py-2 ring-1 ring-secondary">
+                        <p className="text-sm font-medium text-primary">{file.purpose}</p>
+                        <p className="font-mono text-xs text-tertiary">
+                          checksum {file.checksum_sha256.slice(0, 12)}…
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-tertiary">Identity documents are restricted to authorized staff.</p>
+            )}
+          </div>
         </Tabs.Panel>
 
         <Tabs.Panel id="sales" className="pt-2">
-          <ActivityEmpty
-            icon={ShoppingBag03}
-            title="No sales yet"
-            description="Sales invoices and outstanding dues will appear here. This section stays separate from Girvi even when empty."
-          />
+          <CustomerSalesPanel customerId={customerId} />
         </Tabs.Panel>
 
         <Tabs.Panel id="girvi" className="pt-2">

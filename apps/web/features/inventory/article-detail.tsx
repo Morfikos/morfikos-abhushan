@@ -6,7 +6,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Article, ArticleFile, InventoryMovement } from "@aabhushan/contracts";
 import { Image01 } from "@untitledui/icons";
 
-import { EmptyState } from "@/components/application/empty-state/empty-state";
 import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
@@ -134,6 +133,9 @@ export function ArticleDetail({ articleId }: { articleId: string }) {
 
   const sold = article.status === "sold";
   const underReview = article.status === "return_inspection";
+  const locationLabel = article.location_name ?? "Unspecified";
+  const metalLabel = article.metal.charAt(0).toUpperCase() + article.metal.slice(1);
+  const secondaryLine = [article.category_name, metalLabel, article.purity, locationLabel].join(" · ");
 
   return (
     <section className="flex w-full flex-col gap-6">
@@ -153,19 +155,18 @@ export function ArticleDetail({ articleId }: { articleId: string }) {
               {article.sellable ? "Sellable" : "Not sellable"}
             </Badge>
           </div>
+          <p className="mt-2 text-sm text-tertiary">{secondaryLine}</p>
         </div>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(16rem,20rem)_1fr_minmax(16rem,20rem)]">
-        <div className="flex flex-col gap-4">
-          <PhotographCard files={article.files} />
-          <TagSlot
-            barcode={article.barcode}
-            canWrite={canWrite}
-            onPrintTag={() => router.push(tagPrintHref({ ids: [article.id], kind: "initial" }))}
-            onReprint={() => setShowReprint(true)}
-          />
-        </div>
+        <PieceRail
+          files={article.files}
+          barcode={article.barcode}
+          canWrite={canWrite}
+          onPrintTag={() => router.push(tagPrintHref({ ids: [article.id], kind: "initial" }))}
+          onReprint={() => setShowReprint(true)}
+        />
 
         <SpecificationGrid article={article} />
 
@@ -178,7 +179,7 @@ export function ArticleDetail({ articleId }: { articleId: string }) {
       </div>
 
       {canWrite && !sold ? (
-        <section className="max-w-xl rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-5">
+        <section className="rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-5">
           <h2 className="text-md font-semibold text-primary">{underReview ? "Inspection release" : "Adjustment"}</h2>
           <p className="mt-1 text-sm text-tertiary">
             {underReview
@@ -188,17 +189,19 @@ export function ArticleDetail({ articleId }: { articleId: string }) {
           <div className="mt-4 flex flex-col gap-4">
             <Input label="Reason" value={reason} isRequired={!underReview} onChange={setReason} />
             {underReview ? (
-              <SelectField
-                label="Release to"
-                value={releaseStatus}
-                onChange={(value) => setReleaseStatus(value as "available" | "unavailable")}
-                options={[
-                  { label: "Available", value: "available" },
-                  { label: "Unavailable", value: "unavailable" },
-                ]}
-              />
+              <div className="grid gap-4 md:grid-cols-2">
+                <SelectField
+                  label="Release to"
+                  value={releaseStatus}
+                  onChange={(value) => setReleaseStatus(value as "available" | "unavailable")}
+                  options={[
+                    { label: "Available", value: "available" },
+                    { label: "Unavailable", value: "unavailable" },
+                  ]}
+                />
+              </div>
             ) : (
-              <>
+              <div className="grid gap-4 md:grid-cols-2">
                 <SelectField
                   label="Status after adjustment"
                   value={toStatus}
@@ -218,7 +221,7 @@ export function ArticleDetail({ articleId }: { articleId: string }) {
                     ...(locationsQuery.data?.items ?? []).map((item) => ({ label: item.name, value: item.id })),
                   ]}
                 />
-              </>
+              </div>
             )}
             {adjustMutation.isError ? <p className="text-sm text-error-primary">{inventoryErrorMessage(adjustMutation.error)}</p> : null}
             {releaseMutation.isError ? <p className="text-sm text-error-primary">{inventoryErrorMessage(releaseMutation.error)}</p> : null}
@@ -279,71 +282,68 @@ function CardShell({ title, children, className }: { title: string; children: Re
   );
 }
 
-function PhotographCard({ files }: { files: ArticleFile[] }) {
-  return (
-    <CardShell title="Photograph">
-      {files.length === 0 ? (
-        <EmptyState size="sm" className="mx-auto py-4">
-          <EmptyState.Header pattern="none">
-            <div className="mb-3 flex size-10 items-center justify-center rounded-lg bg-secondary ring-1 ring-secondary ring-inset">
-              <Image01 className="size-5 text-fg-quaternary" aria-hidden="true" />
-            </div>
-            <EmptyState.Content>
-              <p className="text-sm font-semibold text-primary">No photograph yet</p>
-              <EmptyState.Description>Metadata only until document storage.</EmptyState.Description>
-            </EmptyState.Content>
-          </EmptyState.Header>
-        </EmptyState>
-      ) : (
-        <ul className="flex flex-col gap-3">
-          {files.map((file) => (
-            <li key={file.id} className="rounded-lg bg-secondary px-3 py-2 ring-1 ring-secondary">
-              <p className="text-sm font-medium text-primary">{file.original_filename}</p>
-              <p className="text-xs text-tertiary">
-                {file.content_type} · {file.byte_size} bytes · checksum {file.checksum_sha256.slice(0, 12)}…
-              </p>
-              <p className="mt-1 font-mono text-xs text-quaternary">key {file.object_key}</p>
-            </li>
-          ))}
-        </ul>
-      )}
-      <p className="mt-3 text-xs text-tertiary">Private object keys only. No public URL is issued in this unit.</p>
-    </CardShell>
-  );
-}
-
-function TagSlot({
+function PieceRail({
+  files,
   barcode,
   canWrite,
   onPrintTag,
   onReprint,
 }: {
+  files: ArticleFile[];
   barcode: string | null;
   canWrite: boolean;
   onPrintTag: () => void;
   onReprint: () => void;
 }) {
   return (
-    <CardShell title="Printed tag">
+    <CardShell title="Photograph">
       <div className="flex flex-col gap-3">
-        {barcode ? (
-          <p className="font-mono text-sm font-medium text-primary break-all">{barcode}</p>
-        ) : (
-          <p className="text-sm text-tertiary">Barcode is assigned when the piece is tagged.</p>
-        )}
-        <p className="text-xs text-tertiary">Printer not confirmed. A preview is not a physical tag.</p>
-        {canWrite ? (
-          <div className="flex flex-wrap gap-2">
-            <Button color="primary" size="sm" onPress={onPrintTag}>
-              Print tag
-            </Button>
+        <div className="flex aspect-square flex-col items-center justify-center overflow-hidden rounded-lg bg-secondary ring-1 ring-secondary">
+          {files.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 px-4 text-center">
+              <div className="flex size-10 items-center justify-center rounded-lg bg-primary ring-1 ring-secondary ring-inset">
+                <Image01 className="size-5 text-fg-quaternary" aria-hidden="true" />
+              </div>
+              <p className="text-sm font-semibold text-primary">No photograph yet</p>
+            </div>
+          ) : (
+            <ul className="flex w-full flex-col gap-2 overflow-y-auto p-3">
+              {files.map((file) => (
+                <li key={file.id} className="rounded-lg bg-primary px-3 py-2 ring-1 ring-secondary">
+                  <p className="text-sm font-medium text-primary">{file.original_filename}</p>
+                  <p className="text-xs text-tertiary">
+                    {file.content_type} · {file.byte_size} bytes
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <p className="text-xs text-tertiary">Private object keys only. No public URL is issued in this unit.</p>
+
+        <div className="border-t border-secondary pt-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-quaternary">Printed tag</p>
+          <div className="mt-2 flex flex-col gap-2">
             {barcode ? (
-              <Button color="secondary" size="sm" onPress={onReprint}>
-                Reprint tag
-              </Button>
+              <p className="font-mono text-sm font-medium text-primary break-all">{barcode}</p>
+            ) : (
+              <p className="text-sm text-tertiary">Barcode is assigned when the piece is tagged.</p>
+            )}
+            <p className="text-xs text-tertiary">Printer not confirmed. A preview is not a physical tag.</p>
+            {canWrite ? (
+              <div className="flex flex-wrap gap-2">
+                <Button color="primary" size="sm" onPress={onPrintTag}>
+                  Print tag
+                </Button>
+                {barcode ? (
+                  <Button color="secondary" size="sm" onPress={onReprint}>
+                    Reprint tag
+                  </Button>
+                ) : null}
+              </div>
             ) : null}
           </div>
-        ) : null}
+        </div>
       </div>
     </CardShell>
   );
@@ -352,7 +352,7 @@ function TagSlot({
 function SpecificationGrid({ article }: { article: Article }) {
   const stonesSummary =
     article.stones.length === 0
-      ? "—"
+      ? "None"
       : article.stones
           .map((stone) => (stone.weight_grams ? `${stone.description} · ${formatGrams(stone.weight_grams)}` : stone.description))
           .join("; ");
@@ -360,38 +360,69 @@ function SpecificationGrid({ article }: { article: Article }) {
 
   return (
     <CardShell title="Specification">
-      <div className="grid gap-x-4 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Detail label="Article number" value={article.article_number} mono />
-        <Detail label="Barcode" value={article.barcode ?? "Assigned when tagged"} mono={Boolean(article.barcode)} />
-        <Detail label="HUID" value={article.huid ?? "—"} mono={Boolean(article.huid)} />
-        <Detail label="Category" value={article.category_name} />
-        <Detail label="Metal" value={article.metal} capitalize />
-        <Detail label="Purity" value={article.purity} />
-        <Detail label="Gross" value={formatGrams(article.gross_weight_grams)} numeric />
-        <Detail label="Non-metal" value={formatGrams(article.non_metal_weight_grams)} numeric />
-        <Detail label="Net metal" value={formatGrams(article.net_metal_weight_grams)} numeric />
-        <Detail label="Stones" value={stonesSummary} className="sm:col-span-2 lg:col-span-3" />
-        <Detail label="Supplier" value={article.supplier_ref ?? "—"} />
-        <Detail label="Karigar" value={article.karigar_ref ?? "—"} />
-        <Detail label="Receipt date" value={article.receipt_business_date} />
-        <Detail label="Ageing" value={ageDays === 1 ? "1 day" : `${ageDays} days`} />
-        <Detail label="Location" value={article.location_name ?? "Unspecified"} />
-        <div>
-          <p className="text-xs font-semibold text-quaternary">Status</p>
-          <div className="mt-1">
-            <Badge color={articleStatusColor(article.status)} size="sm">
-              {articleStatusLabel(article.status)}
-            </Badge>
+      <div className="flex flex-col">
+        <SpecSection title="Identity" first>
+          <div className="grid gap-x-4 gap-y-2 sm:grid-cols-2">
+            <Detail label="Article number" value={article.article_number} mono />
+            <Detail label="Barcode" value={article.barcode ?? "Assigned when tagged"} mono={Boolean(article.barcode)} empty={!article.barcode} />
+            <Detail label="HUID" value={article.huid ?? "—"} mono={Boolean(article.huid)} empty={!article.huid} />
           </div>
-        </div>
-        <Detail
-          label="Acquisition cost"
-          value={article.acquisition_cost_inr ? `₹ ${article.acquisition_cost_inr}` : "Not recorded"}
-          hint="Internal only — never a customer-facing price."
-          className="sm:col-span-2"
-        />
+        </SpecSection>
+
+        <SpecSection title="Metal and weights">
+          <div className="grid gap-x-4 gap-y-2 sm:grid-cols-2">
+            <Detail label="Metal" value={article.metal} capitalize />
+            <Detail label="Purity" value={article.purity} />
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-2 rounded-lg bg-secondary px-3 py-2.5 ring-1 ring-secondary">
+            <WeightCell label="Gross" value={formatGrams(article.gross_weight_grams)} />
+            <WeightCell label="Non-metal" value={formatGrams(article.non_metal_weight_grams)} />
+            <WeightCell label="Net metal" value={formatGrams(article.net_metal_weight_grams)} />
+          </div>
+        </SpecSection>
+
+        <SpecSection title="Stones">
+          <Detail label="Stones" value={stonesSummary} empty={article.stones.length === 0} />
+        </SpecSection>
+
+        <SpecSection title="Source and place">
+          <div className="grid gap-x-4 gap-y-2 sm:grid-cols-2">
+            <Detail label="Supplier" value={article.supplier_ref ?? "—"} empty={!article.supplier_ref} />
+            <Detail label="Karigar" value={article.karigar_ref ?? "—"} empty={!article.karigar_ref} />
+            <Detail label="Receipt date" value={article.receipt_business_date} />
+            <Detail label="Ageing" value={ageDays === 1 ? "1 day" : `${ageDays} days`} />
+            <Detail label="Location" value={article.location_name ?? "Unspecified"} empty={!article.location_name} />
+          </div>
+        </SpecSection>
+
+        <SpecSection title="Cost">
+          <Detail
+            label="Acquisition cost"
+            value={article.acquisition_cost_inr ? `₹ ${article.acquisition_cost_inr}` : "Not recorded"}
+            empty={!article.acquisition_cost_inr}
+            hint="Internal only — never a customer-facing price."
+          />
+        </SpecSection>
       </div>
     </CardShell>
+  );
+}
+
+function SpecSection({ title, children, first }: { title: string; children: ReactNode; first?: boolean }) {
+  return (
+    <div className={cx(!first && "mt-4 border-t border-secondary pt-4")}>
+      <p className="text-xs font-semibold uppercase tracking-wide text-quaternary">{title}</p>
+      <div className="mt-2">{children}</div>
+    </div>
+  );
+}
+
+function WeightCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold text-quaternary">{label}</p>
+      <p className="mt-0.5 text-sm font-medium tabular-nums text-primary">{value}</p>
+    </div>
   );
 }
 
@@ -414,7 +445,7 @@ function MovementTimeline({
         <p className="text-sm text-tertiary">No movements recorded yet.</p>
       ) : null}
       {!isLoading && items.length > 0 ? (
-        <ol className="relative flex flex-col gap-4 border-l border-secondary pl-4">
+        <ol className="relative flex max-h-112 flex-col gap-3 overflow-y-auto border-l border-secondary pl-4">
           {items.map((item) => {
             const statusChange =
               item.from_status && item.to_status
@@ -434,7 +465,7 @@ function MovementTimeline({
                 <p className="text-sm font-semibold text-primary">{movementTypeLabel(item.movement_type)}</p>
                 {statusChange ? <p className="text-xs text-tertiary">{statusChange}</p> : null}
                 {item.reason ? <p className="mt-0.5 text-sm text-secondary">{item.reason}</p> : null}
-                <p className="mt-1 text-xs text-quaternary">
+                <p className="mt-0.5 text-xs text-quaternary">
                   {new Date(item.created_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}
                 </p>
               </li>
@@ -452,6 +483,7 @@ function Detail({
   numeric,
   mono,
   capitalize,
+  empty,
   hint,
   className,
 }: {
@@ -460,6 +492,7 @@ function Detail({
   numeric?: boolean;
   mono?: boolean;
   capitalize?: boolean;
+  empty?: boolean;
   hint?: string;
   className?: string;
 }) {
@@ -468,7 +501,8 @@ function Detail({
       <p className="text-xs font-semibold text-quaternary">{label}</p>
       <p
         className={cx(
-          "mt-0.5 text-sm font-medium text-primary",
+          "mt-0.5 text-sm font-medium",
+          empty ? "text-quaternary" : "text-primary",
           numeric && "tabular-nums",
           mono && "font-mono",
           capitalize && "capitalize",

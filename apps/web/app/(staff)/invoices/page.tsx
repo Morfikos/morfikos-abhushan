@@ -1,5 +1,5 @@
-import { ModulePlaceholder } from "@/features/auth/module-placeholder";
+import { InvoiceList } from "@/features/invoices/invoice-list";
 
 export default function InvoicesPage() {
-  return <ModulePlaceholder title="Invoices" permission="billing.write" />;
+  return <InvoiceList />;
 }

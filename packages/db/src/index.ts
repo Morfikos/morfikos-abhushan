@@ -5,6 +5,10 @@ import { createShopSettingsRepository } from "./shop-settings-repository";
 import { createStaffDirectoryRepository } from "./staff-directory-repository";
 import { createInventoryRepository } from "./inventory-repository";
 import { createCustomerRepository } from "./customer-repository";
+import { createCalculationPolicyRepository } from "./calculation-policy-repository";
+import { createInvoiceRepository } from "./invoice-repository";
+import { createPaymentRepository } from "./payment-repository";
+import { createReturnsRepository } from "./return-repository";
 import { createPool, withOrganizationContext } from "./organization-context";
 
 /**
@@ -30,8 +34,12 @@ export async function pingDatabase(databaseUrl: string): Promise<boolean> {
 
 export {
   createPool,
+  createCalculationPolicyRepository,
   createCustomerRepository,
   createInventoryRepository,
+  createInvoiceRepository,
+  createPaymentRepository,
+  createReturnsRepository,
   createShopSettingsRepository,
   createStaffAccessRepository,
   createStaffDirectoryRepository,
@@ -39,3 +47,4 @@ export {
 };
 
 export type { Pool } from "pg";
+export type { CalculationPolicyRepository } from "./calculation-policy-repository";
