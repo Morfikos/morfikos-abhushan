@@ -89,6 +89,7 @@ export function sendHandlerError(req: Request, res: Response, error: unknown): b
         message: error.message,
         request_id: requestIdOf(req),
         field_errors: error.fieldErrors,
+        ...(error.existingCustomerId ? { existing_customer_id: error.existingCustomerId } : {}),
       }),
     );
     return true;

@@ -40,3 +40,20 @@ export {
 } from "./article-barcode";
 export { SHOP_LOGO_MAX_BYTES, detectShopLogoContentType } from "./shop-logo";
 export type { ShopLogoContentType } from "./shop-logo";
+export {
+  CUSTOMER_CONSENT_CHANNEL_WHATSAPP,
+  CUSTOMER_CONSENT_PURPOSES,
+  CUSTOMER_CONSENT_STATUSES,
+  SHOP_PHONE_COUNTRY_CALLING_CODE,
+  consentRequiresNormalizedPhone,
+  customerInitials,
+  isCustomerConsentPurpose,
+  isE164Phone,
+  normalizeShopPhone,
+} from "./customer-contact";
+export type {
+  CustomerConsentChannel,
+  CustomerConsentPurpose,
+  CustomerConsentStatus,
+  NormalizedShopPhone,
+} from "./customer-contact";

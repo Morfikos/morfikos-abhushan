@@ -4,13 +4,21 @@ export class ApplicationHttpError extends Error {
   readonly code: string;
   readonly httpStatus: number;
   readonly fieldErrors: FieldError[];
+  readonly existingCustomerId: string | undefined;
 
-  constructor(code: string, message: string, httpStatus: number, fieldErrors: FieldError[] = []) {
+  constructor(
+    code: string,
+    message: string,
+    httpStatus: number,
+    fieldErrors: FieldError[] = [],
+    existingCustomerId?: string,
+  ) {
     super(message);
     this.name = "ApplicationHttpError";
     this.code = code;
     this.httpStatus = httpStatus;
     this.fieldErrors = fieldErrors;
+    this.existingCustomerId = existingCustomerId;
   }
 }
 
@@ -18,8 +26,12 @@ export function permissionDeniedError(message = "You do not have permission to p
   return new ApplicationHttpError("PERMISSION_DENIED", message, 403);
 }
 
-export function conflictError(code: string, message: string): ApplicationHttpError {
-  return new ApplicationHttpError(code, message, 409);
+export function conflictError(
+  code: string,
+  message: string,
+  extras?: { existingCustomerId?: string },
+): ApplicationHttpError {
+  return new ApplicationHttpError(code, message, 409, [], extras?.existingCustomerId);
 }
 
 export function validationError(message: string, fieldErrors: FieldError[] = []): ApplicationHttpError {

@@ -59,6 +59,17 @@ import {
   type TagPreview,
   type TagPrintCreate,
   type TagPrintEvent,
+  customerConsentListSchema,
+  customerIdentityFileListSchema,
+  customerListSchema,
+  customerSchema,
+  type Customer,
+  type CustomerConsentList,
+  type CustomerConsentsPut,
+  type CustomerCreate,
+  type CustomerIdentityFileList,
+  type CustomerList,
+  type CustomerPatch,
 } from "@aabhushan/contracts";
 
 import { publicEnv } from "@/lib/public-env";
@@ -67,13 +78,21 @@ export class StaffApiError extends Error {
   readonly status: number;
   readonly code: string;
   readonly fieldErrors: { field: string; message: string }[];
+  readonly existingCustomerId: string | undefined;
 
-  constructor(status: number, code: string, message: string, fieldErrors: { field: string; message: string }[] = []) {
+  constructor(
+    status: number,
+    code: string,
+    message: string,
+    fieldErrors: { field: string; message: string }[] = [],
+    existingCustomerId?: string,
+  ) {
     super(message);
     this.name = "StaffApiError";
     this.status = status;
     this.code = code;
     this.fieldErrors = fieldErrors;
+    this.existingCustomerId = existingCustomerId;
   }
 }
 
@@ -99,7 +118,10 @@ async function staffRequest<T>(
 
   const body: unknown = await response.json().catch(() => null);
   if (!response.ok) {
-    const record = typeof body === "object" && body !== null ? (body as { code?: unknown; message?: unknown; field_errors?: unknown }) : {};
+    const record =
+      typeof body === "object" && body !== null
+        ? (body as { code?: unknown; message?: unknown; field_errors?: unknown; existing_customer_id?: unknown })
+        : {};
     const code = typeof record.code === "string" ? record.code : "REQUEST_FAILED";
     const message = typeof record.message === "string" ? record.message : "The request failed.";
     const fieldErrors = Array.isArray(record.field_errors)
@@ -112,7 +134,9 @@ async function staffRequest<T>(
           return field && fieldMessage ? [{ field, message: fieldMessage }] : [];
         })
       : [];
-    throw new StaffApiError(response.status, code, message, fieldErrors);
+    const existingCustomerId =
+      typeof record.existing_customer_id === "string" ? record.existing_customer_id : undefined;
+    throw new StaffApiError(response.status, code, message, fieldErrors, existingCustomerId);
   }
 
   return options.schema.parse(body);
@@ -434,5 +458,76 @@ export async function recordTagPrintRequest(
     method: "POST",
     body: input,
     schema: tagPrintEventSchema,
+  });
+}
+
+export async function fetchCustomers(
+  accessToken: string,
+  input: {
+    page: number;
+    pageSize: number;
+    sort?: "name" | "created_at" | "phone";
+    direction?: "asc" | "desc";
+    q?: string;
+    isActive?: boolean;
+  },
+): Promise<CustomerList> {
+  const params = new URLSearchParams({
+    page: String(input.page),
+    page_size: String(input.pageSize),
+    sort: input.sort ?? "created_at",
+    direction: input.direction ?? "desc",
+  });
+  if (input.q) {
+    params.set("q", input.q);
+  }
+  if (input.isActive === false) {
+    params.set("is_active", "false");
+  }
+  return staffRequest(accessToken, `/api/v1/customers?${params.toString()}`, { schema: customerListSchema });
+}
+
+export async function fetchCustomer(accessToken: string, customerId: string): Promise<Customer> {
+  return staffRequest(accessToken, `/api/v1/customers/${customerId}`, { schema: customerSchema });
+}
+
+export async function createCustomerRequest(accessToken: string, input: CustomerCreate): Promise<Customer> {
+  return staffRequest(accessToken, "/api/v1/customers", { method: "POST", body: input, schema: customerSchema });
+}
+
+export async function patchCustomerRequest(
+  accessToken: string,
+  customerId: string,
+  input: CustomerPatch,
+): Promise<Customer> {
+  return staffRequest(accessToken, `/api/v1/customers/${customerId}`, {
+    method: "PATCH",
+    body: input,
+    schema: customerSchema,
+  });
+}
+
+export async function fetchCustomerConsents(accessToken: string, customerId: string): Promise<CustomerConsentList> {
+  return staffRequest(accessToken, `/api/v1/customers/${customerId}/consents`, { schema: customerConsentListSchema });
+}
+
+export async function putCustomerConsentsRequest(
+  accessToken: string,
+  customerId: string,
+  input: CustomerConsentsPut,
+): Promise<CustomerConsentList> {
+  return staffRequest(accessToken, `/api/v1/customers/${customerId}/consents`, {
+    method: "PUT",
+    body: input,
+    schema: customerConsentListSchema,
+  });
+}
+
+export async function fetchCustomerIdentityFiles(
+  accessToken: string,
+  customerId: string,
+): Promise<CustomerIdentityFileList> {
+  return staffRequest(accessToken, `/api/v1/customers/${customerId}/identity-files`, {
+    schema: customerIdentityFileListSchema,
   });
 }

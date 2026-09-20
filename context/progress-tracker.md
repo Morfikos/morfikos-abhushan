@@ -4,11 +4,11 @@ Update this file after every meaningful implementation change. Record completed 
 
 ## Current Phase
 
-Spec 05 barcode tagging is implemented. Shop logo upload, sidebar identity, and tag-v2 print layout are implemented. Hardware drill remains incomplete. Specs 01–04 remain implemented and verified.
+Spec 06 customers and consent is implemented. Specs 01–05 remain implemented; spec 05 hardware drill remains incomplete.
 
-**Last updated:** 20 September 2026 (shop logo + tag-v2 layout; hardware drill still incomplete).
+**Last updated:** 20 September 2026 (customer create form polish).
 
-SQL `0001`, `0002`, `0003`, `0004`, `0005`, and `0006` are applied on project `nhfmcosxqogxqvhdhzfz`. First owner `shikhar.nitsri@gmail.com` has an active membership. Custom SMTP and Auth dashboard settings (signup disable, redirects) are still outstanding. Private Storage bucket `shop-assets` must exist (see `docs/shop-logo-storage.md`).
+SQL `0001`, `0002`, `0003`, `0004`, `0005`, `0006`, and `0007` are applied on project `nhfmcosxqogxqvhdhzfz`. First owner `shikhar.nitsri@gmail.com` has an active membership. Custom SMTP and Auth dashboard settings (signup disable, redirects) are still outstanding. Private Storage bucket `shop-assets` must exist (see `docs/shop-logo-storage.md`).
 
 ## Current Goal
 
@@ -53,7 +53,10 @@ SQL `0001`, `0002`, `0003`, `0004`, `0005`, and `0006` are applied on project `n
 - Implemented spec 05 barcode tagging: permanent unique Code 128 on `articles.barcode` (idempotent assign, no generation-history table), `tag_print_events` print/reprint audit, bwip-js SVG adapter in `packages/integrations`, dedicated `ScanField` with device terminator/suffix, chrome-less `/print/tags` HTML tag view at configured millimetres, batch print from list selection, reprint with required reason, lookup errors Unknown barcode / Unavailable / sold POS rejection. Preview does not record a print; `hardware_validated_at` stays null.
 - Fixed tag print overflow so one article stays on one `@page` (smaller Code 128 bars, CSS-scaled SVG, print-only zero gaps/margins, `break-inside: avoid`). Batch chrome shows configured millimetres as unvalidated and asks for physical confirm after `afterprint`.
 - Polished `/print/tags` screen chrome: sticky toolbar (title, count, size chip, warning), compact physical-confirm step, grey stage with screen-only 2/3-column stamp grid and captions. Printed output stays black/white one-per-page at configured millimetres.
-- Implemented shop logo: `0006` metadata on `shop_profiles`, private `shop-assets` bucket adapter, `POST/DELETE /shop/logo`, `GET /public/shop-branding`, Settings FileUpload, `ShopMark` on sidebar/mobile/auth using `legal_name`, tag-v2 layout (logo or shop name in header, article number once under bars, barcode height from leftover mm with 8 mm floor).
+- Implemented spec 06 customers and consent: `0007` customers/consents/identity-file metadata, E.164 phone uniqueness per organization, WhatsApp consent per purpose (grant requires a phone), identity-file GET behind `identity_documents.read`, directory/profile/create UI from free table/avatar/tabs/empty-state, and a POS-style customer combobox. No customer Auth, no WhatsApp send, no sales/Girvi balances on the customer row.
+- Polished customers directory UX: removed the POS combobox from `/customers`, hide the name/phone search card when the directory is empty (inventory-style empty vs filtered-empty), and fixed Create customer supporting text to “Add a customer for billing or Girvi.” Combobox remains for POS/Girvi.
+- Polished New customer form: Contact and WhatsApp cards, per-purpose consent toggles (matching profile), live E.164 phone hint, collapsed optional email/address/notes, sticky Save/Cancel, discard confirm on dirty Cancel/Back, Toggle `w-full` so hints wrap. Combobox create modal scrolls.
+- Added `pnpm seed:sample-customers` to insert five idempotent demo customers (varied WhatsApp consent) for local directory/UI testing.
 
 ## Feature Specifications
 
@@ -66,7 +69,7 @@ Specs are listed in intended implementation order. Feed them one by one; do not 
 | 03 | `context/feature-specs/03-shop-settings-and-organization.md` | Implemented and verified; SMTP still configuration |
 | 04 | `context/feature-specs/04-inventory-and-article-receiving.md` | Implemented and verified; saleable articles only |
 | 05 | `context/feature-specs/05-barcode-tagging-and-hardware.md` | Implemented; hardware drill still required |
-| 06 | `context/feature-specs/06-customers-and-consent.md` | No customer Auth |
+| 06 | `context/feature-specs/06-customers-and-consent.md` | Implemented and verified; no customer Auth |
 | 07 | `context/feature-specs/07-invoice-calculation-engine.md` | Blocked on invoice examples |
 | 08 | `context/feature-specs/08-pos-billing-and-finalization.md` | Staff POS, not cart/checkout |
 | 09 | `context/feature-specs/09-payments-and-outstanding-balances.md` | Manual collections |
@@ -83,6 +86,43 @@ Customer cart/checkout and offline synchronization were not specified as product
 ## In Progress
 
 - Spec 05 hardware drill: confirm scanner model, suffix, tag printer, and label size against physical tags. Do not set `hardware_validated_at` or treat a browser preview as acceptance.
+
+## Verification — customer create form polish
+
+Recorded 20 September 2026.
+
+- UI-only: `customer-form.tsx`, `customer-create-page.tsx`, profile Toggle `className="w-full"`, combobox modal scroll. No API/schema changes.
+- Create uses the same four WhatsApp purpose toggles as the profile; payload sends only granted purposes.
+- Phone uses `type="tel"` (vendor Input does not forward `inputMode` to the inner control).
+- `pnpm --filter @aabhushan/web typecheck` — passed.
+- `pnpm --filter @aabhushan/web lint` — passed.
+- IDE browser: `/customers` and `/customers/new` redirect to `/login` without a staff session; signed-in create/directory exercise not completed in this pass.
+
+## Verification — spec 06
+
+Recorded 20 September 2026.
+
+- Applied `0007_customers_and_consent` on project `nhfmcosxqogxqvhdhzfz`. `app.customers`, `app.customer_consents`, and `app.customer_identity_files` have RLS enabled and forced. Browser `anon` / `authenticated` have no table grants.
+- `pnpm verify:customers` — passed: missing organization context denied, wrong organization id denied, unique phone held, duplicate create is `PHONE_CONFLICT` 409 with the existing customer id, WhatsApp consent without a phone is 422, billing role identity-file list is 403, created customer DTO keeps sales and Girvi totals at 0.
+- `pnpm --filter @aabhushan/{domain,contracts,application,db,api,web} typecheck` — passed.
+- Lint on domain/contracts/application/db/api/web — passed.
+- `GET /health/live` — `200`. `GET /health/ready` — `200`.
+- `GET /api/v1` — OpenAPI includes `/customers`, `/customers/{id}`, `/customers/{id}/consents`, `/customers/{id}/identity-files`.
+- Unauthenticated `GET /api/v1/customers` and `GET /api/v1/customers/{id}/identity-files` — `401 AUTH_INVALID` with `Cache-Control: private, no-store`.
+- Browser: `/customers` and `/customers/new` redirect unauthenticated users to `/login` (invitation-only, no create-account control). `/signup` — `404`.
+- Lockfile scan: no `untitledui-pro`, `@untitledui/pro`, `shadcn`, or `lucide-react`.
+- Free Untitled UI `tabs/tabs.tsx` pinned from public commit `c981a73bcd6b6c68d2a54070f20f020191212828`.
+
+## Verification — customers directory UX
+
+Recorded 20 September 2026.
+
+- SQL: `app.customers` count is 0 (empty-directory precondition).
+- Code: [`customer-list.tsx`](apps/web/features/customers/customer-list.tsx) gates the search card on `!directoryEmpty`, no longer imports `CustomerCombobox`. Combobox supporting text updated in [`customer-combobox.tsx`](apps/web/features/customers/customer-combobox.tsx).
+- Spec 06 UI/UX line updated: single name/phone search on the directory; combobox is POS/Girvi only.
+- Browser signed-in pass incomplete in this session: automation redirected to `/login` and no staff password was available. Confirm locally while signed in: empty state has no search card; after creating one customer, search appears and Find customer does not; filtered-empty keeps the search card.
+
+Limitations still true: no custom SMTP; signed-in directory/create/profile was not exercised in this IDE-browser pass (login required). WhatsApp is not sent. Identity file bytes are not stored (spec 13). Phone-required-for-every-customer and Hindi-at-launch remain open questions; UI requires a phone only when granting WhatsApp consent, and stores language from shop reminder defaults.
 
 ## Verification — spec 05
 
@@ -433,16 +473,16 @@ Limitations still true: no Supabase project, no SMTP, no live DB schema applied,
 
 ## Next Up
 
-- **Implementation — spec 06:** customers and consent when requested. Read `06-customers-and-consent.md`.
+- **Implementation — spec 07:** invoice calculation engine when requested, blocked on owner-approved invoice examples. Read `07-invoice-calculation-engine.md`.
 - **Hardware drill — spec 05:** confirm barcode reader model, scan suffix, tag printer, and label millimetres; print a real tag and scan it back. Do not mark hardware validated from a preview.
 - **Configuration — Auth/SMTP:** disable public signup, set site/redirect URLs, and configure custom SMTP. First Auth user and owner membership are already in place.
 - **Business examples:** obtain representative invoices, pricing calculations, active/settled Girvi examples, and opening-data samples. Record approved rules and expected results before implementing calculators.
 - **Foundation — workspace:** done in spec 01. Use `pnpm install` and the root scripts; copy `.env.example` before starting API/worker.
-- **Foundation — data and identity:** `0001`/`0002`/`0003`/`0004`/`0005` and the first owner membership are applied on the live project. Organization-scoped RLS is in place for runtime roles, including inventory and tag-print tables.
+- **Foundation — data and identity:** `0001`/`0002`/`0003`/`0004`/`0005`/`0006`/`0007` and the first owner membership are applied on the live project. Organization-scoped RLS is in place for runtime roles, including inventory, tag-print, and customer tables.
 - **Foundation — staff flow:** application code, schema, settings UI, and first owner membership are done. Remaining: disable public signup and configure custom SMTP in the dashboard.
 - **Inventory and tagging:** article receipt, unique Code 128 assign, tag print/reprint, dedicated scan lookup, and print audit are done in specs 04–05. Remaining: physical scanner/printer drill and reviewed stock checks against the shop's devices.
 - **Billing:** implement the approved decimal calculation engine, drafts/quotes, stale-quote handling, atomic finalization, invoice numbering, stock locking, and idempotency. Verify that two counters cannot sell the same article.
-- **Customers and payments:** deliver customer records and consent, split/partial collections, allocations, receipts, dues, and controlled returns/refunds/reversals with traceable history.
+- **Customers and payments:** customer records and consent are done in spec 06. Remaining: split/partial collections, allocations, receipts, dues, and controlled returns/refunds/reversals with traceable history.
 - **Girvi:** implement confirmed loan terms, separate collateral custody, effective-dated interest, repayment allocation, settlement, and physical release. Verify against approved examples and concurrent-payment scenarios.
 - **Documents and automation:** implement private file access, invoice/receipt PDFs, transactional outbox, pg-boss jobs, official WhatsApp integration, consent checks, scheduled reminders, and retry/reconciliation states.
 - **Dashboard and imports:** implement reconciled stock/sales/collection/Girvi reports, exports, and reviewed opening imports. Keep sales dues separate from loan principal and interest.
@@ -483,13 +523,13 @@ Limitations still true: no Supabase project, no SMTP, no live DB schema applied,
 
 ## Session Notes
 
-- Spec 05 coding is implemented in this repository. Hardware validation is not. Later specs from 06 onward are still documentation only until requested.
+- Spec 06 coding is implemented in this repository. Later specs from 07 onward are still documentation only until requested. Spec 05 hardware validation is not.
 - Auth setup and SMTP remain configuration: `docs/supabase-auth-and-smtp.md`. Staff invite UI calls the API; missing SMTP still cannot be treated as a successful send.
 - Untitled UI MCP is project-configured in `.cursor/mcp.json` without auth. Reload Cursor / enable the `untitledui` server in Settings → MCP if tools are missing. Free-only; no PRO login.
 - `apps/web/utils/is-react-component.ts` has documented vendor patches: detect `forwardRef` via `Symbol.for("react.forward_ref")`, not `$$typeof.toString()`; import React types with `import type * as React from "react"`.
 - Vendor `Button` uses named React imports (`isValidElement` and type-only `FC`/`ReactElement`/`ReactNode`), not a default `React` export. `@types/react` is `export =` and has no ESM default.
 - Product name is Aabhushan (`@aabhushan/*`). The workspace directory may still use the older folder name.
-- Resume with `06-customers-and-consent.md` when requested, or with the spec 05 hardware drill when devices are available. Read the latest `ui-context.md` and `ai-workflow-rules.md` first.
+- Resume with `07-invoice-calculation-engine.md` when requested and invoice examples exist, or with the spec 05 hardware drill when devices are available. Read the latest `ui-context.md` and `ai-workflow-rules.md` first.
 - Read the latest `ui-context.md` and `ai-workflow-rules.md` before UI work. Free-only Untitled UI is a settled constraint and is not an open licensing question.
 - Do not confuse Aabhushan's current MVP with the earlier broader Jewellery OS plan. Current choices include Next.js, Express, Supabase Auth/PostgreSQL, pg-boss, and no Redis; older Clerk/BullMQ/multi-branch assumptions do not carry over automatically.
 - Keep undefined financial behavior out of implementation. Record pending rules here and proceed with independent foundation work while awaiting examples or decisions.

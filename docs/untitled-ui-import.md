@@ -41,6 +41,10 @@ Documented patches (20 September 2026):
 - `use-resize-observer.ts` uses React `RefObject` instead of `@react-types/shared`.
 - `nav-account-card.tsx` uses `AriaPopoverProps["placement"]` instead of `@react-types/overlays`.
 
+Copied for spec 06 from the same commit, excluding demos and stories:
+
+- `apps/web/components/application/tabs/tabs.tsx`
+
 Staff screens compose around `SidebarNavigationSimple` with permission-filtered items and `showAccountCard={false}`. Settings is an original local composition.
 
 Cursor MCP (free components only): `.cursor/mcp.json` points at `https://www.untitledui.com/react/api/mcp` with no auth header, following [Untitled UI MCP integration](https://www.untitledui.com/react/integrations/mcp). Enable the `untitledui` server in Cursor Settings → MCP if it does not appear after a reload. Do not add a PRO API key. The official CLI init (`npx untitledui init`) was not run; later `npx untitledui add` installs need an explicit, free-only decision so they do not replace this pinned import.

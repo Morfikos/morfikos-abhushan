@@ -15,7 +15,9 @@
     "verify:org-context": "pnpm --filter @aabhushan/db verify:org-context",
     "verify:inventory": "pnpm --filter @aabhushan/db verify:inventory",
     "verify:barcodes": "pnpm --filter @aabhushan/db verify:barcodes",
-    "seed:sample-articles": "pnpm --filter @aabhushan/db seed:sample-articles"
+    "verify:customers": "pnpm --filter @aabhushan/db verify:customers",
+    "seed:sample-articles": "pnpm --filter @aabhushan/db seed:sample-articles",
+    "seed:sample-customers": "pnpm --filter @aabhushan/db seed:sample-customers"
   },
   "devDependencies": {
     "@eslint/js": "^9.35.0",
