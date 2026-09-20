@@ -46,6 +46,16 @@ export function parseQuery<T>(schema: RuntimeSchema<T>, req: Request): T {
   return parsed.data;
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function parsePathUuid(value: string | string[] | undefined, field: string): string {
+  const raw = typeof value === "string" ? value : value?.[0];
+  if (!raw || !UUID_PATTERN.test(raw)) {
+    throw schemaHttpError([{ path: [field], message: "A valid identifier is required." }]);
+  }
+  return raw.toLowerCase();
+}
+
 export function schemaHttpError(issues: SchemaIssue[]): ApplicationHttpError {
   return new ApplicationHttpError(
     "INVALID_INPUT",

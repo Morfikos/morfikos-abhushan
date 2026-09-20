@@ -3,7 +3,7 @@
 Source: https://github.com/untitleduico/react  
 Pinned commit: `c981a73bcd6b6c68d2a54070f20f020191212828`  
 License: MIT (see `apps/web/components/base/LICENSE`)  
-Setup path: official free Next.js integration, default purple brand (`brand`), Inter via `--font-inter`.  
+Setup path: official free Next.js integration, Inter via `--font-inter`. Brand tokens in `apps/web/styles/theme.css` use Aabhushan burgundy (`#7e143a` as `brand-600`) instead of the library default purple.  
 No PRO CLI, paid registry, or premium page templates were used.
 
 Copied for spec 01 only as needed:

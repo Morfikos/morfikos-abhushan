@@ -1,6 +1,6 @@
 "use client";
 
-import { type ComponentType, type HTMLAttributes, type ReactNode, type Ref, createContext, useContext, useState } from "react";
+import { type ComponentType, type ReactNode, type Ref, createContext, useContext, useState } from "react";
 import { Eye, EyeOff, HelpCircle, InfoCircle } from "@untitledui/icons";
 import type { GroupRenderProps, InputProps as AriaInputProps, TextFieldProps as AriaTextFieldProps, TextFieldRenderProps } from "react-aria-components";
 import { Button as AriaButton, Group as AriaGroup, Input as AriaInput, TextField as AriaTextField } from "react-aria-components";
@@ -38,7 +38,7 @@ export interface InputBaseProps extends Omit<AriaInputProps, "size"> {
     ref?: Ref<HTMLInputElement>;
     groupRef?: Ref<HTMLDivElement>;
     /** Icon component to display on the left side of the input. */
-    icon?: ComponentType<HTMLAttributes<HTMLOrSVGElement>>;
+    icon?: ComponentType<{ className?: string }>;
 }
 
 export const InputBase = ({
@@ -227,7 +227,7 @@ TextField.displayName = "TextField";
 
 export interface InputProps
     extends
-        AriaTextFieldProps,
+        Omit<AriaTextFieldProps, "value" | "onChange">,
         Pick<
             InputBaseProps,
             | "ref"
@@ -248,6 +248,10 @@ export interface InputProps
     hint?: ReactNode;
     /** Whether to hide required indicator from label */
     hideRequiredIndicator?: boolean;
+    /** Controlled input value. */
+    value?: string;
+    /** Handler that is called when the value changes. */
+    onChange?: (value: string) => void;
 }
 
 export const Input = ({

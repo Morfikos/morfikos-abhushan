@@ -1,6 +1,6 @@
 # 04 — Inventory and Article Receiving
 
-**Status:** Specification only — not implemented  
+**Status:** Implemented — verified 20 September 2026  
 **Depends on:** `03-shop-settings-and-organization`  
 **Enables:** `05-barcode-tagging-and-hardware`, `08-pos-billing-and-finalization`, `16-opening-imports-and-pilot-readiness`  
 **Blocked by:** none for receiving records; costing/profit and supplier ledgers remain out of scope  
@@ -158,17 +158,20 @@ Indexes: `(organization_id, barcode)`, `(organization_id, article_number)`, `(or
 | `GET` | `/api/v1/articles/lookup?barcode=` | `inventory.read` or billing read |
 | `POST` | `/api/v1/articles` | `inventory.write` |
 | `PATCH` | `/api/v1/articles/:id` | `inventory.write` |
+| `DELETE` | `/api/v1/articles/:id` | `inventory.write` — mistaken receipts only |
+| `POST` | `/api/v1/articles/bulk-delete` | `inventory.write` — mistaken receipts only; returns deleted and skipped |
 | `POST` | `/api/v1/articles/:id/adjustments` | `inventory.write` + reason |
 | `POST` | `/api/v1/articles/:id/inspection-release` | `inventory.write` |
 | `GET` | `/api/v1/articles/:id/movements` | `inventory.read` |
 | `POST` | `/api/v1/stock-counts` | `inventory.write` |
 
-`404` for missing articles in-scope; do not leak other-organization existence. `409` on stale `row_version`. `422` on invalid weights.
+Hard-delete is limited to mistaken receipts: status `available`, movements are only `receipt`, and the article is not referenced by a stock-count line. Sold, under-review, unavailable, adjusted, and counted articles cannot be deleted; staff use adjustments or inspection release instead. Deletes write an `article.delete` audit event. `404` for missing articles in-scope; do not leak other-organization existence. `409` on stale `row_version` or `ARTICLE_NOT_DELETABLE`. `422` on invalid weights.
 
 ## UI/UX Requirements
 
-- Search/scan + local filter row above `table/table.tsx` and pagination
+- Search/scan + local filter row above `table/table.tsx` and shared list-table footer (`Page X of Y`, rows-per-page select, Previous/Next)
 - Status badges with labels: Available, Sold, Under review, Unavailable
+- Row and bulk delete for `inventory.write`, always behind a confirmation modal; disable delete when the article is not a mistaken receipt
 - Article detail is a full page grouped as identification, weights, source, location, photographs, history
 - Weights right-aligned with g units and tabular numerals
 - File upload uses public `file-upload-base.tsx`

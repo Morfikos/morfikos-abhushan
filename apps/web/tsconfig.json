@@ -18,9 +18,11 @@
     "plugins": [{ "name": "next" }],
     "paths": {
       "@/*": ["./*"],
+      "@tanstack/react-query": ["./node_modules/@tanstack/react-query"],
       "@untitledui/icons": ["./node_modules/@untitledui/icons"],
       "next": ["./node_modules/next"],
-      "next/*": ["./node_modules/next/*"]
+      "next/*": ["./node_modules/next/*"],
+      "react-aria-components": ["./node_modules/react-aria-components"]
     }
   },
   "include": ["app/**/*.ts", "app/**/*.tsx", "components/**/*.ts", "components/**/*.tsx", "features/**/*.ts", "features/**/*.tsx", "lib/**/*.ts", "utils/**/*.ts", "next-env.d.ts", ".next/types/**/*.ts"],

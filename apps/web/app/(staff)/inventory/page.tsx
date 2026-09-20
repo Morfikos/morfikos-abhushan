@@ -1,5 +1,5 @@
-import { ModulePlaceholder } from "@/features/auth/module-placeholder";
+import { InventoryList } from "@/features/inventory/inventory-list";
 
 export default function InventoryPage() {
-  return <ModulePlaceholder title="Inventory" permission="inventory.read" />;
+  return <InventoryList />;
 }
