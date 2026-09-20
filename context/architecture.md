@@ -5,7 +5,7 @@
 | Layer | Technology | Role |
 | --- | --- | --- |
 | Frontend framework | Next.js App Router + React + TypeScript | Staff web application, navigation, authenticated page rendering, and print views |
-| UI | Tailwind CSS + Untitled UI React (free, default purple) | Consistent responsive forms, tables, dialogs, and dashboards |
+| UI | Tailwind CSS + Untitled UI React (free, burgundy brand `#7e143a`) | Consistent responsive forms, tables, dialogs, and dashboards |
 | Server state | TanStack Query | API fetching, mutation handling, query invalidation, and bounded polling |
 | Forms and validation | React Hook Form + Zod | Form state and shared input contracts; backend validation remains mandatory |
 | Local state | React state; Zustand only where needed for POS drafts | Temporary UI state, never authoritative inventory or financial balances |

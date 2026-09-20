@@ -4,17 +4,17 @@ Update this file after every meaningful implementation change. Record completed 
 
 ## Current Phase
 
-Spec 03 shop settings and organization is implemented and verified. Spec 02 remains implemented and verified.
+Spec 04 inventory and article receiving is implemented and verified. Specs 01–03 remain implemented and verified.
 
-**Last updated:** 20 September 2026.
+**Last updated:** 20 September 2026 (Untitled UI brand ramp set to Aabhushan burgundy `#7e143a`).
 
-SQL `0001`, `0002`, and `0003` are applied on project `nhfmcosxqogxqvhdhzfz`. First owner `shikhar.nitsri@gmail.com` has an active membership. Custom SMTP and Auth dashboard settings (signup disable, redirects) are still outstanding.
+SQL `0001`, `0002`, `0003`, and `0004` are applied on project `nhfmcosxqogxqvhdhzfz`. First owner `shikhar.nitsri@gmail.com` has an active membership. Custom SMTP and Auth dashboard settings (signup disable, redirects) are still outstanding.
 
 ## Current Goal
 
 - Collect the shop's invoice and Girvi examples alongside foundation work so financial calculations can be implemented against confirmed rules.
 - Configure custom SMTP and remaining Auth dashboard settings as separate environment work (`docs/supabase-auth-and-smtp.md`).
-- Resume with `context/feature-specs/04-inventory-and-article-receiving.md` when requested.
+- Resume with `context/feature-specs/05-barcode-tagging-and-hardware.md` when requested.
 
 ## Completed
 
@@ -23,7 +23,7 @@ SQL `0001`, `0002`, and `0003` are applied on project `nhfmcosxqogxqvhdhzfz`. Fi
 - Created `project-overview.md` using the supplied template, including goals, flows, scope, and success criteria.
 - Created `architecture.md` using the supplied template, including stack, boundaries, storage, access control, and invariants.
 - Created `code-standards.md` using the supplied template, including TypeScript, API, data, financial arithmetic, and organization conventions.
-- Created and revised `ui-context.md`: the current direction uses Untitled UI's default styling and only verified free source components. Paid-template dependencies have been removed; required pages are original compositions built from free primitives.
+- Created and revised `ui-context.md`: Untitled UI free components with Aabhushan burgundy brand tokens (`#7e143a` as `brand-600`). Paid-template dependencies have been removed; required pages are original compositions built from free primitives.
 - Created `ai-workflow-rules.md` using the supplied template, covering incremental work, missing requirements, protected files, documentation updates, and completion checks.
 - Created this initial project progress tracker in the supplied format.
 - Checked template heading order and document structure during artifact creation. This is documentation verification, not application testing or business-owner approval of every proposed rule.
@@ -43,7 +43,13 @@ SQL `0001`, `0002`, and `0003` are applied on project `nhfmcosxqogxqvhdhzfz`. Fi
 - Mapped `next` and `next/*` in `apps/web/tsconfig.json` `paths` to `apps/web/node_modules/next` so the language service resolves App Router modules such as `next/navigation`.
 - Removed the Vitest/Supertest unit and integration harness: all `*.test.ts` files, `vitest.config.ts` files, `test` scripts, `vitest`/`supertest` dependencies, and API `createApp` test injection (`staffAccessRepository`, `loggerDestination`). Verification is lint, typecheck, and build.
 - Installed `@types/node` at the workspace root. API, worker, and config tsconfigs set `"types": ["node"]` and `typeRoots` to the root then package `@types` folders so `node:crypto` / `node:module` resolve without TS2688.
-- Implemented spec 03 shop settings and organization: `0003` shop profile/rates/sequences/devices/reminders/audit plus `app_api`/`app_worker` `NOBYPASSRLS` roles, organization-scoped RLS, transaction-local `SET LOCAL ROLE` + `app.organization_id`, permission-filtered shell, Settings screens, staff invite/suspend, dated metal rates, and audit writes.
+- Implemented spec 04 inventory and article receiving: `0004` categories/locations/articles/stones/files/movements/counts, decimal weight checks, unique article numbers from the shop sequence, barcode lookup with `sellable` only for `available`, adjustments with required reason, inspection release, reviewed stock counts, and Inventory list/detail/receive/count screens from free table, empty-state, loading-indicator, and file-upload primitives. Photograph bytes remain metadata-only until spec 13.
+- Replaced standalone `NativeSelect` fields with app-owned `SelectField` (`apps/web/components/shared/select-field.tsx`) wrapping Untitled UI React Aria `Select`: themed popover below the trigger, trailing checkmark on the selected item, empty-value sentinel for “All …” options, and a client-mount placeholder to avoid RAC SSR hydration mismatches. Applied on inventory list/receive/detail/stock-count and settings selects. Vendor `NativeSelect` left in place for possible InputGroup use.
+- Polished inventory list and receive UI (shop-floor pass): scan vs search with icons, More filters for purity/weight, distinct empty-catalogue vs filtered-empty states, whole-row article links, computed read-only net metal via `@aabhushan/domain`, collapsed optional receive sections, `InputDate` defaulted to Kolkata business date, field-level errors, sticky submit. Category/location create UI remains deferred.
+- Restated Untitled UI `Input`/`Table` props (`value`, `onChange`, `children`, `id`, `href`, `selectionMode`, `className`) on the wrapper interfaces so the language service no longer drops React Aria fields on `inventory-list.tsx`. Scan Enter lookup is a void fire-and-forget from a sync `onKeyDown` handler. Mapped `react-aria-components` in `apps/web/tsconfig.json` `paths`.
+- Rebuilt article detail as a three-column staff workspace (photograph + tag slot | specification grid | movement timeline) using only spec 04 fields; adjustment/inspection form kept in a card. No indicative pricing, fake tag print, or photo URLs.
+- Inventory list tables: shared `ListTableFooter` (Page X of Y, N per page, Previous/Next), free modal + `ConfirmDialog`, row/bulk delete for mistaken receipts only (`available` + receipt-only movements + no stock-count lines), `DELETE /api/v1/articles/:id` and `POST /api/v1/articles/bulk-delete`, `deletable` on list items, footer also applied to settings staff/rates/audit tables. Inventory list table selection uses a local `"all" | Set<string | number>` type instead of importing `Selection` from `react-aria-components` (editor could not resolve that module in the feature file).
+- Replaced Untitled UI default purple `--color-brand-50`–`--color-brand-950` with Aabhushan burgundy. `brand-600` is `#7e143a`; remaining steps are OKLab tints/shades of that hue. Semantic tokens (`bg-brand-solid`, focus ring, brand text) still consume the ramp. Vendor Untitled UI logo source was left unchanged.
 
 ## Feature Specifications
 
@@ -54,7 +60,7 @@ Specs are listed in intended implementation order. Feed them one by one; do not 
 | 01 | `context/feature-specs/01-workspace-foundation.md` | Implemented and verified |
 | 02 | `context/feature-specs/02-staff-authentication-and-access.md` | Implemented and verified; live SMTP still configuration |
 | 03 | `context/feature-specs/03-shop-settings-and-organization.md` | Implemented and verified; SMTP still configuration |
-| 04 | `context/feature-specs/04-inventory-and-article-receiving.md` | Saleable articles only |
+| 04 | `context/feature-specs/04-inventory-and-article-receiving.md` | Implemented and verified; saleable articles only |
 | 05 | `context/feature-specs/05-barcode-tagging-and-hardware.md` | Hardware drill still required |
 | 06 | `context/feature-specs/06-customers-and-consent.md` | No customer Auth |
 | 07 | `context/feature-specs/07-invoice-calculation-engine.md` | Blocked on invoice examples |
@@ -72,7 +78,94 @@ Customer cart/checkout and offline synchronization were not specified as product
 
 ## In Progress
 
-- None. Spec 04 inventory and article receiving is next when requested.
+- None. Spec 05 barcode tagging and hardware is next when requested.
+
+## Verification — burgundy brand palette
+
+Recorded 20 September 2026.
+
+- `--color-brand-50`–`--color-brand-950` in `apps/web/styles/theme.css` now use Aabhushan burgundy. `brand-600` is `#7e143a` (`rgb(126 20 58)`). Semantic tokens still map primary actions, hover, focus, and subtle surfaces onto that ramp.
+- Running `pnpm dev` at `http://localhost:3000`: computed `Sign in` button background is `rgb(126, 20, 58)`; wordmark and `text-brand-secondary` links are `rgb(109, 16, 49)` (`brand-700`). Confirmed on `/` and `/login`. `/auth/recovery` loaded the same primary button/link tokens. `/inventory` redirected to `/login` without a staff session, so signed-in nav selection was not visually rechecked.
+- Vendor Untitled UI logo source under `components/foundations/logo/` still has hardcoded purple stops and is not rendered.
+
+## Verification — inventory list `react-aria-components` import
+
+Recorded 20 September 2026.
+
+- Editor diagnostic on `inventory-list.tsx`: `Cannot find module 'react-aria-components'`. CLI `tsc` already resolved the package; the feature file did not need the RAC type import.
+- Replaced `import type { Selection } from "react-aria-components"` with local `TableSelection = "all" | Set<string | number>` (React Aria selection shape; `string | number` not React `Key`, which includes `bigint`).
+- `pnpm --filter @aabhushan/web typecheck` — passed.
+- IDE lints on `inventory-list.tsx` — none.
+- No browser pass: type-only change, no UI behavior change.
+
+## Verification — inventory list footer, selection, and delete
+
+Recorded 20 September 2026.
+
+- Decision: hard-delete only mistaken receipts (`available`, receipt-only movements, no stock-count reference). Sold/under-review/unavailable/adjusted articles stay; UI disables delete with a reason.
+- Domain helpers `articleIsMistakenReceiptDeletable` / `articleDeleteBlockedReason`; contracts include `deletable`, bulk-delete request/result; API routes wired; audit action `article.delete`.
+- Shared `ListTableFooter` and `ConfirmDialog`; free Untitled UI `modal.tsx` pinned from public source (CLI returned no components).
+- `pnpm --filter @aabhushan/web exec tsc --noEmit` — passed.
+- `pnpm --filter @aabhushan/db verify:inventory` — passed (includes mistaken-receipt delete and sold/adjusted retention).
+- Running `pnpm dev`: inventory list `GET /api/v1/articles` 200; row delete exercised as `DELETE /api/v1/articles/3038ce41-…` 204 followed by list refresh 200. IDE browser automation hit `/login` without staff credentials for a separate signed-in pass.
+
+## Verification — article detail three-column layout
+
+Recorded 20 September 2026.
+
+- UI-only rewrite of `article-detail.tsx` plus helpers in `inventory-shared.ts` (`ageingDaysFromReceipt`, movement type label/dot). No API/schema/pricing changes.
+- `npx tsc --noEmit -p tsconfig.json --incremental false` in `apps/web` — passed.
+- `pnpm --filter @aabhushan/web lint` — passed.
+- Signed-in staff session in the running `pnpm dev` browser reloaded `/inventory/4a2f1490-…` after Fast Refresh and received article, locations, and movements `200` responses. IDE-browser automation could not complete a signed-in visual pass (redirected to `/login` without credentials).
+
+## Verification — inventory list language-service types
+
+Recorded 20 September 2026.
+
+- Editor diagnostics on `inventory-list.tsx` reported missing `Input` `value` and `Table` `id`/`children`/`selectionMode` even though CLI `tsc` passed. Cause: wrapper interfaces intersecting React Aria props with native HTML attributes, so those fields vanished in the language service.
+- `npx tsc --noEmit -p tsconfig.json --incremental false` in `apps/web` — passed.
+- IDE lints on `inventory-list.tsx`, `input.tsx`, `table.tsx`, settings, stock-count, login, and article-detail — none.
+- No browser pass: types and a non-visual scan-handler split only.
+
+## Verification — inventory list/receive UI polish
+
+Recorded 20 September 2026.
+
+- UI-only pass on `inventory-list.tsx` and `receive-article-form.tsx` (no API/schema/invariant changes). Category/location create UI deferred.
+- Web depends on `@aabhushan/domain` for `netMetalWeightGrams` / `netMetalWeightIsPositive` / `kolkataBusinessDate`. `SelectField` accepts `tooltip` and `isInvalid`.
+- `pnpm --filter @aabhushan/web typecheck` — passed.
+- `pnpm --filter @aabhushan/web lint` — passed.
+- Browser E2E of empty/filtered/receive flows was not completed in this agent session: a prior `pnpm install` left the user's `pnpm dev` and an API listener on `:3001` in a stuck state the agent could not kill (`EPERM`), and the API process reported `NOT_READY` (database ping failed from the sandboxed agent network). Unauthenticated `/inventory` still redirects to `/login`.
+- Workaround recorded: root `pnpm.overrides` pins `thread-stream` to `3.1.0` because `3.2.0` ships a `.claude/` path that Cursor's agent sandbox cannot create during install.
+- Language-service fix for `@tanstack/react-query` (and related web deps): `apps/web/tsconfig.json` maps the package under `paths` with `baseUrl: "."`, and `.npmrc` `public-hoist-pattern` hoists `@tanstack/*`, `@types/*`, `next`, `react`, `react-dom`, and `@untitledui/*` to the workspace root so the IDE resolves them. `pnpm --filter @aabhushan/web typecheck` — passed; TypeScript program diagnostics on `inventory-list.tsx` — none.
+- Seeded five sample saleable articles (`ART00001`–`ART00005`) with receipt movements for UI testing; article sequence advanced to `6`. Re-run locally with `pnpm seed:sample-articles` (script at `packages/db/scripts/seed-sample-articles.ts`).
+
+## Verification — select dropdown UI (post spec 04)
+
+Recorded 20 September 2026.
+
+- Root cause: inventory Status/Category used `NativeSelect` (native `<select>`), so macOS drew an unthemed overlay on top of the trigger.
+- Fix: `SelectField` over Untitled UI `Select` + `Select.Item` + `Popover` (`placement="bottom"`, `offset={4}`, light `bg-primary` / `shadow-lg`, default trailing checkmark).
+- `pnpm exec tsc --noEmit -p apps/web/tsconfig.json` — passed.
+- Browser (temporary public `/select-preview`, removed after check): open Status — listbox `gapPx` ≈ 6 below trigger, `overlaps: false`, popover background `rgb(255, 255, 255)`, selected row trailing `svg` check; choose Sold — trigger label updates; no Next.js hydration issue badge after client-mount gate. Authenticated `/inventory` pass was blocked without a signed-in IDE-browser session.
+
+## Verification — spec 04
+
+Recorded 20 September 2026.
+
+- Applied `0004_inventory_and_article_receiving` on project `nhfmcosxqogxqvhdhzfz`. `app` tables now include `catalogue_categories`, `storage_locations`, `articles`, `article_stones`, `article_files`, `inventory_movements`, `stock_counts`, and `stock_count_lines`. Seeded six categories and three locations.
+- `anon` and `authenticated` have no `SELECT` on `app.articles`.
+- `pnpm verify:inventory` — passed: missing organization context denied, wrong organization id denied, net-weight CHECK held, unique article number held, unavailable and `return_inspection` rows are not stored as available, adjustment without reason rejected. The verify transaction rolls back so it does not leave sample stock.
+- `pnpm lint` — passed.
+- `pnpm typecheck` — passed.
+- `pnpm build` — passed (packages, API, worker, Next.js). Inventory routes are dynamic staff routes: `/inventory`, `/inventory/receive`, `/inventory/[articleId]`, `/inventory/stock-counts/new`.
+- `GET /health/live` — `200`. `GET /health/ready` — `200`.
+- `GET /api/v1` — OpenAPI includes `/articles`, `/articles/lookup`, `/articles/{id}`, `/articles/{id}/adjustments`, `/articles/{id}/inspection-release`, `/articles/{id}/movements`, `/stock-counts`, `/catalogue-categories`, `/storage-locations`.
+- Unauthenticated `GET /api/v1/articles`, `GET /api/v1/articles/lookup?barcode=TEST`, `POST /api/v1/articles` — `401 AUTH_INVALID` with `Cache-Control: private, no-store`.
+- Browser: `/inventory` and `/inventory/receive` redirect unauthenticated users to `/login` (invitation-only, no create-account control).
+- Lockfile scan: no `untitledui-pro`, `@untitledui/pro`, `shadcn`, or `lucide-react`.
+
+Limitations still true: no custom SMTP; authenticated receive → search → detail was not exercised with an owner session in this browser pass (login required). Photograph object bytes are not stored in a private bucket yet (spec 13). Barcodes are not generated here (spec 05). Printer/scanner hardware remains unvalidated.
 
 ## Verification — spec 03
 
@@ -282,13 +375,13 @@ Limitations still true: no Supabase project, no SMTP, no live DB schema applied,
 
 ## Next Up
 
-- **Implementation — spec 04:** article receipt, weights/purity/location, movement history, and saleable-only inventory. Read `04-inventory-and-article-receiving.md` when requested.
+- **Implementation — spec 05:** unique barcode generation, tag print/reprint, and hardware-validated lookup. Read `05-barcode-tagging-and-hardware.md` when requested.
 - **Configuration — Auth/SMTP:** disable public signup, set site/redirect URLs, and configure custom SMTP. First Auth user and owner membership are already in place.
 - **Business examples:** obtain representative invoices, pricing calculations, active/settled Girvi examples, and opening-data samples. Record approved rules and expected results before implementing calculators.
 - **Foundation — workspace:** done in spec 01. Use `pnpm install` and the root scripts; copy `.env.example` before starting API/worker.
-- **Foundation — data and identity:** `0001`/`0002`/`0003` and the first owner membership are applied on the live project. Organization-scoped RLS is in place for runtime roles.
+- **Foundation — data and identity:** `0001`/`0002`/`0003`/`0004` and the first owner membership are applied on the live project. Organization-scoped RLS is in place for runtime roles, including inventory tables.
 - **Foundation — staff flow:** application code, schema, settings UI, and first owner membership are done. Remaining: disable public signup and configure custom SMTP in the dashboard.
-- **Inventory and tagging:** deliver article receipt, weights/purity/location, movement history, unique barcode generation, tag print/reprint, lookup, and reviewed stock checks. Validate scanner and printer output.
+- **Inventory and tagging:** article receipt, weights/purity/location, and movement history are done in spec 04. Remaining: unique barcode generation, tag print/reprint, lookup with printed tags, and reviewed stock checks against the shop's scanner and printer.
 - **Billing:** implement the approved decimal calculation engine, drafts/quotes, stale-quote handling, atomic finalization, invoice numbering, stock locking, and idempotency. Verify that two counters cannot sell the same article.
 - **Customers and payments:** deliver customer records and consent, split/partial collections, allocations, receipts, dues, and controlled returns/refunds/reversals with traceable history.
 - **Girvi:** implement confirmed loan terms, separate collateral custody, effective-dated interest, repayment allocation, settlement, and physical release. Verify against approved examples and concurrent-payment scenarios.
@@ -319,7 +412,7 @@ Limitations still true: no Supabase project, no SMTP, no live DB schema applied,
 - **No Redis:** explicitly requested. The documented queue choice is pg-boss with a separate Node.js worker using PostgreSQL; this is a design selection, not an installed integration.
 - **Modular monolith:** maintain clear inventory, billing, payments, customers, Girvi, and notification boundaries while allowing local database transactions and a small deployment footprint.
 - **Initial single-business/single-branch operation:** use organization-aware records and permissions as preparation for growth; full multi-tenant onboarding and branch transfers are deferred.
-- **Free-only Untitled UI:** explicitly confirmed. Use default purple styling, Inter, approved public Base/Application UI components, and original page compositions. No PRO purchase or paid-template dependency. This supersedes the earlier Morfikos/shadcn direction.
+- **Free-only Untitled UI:** explicitly confirmed. Use Untitled UI tokens and approved public Base/Application UI components, with Aabhushan burgundy (`#7e143a` as `brand-600` and generated 50–950 shades) instead of the library default purple. Inter, original page compositions, no PRO purchase or paid-template dependency. This supersedes the earlier Morfikos/shadcn direction.
 - **Decimal arithmetic and historical snapshots:** preserve reproducible invoice and Girvi results. Exact commercial calculation policies remain open until confirmed with the shop.
 - **Transactional posting and idempotency:** invoice, stock, initial payment, audit, and outbox writes commit together; repeat submissions cannot create duplicate financial operations.
 - **Outbox and asynchronous side effects:** PDFs and WhatsApp messages run after commit, so provider failures do not undo valid sales or repayments. Consumers handle retries and ambiguous external outcomes explicitly.
@@ -331,13 +424,13 @@ Limitations still true: no Supabase project, no SMTP, no live DB schema applied,
 
 ## Session Notes
 
-- Spec 03 is implemented in this repository. Later specs from 04 onward are still documentation only until requested.
+- Spec 04 is implemented in this repository. Later specs from 05 onward are still documentation only until requested.
 - Auth setup and SMTP remain configuration: `docs/supabase-auth-and-smtp.md`. Staff invite UI calls the API; missing SMTP still cannot be treated as a successful send.
 - Untitled UI MCP is project-configured in `.cursor/mcp.json` without auth. Reload Cursor / enable the `untitledui` server in Settings → MCP if tools are missing. Free-only; no PRO login.
 - `apps/web/utils/is-react-component.ts` has documented vendor patches: detect `forwardRef` via `Symbol.for("react.forward_ref")`, not `$$typeof.toString()`; import React types with `import type * as React from "react"`.
 - Vendor `Button` uses named React imports (`isValidElement` and type-only `FC`/`ReactElement`/`ReactNode`), not a default `React` export. `@types/react` is `export =` and has no ESM default.
 - Product name is Aabhushan (`@aabhushan/*`). The workspace directory may still use the older folder name.
-- Resume with `04-inventory-and-article-receiving.md` when requested. Read the latest `ui-context.md` and `ai-workflow-rules.md` first.
+- Resume with `05-barcode-tagging-and-hardware.md` when requested. Read the latest `ui-context.md` and `ai-workflow-rules.md` first.
 - Read the latest `ui-context.md` and `ai-workflow-rules.md` before UI work. Free-only Untitled UI is a settled constraint and is not an open licensing question.
 - Do not confuse Aabhushan's current MVP with the earlier broader Jewellery OS plan. Current choices include Next.js, Express, Supabase Auth/PostgreSQL, pg-boss, and no Redis; older Clerk/BullMQ/multi-branch assumptions do not carry over automatically.
 - Keep undefined financial behavior out of implementation. Record pending rules here and proceed with independent foundation work while awaiting examples or decisions.

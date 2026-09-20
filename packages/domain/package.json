@@ -12,7 +12,8 @@
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@aabhushan/contracts": "workspace:*"
+    "@aabhushan/contracts": "workspace:*",
+    "decimal.js": "^10.5.0"
   },
   "devDependencies": {
     "typescript": "^5.9.2"

@@ -14,13 +14,13 @@ import type {
 } from "@aabhushan/contracts";
 
 import { DatePicker } from "@/components/application/date-picker/date-picker";
-import { PaginationPageDefault } from "@/components/application/pagination/pagination";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { Input } from "@/components/base/input/input";
-import { NativeSelect } from "@/components/base/select/select-native";
+import { ListTableFooter } from "@/components/shared/list-table-footer";
+import { SelectField } from "@/components/shared/select-field";
 import { TextArea } from "@/components/base/textarea/textarea";
 import { staffHasPermission, useStaff } from "@/features/auth/staff-shell";
 import {
@@ -207,13 +207,13 @@ function ProfilePanel() {
 function StaffPanel() {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<InvitibleStaffRole>("billing");
   const [displayName, setDisplayName] = useState("");
-  const pageSize = 20;
 
   const query = useQuery({
-    queryKey: ["staff", "directory", page],
+    queryKey: ["staff", "directory", page, pageSize],
     queryFn: async () => fetchStaffDirectory(await accessToken(), { page, pageSize }),
   });
 
@@ -251,10 +251,10 @@ function StaffPanel() {
       >
         <Input label="Invite email" type="email" value={email} isRequired onChange={setEmail} />
         <Input label="Display name (optional)" value={displayName} onChange={setDisplayName} />
-        <NativeSelect
+        <SelectField
           label="Role"
           value={role}
-          onChange={(event) => setRole(event.target.value as InvitibleStaffRole)}
+          onChange={(value) => setRole(value as InvitibleStaffRole)}
           options={[
             { label: "Admin", value: "admin" },
             { label: "Billing", value: "billing" },
@@ -310,7 +310,16 @@ function StaffPanel() {
             )}
           </Table.Body>
         </Table>
-        <PaginationPageDefault page={page} total={totalPages} onPageChange={setPage} />
+        <ListTableFooter
+          page={page}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={(next) => {
+            setPageSize(next);
+            setPage(1);
+          }}
+        />
       </TableCard.Root>
       {suspend.isError ? <p className="text-sm text-error-primary">{errorMessage(suspend.error)}</p> : null}
     </div>
@@ -320,14 +329,14 @@ function StaffPanel() {
 function RatesPanel() {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [metal, setMetal] = useState<"gold" | "silver">("gold");
   const [purity, setPurity] = useState("");
   const [rate, setRate] = useState("");
   const [businessDate, setBusinessDate] = useState<CalendarDate | null>(null);
-  const pageSize = 20;
 
   const query = useQuery({
-    queryKey: ["shop", "rates", page],
+    queryKey: ["shop", "rates", page, pageSize],
     queryFn: async () => fetchMetalRates(await accessToken(), { page, pageSize }),
   });
 
@@ -357,10 +366,10 @@ function RatesPanel() {
           mutation.mutate();
         }}
       >
-        <NativeSelect
+        <SelectField
           label="Metal"
           value={metal}
-          onChange={(event) => setMetal(event.target.value as "gold" | "silver")}
+          onChange={(value) => setMetal(value as "gold" | "silver")}
           options={[
             { label: "Gold", value: "gold" },
             { label: "Silver", value: "silver" },
@@ -408,7 +417,16 @@ function RatesPanel() {
             )}
           </Table.Body>
         </Table>
-        <PaginationPageDefault page={page} total={totalPages} onPageChange={setPage} />
+        <ListTableFooter
+          page={page}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={(next) => {
+            setPageSize(next);
+            setPage(1);
+          }}
+        />
       </TableCard.Root>
     </div>
   );
@@ -547,10 +565,10 @@ function DevicesPanel() {
         mutation.mutate();
       }}
     >
-      <NativeSelect
+      <SelectField
         label="Scan terminator"
         value={form.scan_terminator}
-        onChange={(event) => setForm({ ...form, scan_terminator: event.target.value as DeviceSettings["scan_terminator"] })}
+        onChange={(value) => setForm({ ...form, scan_terminator: value as DeviceSettings["scan_terminator"] })}
         options={[
           { label: "Enter", value: "Enter" },
           { label: "Tab", value: "Tab" },
@@ -560,10 +578,10 @@ function DevicesPanel() {
       <Input label="Expected suffix" value={form.expected_suffix} onChange={(value) => setForm({ ...form, expected_suffix: value })} />
       <Input label="Tag width (mm)" value={form.tag_width_mm} onChange={(value) => setForm({ ...form, tag_width_mm: value })} />
       <Input label="Tag height (mm)" value={form.tag_height_mm} onChange={(value) => setForm({ ...form, tag_height_mm: value })} />
-      <NativeSelect
+      <SelectField
         label="Invoice paper size"
         value={form.invoice_paper_size}
-        onChange={(event) => setForm({ ...form, invoice_paper_size: event.target.value as DeviceSettings["invoice_paper_size"] })}
+        onChange={(value) => setForm({ ...form, invoice_paper_size: value as DeviceSettings["invoice_paper_size"] })}
         options={[
           { label: "A5", value: "A5" },
           { label: "A4", value: "A4" },
@@ -643,10 +661,10 @@ function RemindersPanel() {
         value={form.send_window_end}
         onChange={(value) => setForm({ ...form, send_window_end: value })}
       />
-      <NativeSelect
+      <SelectField
         label="Language"
         value={form.language}
-        onChange={(event) => setForm({ ...form, language: event.target.value as ReminderSettings["language"] })}
+        onChange={(value) => setForm({ ...form, language: value as ReminderSettings["language"] })}
         options={[
           { label: "English", value: "en" },
           { label: "Hindi", value: "hi" },
@@ -664,9 +682,9 @@ function RemindersPanel() {
 
 function AuditPanel() {
   const [page, setPage] = useState(1);
-  const pageSize = 20;
+  const [pageSize, setPageSize] = useState(10);
   const query = useQuery({
-    queryKey: ["shop", "audit", page],
+    queryKey: ["shop", "audit", page, pageSize],
     queryFn: async () => fetchAudit(await accessToken(), { page, pageSize }),
   });
   const totalPages = Math.max(1, Math.ceil((query.data?.total ?? 0) / pageSize));
@@ -693,7 +711,16 @@ function AuditPanel() {
           )}
         </Table.Body>
       </Table>
-      <PaginationPageDefault page={page} total={totalPages} onPageChange={setPage} />
+      <ListTableFooter
+        page={page}
+        totalPages={totalPages}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={(next) => {
+          setPageSize(next);
+          setPage(1);
+        }}
+      />
     </TableCard.Root>
   );
 }

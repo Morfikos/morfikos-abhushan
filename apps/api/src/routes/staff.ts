@@ -1,7 +1,13 @@
 import type { Express, NextFunction, Request, Response } from "express";
 import type { Pool } from "@aabhushan/db";
 
-import { inviteStaffMember, listStaffDirectory, suspendStaffMember, type StaffAuthInviter } from "@aabhushan/application";
+import {
+  ApplicationHttpError,
+  inviteStaffMember,
+  listStaffDirectory,
+  suspendStaffMember,
+  type StaffAuthInviter,
+} from "@aabhushan/application";
 import { staffInviteRequestSchema, staffListQuerySchema } from "@aabhushan/contracts";
 import type { ServerEnv } from "@aabhushan/config/server";
 import { createStaffDirectoryRepository, withOrganizationContext } from "@aabhushan/db";
@@ -87,13 +93,9 @@ export function registerStaffRoutes(
     handle(async (req, res) => {
       const staffUserId = typeof req.params.id === "string" ? req.params.id : req.params.id?.[0];
       if (!staffUserId) {
-        res.status(400).json({
-          code: "INVALID_INPUT",
-          message: "A staff user id is required.",
-          request_id: req.requestId,
-          field_errors: [],
-        });
-        return;
+        throw new ApplicationHttpError("INVALID_INPUT", "A staff user id is required.", 400, [
+          { field: "id", message: "A staff user id is required." },
+        ]);
       }
 
       const staff = await withOrganizationContext(

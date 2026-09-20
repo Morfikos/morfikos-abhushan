@@ -9,3 +9,10 @@ export function assertPermission(access: ResolvedStaffAccess, permission: StaffP
     throw permissionDeniedError();
   }
 }
+
+export function assertAnyPermission(access: ResolvedStaffAccess, permissions: readonly StaffPermission[]): void {
+  if (permissions.some((permission) => roleHasPermission(access.membership.role, permission))) {
+    return;
+  }
+  throw permissionDeniedError();
+}

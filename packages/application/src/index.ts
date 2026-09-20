@@ -9,7 +9,7 @@ export {
   permissionDeniedError,
   validationError,
 } from "./http-error";
-export { assertPermission } from "./authorize";
+export { assertAnyPermission, assertPermission } from "./authorize";
 export {
   createMetalRate,
   getDeviceSettings,
@@ -45,5 +45,24 @@ export type {
   StaffMembershipRecord,
   StaffUserRecord,
 } from "./staff-access";
+
+export {
+  adjustArticle,
+  bulkDeleteArticles,
+  createCatalogueCategory,
+  createStockCount,
+  createStorageLocation,
+  deleteArticle,
+  getArticle,
+  listArticleMovements,
+  listArticles,
+  listCatalogueCategories,
+  listStorageLocations,
+  lookupArticleByBarcode,
+  receiveArticle,
+  releaseArticleFromInspection,
+  updateArticle,
+} from "./inventory";
+export type { ArticleListFilters, InventoryRepository } from "./inventory";
 
 export type { FieldError };

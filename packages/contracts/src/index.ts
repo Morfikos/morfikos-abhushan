@@ -111,6 +111,41 @@ export const apiVersionDocument = {
     "/audit": {
       get: { summary: "Paginated audit events" },
     },
+    "/catalogue-categories": {
+      get: { summary: "Catalogue categories for receiving and filters" },
+      post: { summary: "Create a catalogue category" },
+    },
+    "/storage-locations": {
+      get: { summary: "Branch storage locations" },
+      post: { summary: "Create a storage location" },
+    },
+    "/articles": {
+      get: { summary: "Paginated saleable-inventory article list" },
+      post: { summary: "Receive an article and write a receipt movement" },
+    },
+    "/articles/lookup": {
+      get: { summary: "Lookup by barcode; sellable is true only for available stock" },
+    },
+    "/articles/bulk-delete": {
+      post: { summary: "Hard-delete mistaken receipt articles; skips ineligible ids" },
+    },
+    "/articles/{id}": {
+      get: { summary: "Article detail including weights, files, and internal cost" },
+      patch: { summary: "Update an unsold article; 409 on stale row_version" },
+      delete: { summary: "Hard-delete a mistaken receipt article only" },
+    },
+    "/articles/{id}/adjustments": {
+      post: { summary: "Reviewed stock adjustment with required reason" },
+    },
+    "/articles/{id}/inspection-release": {
+      post: { summary: "Release a return_inspection article to available or unavailable" },
+    },
+    "/articles/{id}/movements": {
+      get: { summary: "Append-only movement history" },
+    },
+    "/stock-counts": {
+      post: { summary: "Reviewed physical count; discrepancies write adjustments" },
+    },
   },
 } as const;
 
@@ -187,3 +222,56 @@ export type {
   ShopProfile,
   ShopProfilePatch,
 } from "./shop";
+export {
+  ARTICLE_PHOTO_MAX_BYTES,
+  ARTICLE_SORT_FIELDS,
+  articleAdjustmentSchema,
+  articleBulkDeleteResultSchema,
+  articleBulkDeleteSchema,
+  articleCreateSchema,
+  articleFileSchema,
+  articleInspectionReleaseSchema,
+  articleListQuerySchema,
+  articleListSchema,
+  articleLookupQuerySchema,
+  articlePatchSchema,
+  articlePhotographInputSchema,
+  articleSchema,
+  articleStatusSchema,
+  catalogueCategoryCreateSchema,
+  catalogueCategoryListSchema,
+  catalogueCategorySchema,
+  inventoryMovementListSchema,
+  inventoryMovementSchema,
+  inventoryMovementTypeSchema,
+  stockCountCreateSchema,
+  stockCountSchema,
+  storageLocationCreateSchema,
+  storageLocationListSchema,
+  storageLocationSchema,
+} from "./inventory";
+export type {
+  Article,
+  ArticleAdjustment,
+  ArticleBulkDelete,
+  ArticleBulkDeleteResult,
+  ArticleCreate,
+  ArticleFile,
+  ArticleInspectionRelease,
+  ArticleList,
+  ArticleListItem,
+  ArticlePatch,
+  ArticlePhotographInput,
+  ArticleStatus,
+  CatalogueCategory,
+  CatalogueCategoryCreate,
+  CatalogueCategoryList,
+  InventoryMovement,
+  InventoryMovementList,
+  InventoryMovementType,
+  StockCount,
+  StockCountCreate,
+  StorageLocation,
+  StorageLocationCreate,
+  StorageLocationList,
+} from "./inventory";

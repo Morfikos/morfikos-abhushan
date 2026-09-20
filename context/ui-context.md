@@ -2,17 +2,31 @@
 
 ## Theme
 
-Use only free, open-source Untitled UI React components with the default styles and default purple brand palette for Aabhushan. No paid license, PRO components, premium page templates, paid icon styles, or trial-dependent assets are part of this project. Adopt the library's neutral surfaces, typography, spacing, borders, shadows, control states, and component variants. Keep the application's identity as Aabhushan, with its own name and logo.
+Use only free, open-source Untitled UI React components with the default styles and Aabhushan's burgundy brand palette for the product. No paid license, PRO components, premium page templates, paid icon styles, or trial-dependent assets are part of this project. Adopt the library's neutral surfaces, typography, spacing, borders, shadows, control states, and component variants. Keep the application's identity as Aabhushan, with its own name and logo.
 
 This revision replaces the earlier Morfikos-derived orange palette, Cal Sans headings, dark pill-button prescription, custom radius overrides, shadcn/ui component selection, and Lucide icon selection. Where older architecture or code-standards documents prescribe those UI choices, this document takes precedence for presentation. Backend architecture and business rules remain as defined in the project documents.
 
 Use the default light theme for the initial staff workspace. Retain the library's theme infrastructure; a user-facing dark-mode toggle is not required for this MVP. If dark mode is enabled later, use the library's supported theme rather than a separate custom palette, and verify every financial screen in both modes.
 
-Follow the official Next.js integration. Select the default brand option, which preserves purple, rather than selecting orange. Treat the installed, pinned library theme as the implementation source of truth. Use the free setup path and public source only; do not run PRO upgrade or paid-registry setup. This document updates the design specification; it does not claim that application code or dependencies have already been migrated.
+Follow the official Next.js integration. Keep the installed, pinned library theme as the implementation source of truth for tokens, then override only the `--color-brand-*` scale in `apps/web/styles/theme.css`. The brand base is `#7e143a` (`brand-600`); lighter and darker steps are generated from that hue so primary actions, focus rings, and subtle brand surfaces stay in family. Use the free setup path and public source only; do not run PRO upgrade or paid-registry setup.
 
 ## Colors
 
-Keep the default theme definitions and consume their semantic CSS variables. Do not recreate a parallel Aabhushan palette or copy the previous `--accent-primary`/`--bg-base` overrides. Values below reference the documented light-theme variables rather than freezing approximate hex colors. Follow the theming guidance when applying the installed theme.
+Keep the default theme definitions and consume their semantic CSS variables. Override only the brand ramp (`--color-brand-50` through `--color-brand-950`) to Aabhushan's burgundy; do not recreate a parallel palette or copy the previous `--accent-primary`/`--bg-base` overrides. Values below reference the documented light-theme variables. Hex values for the brand ramp are recorded so later work does not reintroduce the default purple.
+
+| Step | CSS Variable | Hex | RGB |
+| --- | --- | --- | --- |
+| 50 | `--color-brand-50` | `#ffeef2` | `rgb(255 238 242)` |
+| 100 | `--color-brand-100` | `#ffdde3` | `rgb(255 221 227)` |
+| 200 | `--color-brand-200` | `#eab8c1` | `rgb(234 184 193)` |
+| 300 | `--color-brand-300` | `#cd8c99` | `rgb(205 140 153)` |
+| 400 | `--color-brand-400` | `#ad5c6f` | `rgb(173 92 111)` |
+| 500 | `--color-brand-500` | `#953852` | `rgb(149 56 82)` |
+| 600 | `--color-brand-600` | `#7e143a` | `rgb(126 20 58)` |
+| 700 | `--color-brand-700` | `#6d1031` | `rgb(109 16 49)` |
+| 800 | `--color-brand-800` | `#5c0b29` | `rgb(92 11 41)` |
+| 900 | `--color-brand-900` | `#4a0921` | `rgb(74 9 33)` |
+| 950 | `--color-brand-950` | `#380518` | `rgb(56 5 24)` |
 
 | Role | CSS Variable | Value |
 | --- | --- | --- |
@@ -128,7 +142,7 @@ When adding a component later, confirm that its exact source and required assets
 ## Layout Patterns
 
 - **Application shell:** compose an original app shell around the public `sidebar-simple.tsx` or header-navigation component. Preserve that component's default styling and responsive behavior; do not import a paid dashboard shell. Navigation includes Dashboard, Inventory, Invoices/POS, Payments, Customers, Girvi, Notifications, and Settings, filtered by staff permission.
-- **Informational/list-detail screens:** Build original customer directories, transaction lists, account summaries, and detail pages using the approved free table/tabs/navigation and locally authored headers. No informational-page template is imported.
+- **Informational/list-detail screens:** Build original customer directories, transaction lists, account summaries, and detail pages using the approved free table/tabs/navigation and locally authored headers. Paginated list cards use the shared `ListTableFooter` composition (`Page X of Y`, `N per page` select, Previous/Next) and the free modal foundation via `ConfirmDialog` for destructive confirmations. No informational-page template is imported.
 - **Login:** Build a compact original page with Aabhushan identity, free email/password inputs, submit feedback, and password recovery. Connect it to Supabase Auth. Do not import a paid login template or display unconfigured social-login methods.
 - **Invited staff setup:** Build an original invitation-acceptance and initial-account form using free controls. Public registration remains disabled. Hide public “Create account” links and explain administrator-provided access. Show recovery for expired or invalid invitations; no sign-up template is required.
 - **Verification and recovery:** Build original check-email, confirmation, expiration, resend, and completed states for the actual Supabase flow. Link-based verification shows instructions; code entry uses the free PIN input only when a real verification endpoint supports it. No paid verification/recovery page or SMS-only visual flow.

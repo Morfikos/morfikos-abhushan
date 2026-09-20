@@ -10,7 +10,9 @@
     "lint": "eslint src --max-warnings=0",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "build": "tsc -p tsconfig.json",
-    "verify:org-context": "tsx --env-file=../../.env ./scripts/verify-org-context.ts"
+    "verify:org-context": "tsx --env-file=../../.env ./scripts/verify-org-context.ts",
+    "verify:inventory": "tsx --env-file=../../.env ./scripts/verify-inventory.ts",
+    "seed:sample-articles": "tsx --env-file=../../.env ./scripts/seed-sample-articles.ts"
   },
   "dependencies": {
     "@aabhushan/application": "workspace:*",
