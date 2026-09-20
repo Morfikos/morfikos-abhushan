@@ -1,6 +1,6 @@
 # 03 — Shop Settings and Organization
 
-**Status:** Specification only — not implemented  
+**Status:** Implemented — verified on 20 September 2026  
 **Depends on:** `01-workspace-foundation`, `02-staff-authentication-and-access`  
 **Enables:** inventory, billing, Girvi, notifications, dashboard  
 **Blocked by:** none for the single-shop data model; printer dimensions and reminder timing remain open  

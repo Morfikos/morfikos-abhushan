@@ -2,12 +2,16 @@ import { randomUUID } from "node:crypto";
 
 import type { ServerEnv } from "@aabhushan/config/server";
 import { apiVersionDocument, createApiError } from "@aabhushan/contracts";
-import { createStaffAccessRepository, pingDatabase } from "@aabhushan/db";
+import { createPool, createStaffAccessRepository, pingDatabase } from "@aabhushan/db";
 import type { Express, NextFunction, Request, Response } from "express";
 
 import { currentStaffResponse, requestIdOf, requireStaffAccess, type StaffRequest } from "./auth/require-staff-access";
+import { createStaffAuthInviter } from "./auth/supabase-admin";
+import { sendHandlerError } from "./http/errors";
 import { loadCjs } from "./load-cjs";
 import { loggerOptionsFor } from "./logger";
+import { registerShopRoutes } from "./routes/shop";
+import { registerStaffRoutes } from "./routes/staff";
 
 const cors = loadCjs<typeof import("cors")>("cors");
 const express = loadCjs<typeof import("express")>("express");
@@ -47,8 +51,10 @@ function requestLogLevel(req: Request, status: number): "info" | "warn" | "error
 export function createApp(env: ServerEnv): Express {
   const app = express();
   const logger = pino(loggerOptionsFor(env));
-  const staffAccessRepository = createStaffAccessRepository(env.DATABASE_URL);
+  const pool = createPool(env.DATABASE_URL);
+  const staffAccessRepository = createStaffAccessRepository(pool);
   const requireStaff = requireStaffAccess(env, staffAccessRepository);
+  const authInviter = createStaffAuthInviter(env);
 
   app.disable("x-powered-by");
   app.use(express.json({ limit: "32kb" }));
@@ -120,7 +126,14 @@ export function createApp(env: ServerEnv): Express {
     });
   });
 
+  registerShopRoutes(app, pool, requireStaff);
+  registerStaffRoutes(app, pool, env, authInviter, requireStaff);
+
   app.use((error: unknown, req: Request, res: Response, _next: NextFunction) => {
+    if (sendHandlerError(req, res, error)) {
+      return;
+    }
+
     logger.error({ err: error, request_id: requestIdOf(req) }, "unhandled api error");
     res.status(500).json(
       createApiError({

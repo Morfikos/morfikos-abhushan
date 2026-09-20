@@ -16,7 +16,7 @@ In the Supabase project:
 5. Point invitation and recovery email templates at the original pages:
    - Invite: `{{ .SiteURL }}/auth/callback?next=/invite/accept`
    - Recovery: `{{ .SiteURL }}/auth/callback?next=/auth/recovery/confirm`
-6. Copy the project URL and publishable key (`sb_publishable_…`, formerly the anon key) into `.env` / `apps/web/.env.local`. Put the privileged `sb_secret_…` key only in server `.env` if a later unit needs Admin APIs. Never put secrets, JWT signing material, or access tokens in `NEXT_PUBLIC_*`.
+6. Copy the project URL and publishable key (`sb_publishable_…`, formerly the anon key) into `.env` / `apps/web/.env.local`. Put the privileged `sb_secret_…` key in server `.env` as `SUPABASE_SECRET_KEY` so spec 03 can send staff invitations. Never put secrets, JWT signing material, or access tokens in `NEXT_PUBLIC_*`.
 
 The API verifies bearer tokens against the project JWKS at `${SUPABASE_URL}/auth/v1/.well-known/jwks.json` (ES256), with issuer `${SUPABASE_URL}/auth/v1` and audience `authenticated`. It then loads `app.staff_users` and an active `app.staff_memberships` row. Decoded claims and user metadata never grant access. The `sb_secret_` key is not used to verify staff sessions.
 
@@ -43,6 +43,7 @@ After creating the first Auth user with an invitation (or the dashboard invite, 
 ```bash
 psql "$DATABASE_URL" -f packages/db/sql/0001_init_schemas.sql
 psql "$DATABASE_URL" -f packages/db/sql/0002_staff_authentication.sql
+psql "$DATABASE_URL" -f packages/db/sql/0003_shop_settings_and_organization.sql
 ```
 
-Do not grant `app` to browser `anon` or `authenticated` roles.
+Do not grant `app` to browser `anon` or `authenticated` roles. Spec 03 adds `app_api` / `app_worker` runtime roles, organization-scoped RLS, and `SET LOCAL` organization context.

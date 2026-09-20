@@ -4,17 +4,17 @@ Update this file after every meaningful implementation change. Record completed 
 
 ## Current Phase
 
-Spec 02 staff authentication and access implemented and verified. Next authorized unit is spec 03.
+Spec 03 shop settings and organization is implemented and verified. Spec 02 remains implemented and verified.
 
-**Last updated:** 20 September 2026 (quieter development logs).
+**Last updated:** 20 September 2026.
 
-SQL `0001` and `0002` are applied on project `nhfmcosxqogxqvhdhzfz`. First owner `shikhar.nitsri@gmail.com` has an active membership. Custom SMTP and Auth dashboard settings (signup disable, redirects) are still outstanding. Spec 03 remains next for application code.
+SQL `0001`, `0002`, and `0003` are applied on project `nhfmcosxqogxqvhdhzfz`. First owner `shikhar.nitsri@gmail.com` has an active membership. Custom SMTP and Auth dashboard settings (signup disable, redirects) are still outstanding.
 
 ## Current Goal
 
-- Implement `context/feature-specs/03-shop-settings-and-organization.md` when requested.
-- Configure a development Supabase project, custom SMTP, and the first owner membership as separate environment work (`docs/supabase-auth-and-smtp.md`).
 - Collect the shop's invoice and Girvi examples alongside foundation work so financial calculations can be implemented against confirmed rules.
+- Configure custom SMTP and remaining Auth dashboard settings as separate environment work (`docs/supabase-auth-and-smtp.md`).
+- Resume with `context/feature-specs/04-inventory-and-article-receiving.md` when requested.
 
 ## Completed
 
@@ -43,6 +43,7 @@ SQL `0001` and `0002` are applied on project `nhfmcosxqogxqvhdhzfz`. First owner
 - Mapped `next` and `next/*` in `apps/web/tsconfig.json` `paths` to `apps/web/node_modules/next` so the language service resolves App Router modules such as `next/navigation`.
 - Removed the Vitest/Supertest unit and integration harness: all `*.test.ts` files, `vitest.config.ts` files, `test` scripts, `vitest`/`supertest` dependencies, and API `createApp` test injection (`staffAccessRepository`, `loggerDestination`). Verification is lint, typecheck, and build.
 - Installed `@types/node` at the workspace root. API, worker, and config tsconfigs set `"types": ["node"]` and `typeRoots` to the root then package `@types` folders so `node:crypto` / `node:module` resolve without TS2688.
+- Implemented spec 03 shop settings and organization: `0003` shop profile/rates/sequences/devices/reminders/audit plus `app_api`/`app_worker` `NOBYPASSRLS` roles, organization-scoped RLS, transaction-local `SET LOCAL ROLE` + `app.organization_id`, permission-filtered shell, Settings screens, staff invite/suspend, dated metal rates, and audit writes.
 
 ## Feature Specifications
 
@@ -52,7 +53,7 @@ Specs are listed in intended implementation order. Feed them one by one; do not 
 | --- | --- | --- |
 | 01 | `context/feature-specs/01-workspace-foundation.md` | Implemented and verified |
 | 02 | `context/feature-specs/02-staff-authentication-and-access.md` | Implemented and verified; live SMTP still configuration |
-| 03 | `context/feature-specs/03-shop-settings-and-organization.md` | Org, branch, permissions, rates |
+| 03 | `context/feature-specs/03-shop-settings-and-organization.md` | Implemented and verified; SMTP still configuration |
 | 04 | `context/feature-specs/04-inventory-and-article-receiving.md` | Saleable articles only |
 | 05 | `context/feature-specs/05-barcode-tagging-and-hardware.md` | Hardware drill still required |
 | 06 | `context/feature-specs/06-customers-and-consent.md` | No customer Auth |
@@ -71,7 +72,25 @@ Customer cart/checkout and offline synchronization were not specified as product
 
 ## In Progress
 
-- No implementation unit is in progress. Spec 03 is next when requested.
+- None. Spec 04 inventory and article receiving is next when requested.
+
+## Verification — spec 03
+
+Recorded 20 September 2026.
+
+- Applied `0003_shop_settings_and_organization` on project `nhfmcosxqogxqvhdhzfz`. `app` tables now include `shop_profiles`, `metal_rates`, `document_sequences`, `device_settings`, `reminder_settings`, and `audit_events`. Seeded profile, four sequences, device placeholders (`Enter` / 50×25mm / A5), and disabled reminders `10:00`–`18:00` `en`.
+- RLS is enabled and forced on all `app` tables. Runtime roles `app_api` and `app_worker` are `NOBYPASSRLS`. `anon` and `authenticated` have no schema `USAGE` or `SELECT` on `app.shop_profiles`.
+- `pnpm verify:org-context` — passed: missing organization context denied, wrong organization id denied, pooled connection isolation held, second organization insert rejected.
+- `pnpm lint` — passed.
+- `pnpm typecheck` — passed.
+- `pnpm build` — passed (packages, API, worker, Next.js). `/settings` is a dynamic staff route.
+- `GET /health/live` — `200`. `GET /health/ready` — `200`.
+- `GET /api/v1` — OpenAPI includes `/shop/profile`, `/shop/rates`, `/shop/sequences`, `/shop/devices`, `/shop/reminders`, `/staff`, `/staff/{id}/suspend`, `/audit`.
+- Unauthenticated `GET /api/v1/shop/profile`, `/staff`, `/audit` — `401 AUTH_INVALID` with `Cache-Control: private, no-store`. Invalid bearer on `/shop/rates` and `/shop/sequences` — `401`.
+- Browser: `/settings`, `/dashboard`, and `/inventory` redirect unauthenticated users to `/login` (invitation-only, no create-account control). `/signup` — `404`.
+- Lockfile scan: no `untitledui-pro`, `@untitledui/pro`, `shadcn`, or `lucide-react`.
+
+Limitations still true: no custom SMTP; authenticated Settings screens were not exercised with an owner session in this browser pass (login required). Staff invitations need the configured `SUPABASE_SECRET_KEY` and working Auth email. Printer values remain unvalidated placeholders. Billing daily rate *read* uses `rates.read`; writing rates stays `rates.write`.
 
 ## Verification — `node:crypto` with workspace `@types/node`
 
@@ -263,12 +282,12 @@ Limitations still true: no Supabase project, no SMTP, no live DB schema applied,
 
 ## Next Up
 
-- **Implementation — spec 03:** organization/branch settings, role-to-permission mapping UI, staff invite/suspend, rates, numbering, and transaction-local organization RLS.
+- **Implementation — spec 04:** article receipt, weights/purity/location, movement history, and saleable-only inventory. Read `04-inventory-and-article-receiving.md` when requested.
 - **Configuration — Auth/SMTP:** disable public signup, set site/redirect URLs, and configure custom SMTP. First Auth user and owner membership are already in place.
 - **Business examples:** obtain representative invoices, pricing calculations, active/settled Girvi examples, and opening-data samples. Record approved rules and expected results before implementing calculators.
 - **Foundation — workspace:** done in spec 01. Use `pnpm install` and the root scripts; copy `.env.example` before starting API/worker.
-- **Foundation — data and identity:** `0001`/`0002` and the first owner membership are applied on the live project. Organization-scoped RLS remains spec 03.
-- **Foundation — staff flow:** application code, schema, and first owner membership are done. Remaining: disable public signup and configure custom SMTP in the dashboard.
+- **Foundation — data and identity:** `0001`/`0002`/`0003` and the first owner membership are applied on the live project. Organization-scoped RLS is in place for runtime roles.
+- **Foundation — staff flow:** application code, schema, settings UI, and first owner membership are done. Remaining: disable public signup and configure custom SMTP in the dashboard.
 - **Inventory and tagging:** deliver article receipt, weights/purity/location, movement history, unique barcode generation, tag print/reprint, lookup, and reviewed stock checks. Validate scanner and printer output.
 - **Billing:** implement the approved decimal calculation engine, drafts/quotes, stale-quote handling, atomic finalization, invoice numbering, stock locking, and idempotency. Verify that two counters cannot sell the same article.
 - **Customers and payments:** deliver customer records and consent, split/partial collections, allocations, receipts, dues, and controlled returns/refunds/reversals with traceable history.
@@ -312,14 +331,13 @@ Limitations still true: no Supabase project, no SMTP, no live DB schema applied,
 
 ## Session Notes
 
-- Spec 02 is implemented in this repository. Later specs from 03 onward are still documentation only until requested.
-- Auth setup and SMTP remain configuration: `docs/supabase-auth-and-smtp.md`. Do not treat the login screens as a live mail integration.
-- Untitled UI MCP is project-configured in `.cursor/mcp.json` without auth. Reload Cursor / enable the `untitledui` server in Settings → MCP if tools are missing. Free-only; no PRO login.
+- Spec 03 is implemented in this repository. Later specs from 04 onward are still documentation only until requested.
+- Auth setup and SMTP remain configuration: `docs/supabase-auth-and-smtp.md`. Staff invite UI calls the API; missing SMTP still cannot be treated as a successful send.
 - Untitled UI MCP is project-configured in `.cursor/mcp.json` without auth. Reload Cursor / enable the `untitledui` server in Settings → MCP if tools are missing. Free-only; no PRO login.
 - `apps/web/utils/is-react-component.ts` has documented vendor patches: detect `forwardRef` via `Symbol.for("react.forward_ref")`, not `$$typeof.toString()`; import React types with `import type * as React from "react"`.
 - Vendor `Button` uses named React imports (`isValidElement` and type-only `FC`/`ReactElement`/`ReactNode`), not a default `React` export. `@types/react` is `export =` and has no ESM default.
 - Product name is Aabhushan (`@aabhushan/*`). The workspace directory may still use the older folder name.
-- Resume with `03-shop-settings-and-organization.md` when requested. Read the latest `ui-context.md` and `ai-workflow-rules.md` first.
+- Resume with `04-inventory-and-article-receiving.md` when requested. Read the latest `ui-context.md` and `ai-workflow-rules.md` first.
 - Read the latest `ui-context.md` and `ai-workflow-rules.md` before UI work. Free-only Untitled UI is a settled constraint and is not an open licensing question.
 - Do not confuse Aabhushan's current MVP with the earlier broader Jewellery OS plan. Current choices include Next.js, Express, Supabase Auth/PostgreSQL, pg-boss, and no Redis; older Clerk/BullMQ/multi-branch assumptions do not carry over automatically.
 - Keep undefined financial behavior out of implementation. Record pending rules here and proceed with independent foundation work while awaiting examples or decisions.

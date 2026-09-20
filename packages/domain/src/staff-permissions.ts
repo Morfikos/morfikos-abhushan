@@ -1,10 +1,11 @@
 import type { StaffPermission, StaffRole } from "@aabhushan/contracts";
 
-export const STAFF_PERMISSION_MAP_VERSION = 1;
+export const STAFF_PERMISSION_MAP_VERSION = 2;
 
 const OWNER_ADMIN_PERMISSIONS = [
   "staff.manage",
   "settings.write",
+  "rates.read",
   "rates.write",
   "inventory.read",
   "inventory.write",
@@ -23,7 +24,15 @@ const OWNER_ADMIN_PERMISSIONS = [
 const ROLE_PERMISSIONS: Record<StaffRole, readonly StaffPermission[]> = {
   owner: OWNER_ADMIN_PERMISSIONS,
   admin: OWNER_ADMIN_PERMISSIONS,
-  billing: ["inventory.read", "billing.write", "payments.write", "customers.read", "customers.write", "reports.read"],
+  billing: [
+    "rates.read",
+    "inventory.read",
+    "billing.write",
+    "payments.write",
+    "customers.read",
+    "customers.write",
+    "reports.read",
+  ],
   inventory: ["inventory.read", "inventory.write", "customers.read", "reports.read"],
   girvi: ["customers.read", "customers.write", "girvi.write", "reports.read"],
 };

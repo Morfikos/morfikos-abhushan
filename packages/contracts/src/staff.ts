@@ -6,6 +6,7 @@ export const staffInvitationStatusSchema = z.enum(["pending", "accepted", "expir
 export const staffPermissionSchema = z.enum([
   "staff.manage",
   "settings.write",
+  "rates.read",
   "rates.write",
   "inventory.read",
   "inventory.write",

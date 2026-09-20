@@ -1,10 +1,12 @@
 "use client";
 
 import { QueryClientProvider } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { CurrentStaff, StaffPermission } from "@aabhushan/contracts";
+import { LogOut01 } from "@untitledui/icons";
 
+import { SidebarNavigationSimple } from "@/components/application/app-navigation/sidebar-navigation/sidebar-simple";
 import { Button } from "@/components/base/buttons/button";
 import { navigationForPermissions } from "@/features/auth/navigation";
 import { createQueryClient, staffMeQueryKey } from "@/lib/query-client";
@@ -27,6 +29,7 @@ export function staffHasPermission(staff: CurrentStaff, permission: StaffPermiss
 
 export function StaffShell({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const queryClientRef = useRef(createQueryClient());
   const previousStaffId = useRef<string | null>(null);
   const [staff, setStaff] = useState<CurrentStaff | null>(null);
@@ -110,32 +113,36 @@ export function StaffShell({ children }: { children: ReactNode }) {
     );
   }
 
-  const navigation = navigationForPermissions(staff.permissions);
+  const navigation = navigationForPermissions(staff.permissions).map((item) => ({
+    label: item.label,
+    href: item.href,
+    icon: item.icon,
+  }));
 
   return (
     <QueryClientProvider client={queryClientRef.current}>
       <StaffContext.Provider value={staff}>
-      <div className="bg-primary min-h-screen">
-        <header className="border-secondary flex flex-wrap items-center justify-between gap-3 border-b px-6 py-4">
-          <p className="text-brand-secondary text-sm font-semibold">Aabhushan</p>
-          <p className="text-tertiary text-sm">
-            {staff.display_name} · {staff.membership.role}
-          </p>
-          <Button color="secondary" size="sm" onPress={() => void signOut()}>
-            Sign out
-          </Button>
-        </header>
-        <div className="flex flex-col gap-6 px-6 py-6 lg:flex-row">
-          <nav aria-label="Staff" className="flex flex-col gap-2 lg:w-52">
-            {navigation.map((item) => (
-              <a key={item.href} href={item.href} className="text-secondary text-sm font-medium hover:text-primary">
-                {item.label}
-              </a>
-            ))}
-          </nav>
-          <div className="min-w-0 flex-1">{children}</div>
+        <div className="bg-primary flex min-h-screen">
+          <SidebarNavigationSimple
+            activeUrl={pathname}
+            items={navigation}
+            showAccountCard={false}
+            featureCard={
+              <div className="flex flex-col gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-primary">{staff.display_name}</p>
+                  <p className="text-xs text-tertiary">
+                    {staff.email} · {staff.membership.role}
+                  </p>
+                </div>
+                <Button color="secondary" size="sm" iconLeading={LogOut01} onPress={() => void signOut()}>
+                  Sign out
+                </Button>
+              </div>
+            }
+          />
+          <div className="min-w-0 flex-1 px-4 py-6 lg:px-8">{children}</div>
         </div>
-      </div>
       </StaffContext.Provider>
     </QueryClientProvider>
   );
