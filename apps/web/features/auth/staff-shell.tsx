@@ -1,6 +1,6 @@
 "use client";
 
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { CurrentStaff, StaffPermission } from "@aabhushan/contracts";
@@ -10,7 +10,7 @@ import { SidebarNavigationSimple } from "@/components/application/app-navigation
 import { Button } from "@/components/base/buttons/button";
 import { navigationForPermissions } from "@/features/auth/navigation";
 import { createQueryClient, staffMeQueryKey } from "@/lib/query-client";
-import { fetchCurrentStaff, StaffApiError } from "@/lib/staff-api";
+import { fetchCurrentStaff, fetchShopProfile, StaffApiError } from "@/lib/staff-api";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
 const StaffContext = createContext<CurrentStaff | null>(null);
@@ -27,9 +27,56 @@ export function staffHasPermission(staff: CurrentStaff, permission: StaffPermiss
   return permission === null || staff.permissions.includes(permission);
 }
 
+function StaffShellChrome({ children, staff, onSignOut }: { children: ReactNode; staff: CurrentStaff; onSignOut: () => void }) {
+  const pathname = usePathname();
+  const profileQuery = useQuery({
+    queryKey: ["shop", "profile", staff.membership.organization_id],
+    queryFn: async () => {
+      const supabase = createBrowserSupabaseClient();
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) {
+        throw new StaffApiError(401, "AUTH_INVALID", "Sign in is required.");
+      }
+      return fetchShopProfile(token);
+    },
+  });
+
+  const navigation = navigationForPermissions(staff.permissions).map((item) => ({
+    label: item.label,
+    href: item.href,
+    icon: item.icon,
+  }));
+
+  return (
+    <div className="bg-primary flex min-h-screen">
+      <SidebarNavigationSimple
+        activeUrl={pathname}
+        items={navigation}
+        showAccountCard={false}
+        shopLegalName={profileQuery.data?.legal_name ?? "Aabhushan"}
+        shopLogoUrl={profileQuery.data?.logo_url ?? null}
+        featureCard={
+          <div className="flex flex-col gap-3">
+            <div>
+              <p className="text-sm font-semibold text-primary">{staff.display_name}</p>
+              <p className="text-xs text-tertiary">
+                {staff.email} · {staff.membership.role}
+              </p>
+            </div>
+            <Button color="secondary" size="sm" iconLeading={LogOut01} onPress={() => void onSignOut()}>
+              Sign out
+            </Button>
+          </div>
+        }
+      />
+      <div className="min-w-0 flex-1 px-4 py-6 lg:px-8">{children}</div>
+    </div>
+  );
+}
+
 export function StaffShell({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const pathname = usePathname();
   const queryClientRef = useRef(createQueryClient());
   const previousStaffId = useRef<string | null>(null);
   const [staff, setStaff] = useState<CurrentStaff | null>(null);
@@ -113,36 +160,12 @@ export function StaffShell({ children }: { children: ReactNode }) {
     );
   }
 
-  const navigation = navigationForPermissions(staff.permissions).map((item) => ({
-    label: item.label,
-    href: item.href,
-    icon: item.icon,
-  }));
-
   return (
     <QueryClientProvider client={queryClientRef.current}>
       <StaffContext.Provider value={staff}>
-        <div className="bg-primary flex min-h-screen">
-          <SidebarNavigationSimple
-            activeUrl={pathname}
-            items={navigation}
-            showAccountCard={false}
-            featureCard={
-              <div className="flex flex-col gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-primary">{staff.display_name}</p>
-                  <p className="text-xs text-tertiary">
-                    {staff.email} · {staff.membership.role}
-                  </p>
-                </div>
-                <Button color="secondary" size="sm" iconLeading={LogOut01} onPress={() => void signOut()}>
-                  Sign out
-                </Button>
-              </div>
-            }
-          />
-          <div className="min-w-0 flex-1 px-4 py-6 lg:px-8">{children}</div>
-        </div>
+        <StaffShellChrome staff={staff} onSignOut={signOut}>
+          {children}
+        </StaffShellChrome>
       </StaffContext.Provider>
     </QueryClientProvider>
   );

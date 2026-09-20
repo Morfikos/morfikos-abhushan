@@ -1,6 +1,6 @@
 # 05 — Barcode Tagging and Hardware
 
-**Status:** Specification only — not implemented  
+**Status:** Implemented — hardware drill still required  
 **Depends on:** `04-inventory-and-article-receiving`  
 **Enables:** POS scan billing, physical tag reprint, hardware acceptance  
 **Blocked by:** shop confirmation of scanner model, scan suffix, tag printer, and label dimensions  
@@ -113,6 +113,7 @@ Barcode payload must be deterministic and collision-checked inside the organizat
 - Dedicated scan input, visually separate from ordinary text fields
 - Tag preview uses actual configured dimensions, not a decorative card
 - Print view strips navigation, sticky actions, shadows, and dashboard colors
+- **Tag template `tag-v2`:** barcode is the visual highlight. Thin header shows shop logo **or** shop legal name (not both) plus metal/purity. Article number appears once under the bars (human-readable), not in the header. Supporting type is small (~6–7px). Bar height is computed from leftover millimetres with an 8 mm floor; if the stamp is too short for logo + floor, omit the logo and use the shop name.
 - Monospace only for the article/barcode identifier
 - Free buttons labeled Print tag and Reprint tag — icons never replace those labels
 - Batch print uses the free table + checkboxes

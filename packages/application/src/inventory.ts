@@ -1,4 +1,7 @@
 import {
+  TAG_BARCODE_MIN_HEIGHT_MM,
+  TAG_TEMPLATE_VERSION,
+  articleBarcodePayload,
   canAdjustArticleStatus,
   canReleaseFromInspection,
   articleDeleteBlockedReason,
@@ -6,6 +9,9 @@ import {
   kolkataBusinessDate,
   netMetalWeightIsPositive,
   netMetalWeightMatches,
+  tagBarcodeHeightMm,
+  tagCanShowLogo,
+  type ShopLogoContentType,
 } from "@aabhushan/domain";
 import type {
   Article,
@@ -24,6 +30,9 @@ import type {
   StockCountCreate,
   StorageLocation,
   StorageLocationCreate,
+  TagPreview,
+  TagPrintCreate,
+  TagPrintEvent,
 } from "@aabhushan/contracts";
 
 import { assertAnyPermission, assertPermission } from "./authorize";
@@ -126,6 +135,21 @@ export type InventoryRepository = {
       adjustmentToStatus: ArticleStatus | null;
     }[];
   }): Promise<StockCount>;
+  assignBarcodeIfMissing(articleId: string, payload: string): Promise<{ article: Article; assigned: boolean } | null>;
+  getDeviceTagLayout(): Promise<{ tagWidthMm: string; tagHeightMm: string } | null>;
+  getShopTagBranding(): Promise<{
+    legalName: string;
+    logoObjectKey: string | null;
+    logoContentType: ShopLogoContentType | null;
+  } | null>;
+  insertTagPrintEvent(input: {
+    articleId: string;
+    barcode: string;
+    printKind: TagPrintCreate["print_kind"];
+    reason: string | null;
+    templateVersion: string;
+    actorStaffUserId: string;
+  }): Promise<TagPrintEvent>;
   writeAudit(event: InventoryAuditWrite & { actorStaffUserId: string | null }): Promise<void>;
 };
 
@@ -244,15 +268,173 @@ export async function lookupArticleByBarcode(
   assertAnyPermission(access, ["inventory.read", "billing.write"]);
   const article = await repository.getArticleByBarcode(barcode);
   if (!article) {
-    missingArticle();
+    throw notFoundError("Unknown barcode.");
+  }
+  if (forSale && article.status === "sold") {
+    throw conflictError("ARTICLE_SOLD", "This article is sold and cannot be added to a sale.");
   }
   if (forSale && !article.sellable) {
-    throw conflictError(
-      "ARTICLE_NOT_SELLABLE",
-      "This article is not available for sale. Unavailable and under-review pieces cannot be sold.",
-    );
+    throw conflictError("ARTICLE_NOT_SELLABLE", "Unavailable.");
   }
   return article;
+}
+
+export async function assignArticleBarcode(
+  repository: InventoryRepository,
+  access: ResolvedStaffAccess,
+  articleId: string,
+): Promise<Article> {
+  assertPermission(access, "inventory.write");
+  const current = await repository.getArticle(articleId);
+  if (!current) {
+    missingArticle();
+  }
+  let payload: string;
+  try {
+    payload = articleBarcodePayload(current.article_number);
+  } catch {
+    throw validationError("This article number cannot be encoded as Code 128.", [
+      { field: "article_number", message: "Use A–Z, 0–9, and hyphen only." },
+    ]);
+  }
+  try {
+    const result = await repository.assignBarcodeIfMissing(articleId, payload);
+    if (!result) {
+      missingArticle();
+    }
+    if (result.assigned) {
+      await repository.writeAudit({
+        actorStaffUserId: access.staff_user_id,
+        action: "inventory.article.barcode.assign",
+        entityType: "article",
+        entityId: articleId,
+        payload: { barcode: result.article.barcode },
+      });
+    }
+    return result.article;
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      throw conflictError("BARCODE_CONFLICT", "That barcode is already assigned in this organization.");
+    }
+    throw error;
+  }
+}
+
+export async function assignArticleBarcodesBatch(
+  repository: InventoryRepository,
+  access: ResolvedStaffAccess,
+  articleIds: string[],
+): Promise<Article[]> {
+  assertPermission(access, "inventory.write");
+  const items: Article[] = [];
+  for (const articleId of articleIds) {
+    items.push(await assignArticleBarcode(repository, access, articleId));
+  }
+  return items;
+}
+
+export async function getArticleTagPreview(
+  repository: InventoryRepository,
+  access: ResolvedStaffAccess,
+  articleId: string,
+  renderSvg: (payload: string, options?: { heightMm?: number }) => string,
+  loadLogoDataUri: (
+    objectKey: string,
+    contentType: ShopLogoContentType,
+  ) => Promise<string | null>,
+): Promise<TagPreview> {
+  assertPermission(access, "inventory.read");
+  const article = await repository.getArticle(articleId);
+  if (!article) {
+    missingArticle();
+  }
+  if (!article.barcode) {
+    throw conflictError("BARCODE_REQUIRED", "Assign a barcode before previewing a tag.");
+  }
+  const layout = await repository.getDeviceTagLayout();
+  if (!layout) {
+    throw validationError("Device tag dimensions are not configured.");
+  }
+  const branding = await repository.getShopTagBranding();
+  if (!branding) {
+    throw validationError("Shop profile is not configured.");
+  }
+
+  const tagHeight = Number.parseFloat(layout.tagHeightMm);
+  const barcodeHeight = tagBarcodeHeightMm(tagHeight);
+  const canShowLogo = tagCanShowLogo(tagHeight);
+  let logoDataUri: string | null = null;
+  let logoOmittedForHeight = false;
+  if (branding.logoObjectKey && branding.logoContentType) {
+    if (canShowLogo) {
+      logoDataUri = await loadLogoDataUri(branding.logoObjectKey, branding.logoContentType);
+    } else {
+      logoOmittedForHeight = true;
+    }
+  }
+
+  const renderHeight = Math.max(TAG_BARCODE_MIN_HEIGHT_MM, barcodeHeight);
+
+  return {
+    article_id: article.id,
+    article_number: article.article_number,
+    barcode: article.barcode,
+    metal: article.metal,
+    purity: article.purity,
+    gross_weight_grams: article.gross_weight_grams,
+    net_metal_weight_grams: article.net_metal_weight_grams,
+    tag_width_mm: layout.tagWidthMm,
+    tag_height_mm: layout.tagHeightMm,
+    template_version: TAG_TEMPLATE_VERSION,
+    barcode_svg: renderSvg(article.barcode, { heightMm: renderHeight }),
+    barcode_height_mm: String(renderHeight),
+    legal_name: branding.legalName,
+    logo_data_uri: logoDataUri,
+    logo_omitted_for_height: logoOmittedForHeight,
+    hardware_validated: false,
+  };
+}
+
+export async function recordArticleTagPrint(
+  repository: InventoryRepository,
+  access: ResolvedStaffAccess,
+  articleId: string,
+  input: TagPrintCreate,
+): Promise<TagPrintEvent> {
+  assertPermission(access, "inventory.write");
+  const article = await repository.getArticle(articleId);
+  if (!article) {
+    missingArticle();
+  }
+  if (!article.barcode) {
+    throw conflictError("BARCODE_REQUIRED", "Assign a barcode before recording a tag print.");
+  }
+  if (input.template_version !== TAG_TEMPLATE_VERSION) {
+    throw validationError("Unknown tag template version.", [
+      { field: "template_version", message: `Expected ${TAG_TEMPLATE_VERSION}.` },
+    ]);
+  }
+  const event = await repository.insertTagPrintEvent({
+    articleId,
+    barcode: article.barcode,
+    printKind: input.print_kind,
+    reason: input.reason ?? null,
+    templateVersion: input.template_version,
+    actorStaffUserId: access.staff_user_id,
+  });
+  await repository.writeAudit({
+    actorStaffUserId: access.staff_user_id,
+    action: input.print_kind === "reprint" ? "inventory.article.tag.reprint" : "inventory.article.tag.print",
+    entityType: "article",
+    entityId: articleId,
+    ...(input.reason ? { reason: input.reason } : {}),
+    payload: {
+      barcode: article.barcode,
+      print_kind: input.print_kind,
+      template_version: input.template_version,
+    },
+  });
+  return event;
 }
 
 export async function receiveArticle(

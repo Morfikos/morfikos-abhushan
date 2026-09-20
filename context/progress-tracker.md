@@ -4,17 +4,17 @@ Update this file after every meaningful implementation change. Record completed 
 
 ## Current Phase
 
-Spec 04 inventory and article receiving is implemented and verified. Specs 01–03 remain implemented and verified.
+Spec 05 barcode tagging is implemented. Shop logo upload, sidebar identity, and tag-v2 print layout are implemented. Hardware drill remains incomplete. Specs 01–04 remain implemented and verified.
 
-**Last updated:** 20 September 2026 (Untitled UI brand ramp set to Aabhushan burgundy `#7e143a`).
+**Last updated:** 20 September 2026 (shop logo + tag-v2 layout; hardware drill still incomplete).
 
-SQL `0001`, `0002`, `0003`, and `0004` are applied on project `nhfmcosxqogxqvhdhzfz`. First owner `shikhar.nitsri@gmail.com` has an active membership. Custom SMTP and Auth dashboard settings (signup disable, redirects) are still outstanding.
+SQL `0001`, `0002`, `0003`, `0004`, `0005`, and `0006` are applied on project `nhfmcosxqogxqvhdhzfz`. First owner `shikhar.nitsri@gmail.com` has an active membership. Custom SMTP and Auth dashboard settings (signup disable, redirects) are still outstanding. Private Storage bucket `shop-assets` must exist (see `docs/shop-logo-storage.md`).
 
 ## Current Goal
 
 - Collect the shop's invoice and Girvi examples alongside foundation work so financial calculations can be implemented against confirmed rules.
 - Configure custom SMTP and remaining Auth dashboard settings as separate environment work (`docs/supabase-auth-and-smtp.md`).
-- Resume with `context/feature-specs/05-barcode-tagging-and-hardware.md` when requested.
+- Confirm scanner model, suffix, tag printer, and label millimetres, then run the spec 05 hardware drill. `hardware_validated_at` stays null until that evidence exists.
 
 ## Completed
 
@@ -50,6 +50,10 @@ SQL `0001`, `0002`, `0003`, and `0004` are applied on project `nhfmcosxqogxqvhdh
 - Rebuilt article detail as a three-column staff workspace (photograph + tag slot | specification grid | movement timeline) using only spec 04 fields; adjustment/inspection form kept in a card. No indicative pricing, fake tag print, or photo URLs.
 - Inventory list tables: shared `ListTableFooter` (Page X of Y, N per page, Previous/Next), free modal + `ConfirmDialog`, row/bulk delete for mistaken receipts only (`available` + receipt-only movements + no stock-count lines), `DELETE /api/v1/articles/:id` and `POST /api/v1/articles/bulk-delete`, `deletable` on list items, footer also applied to settings staff/rates/audit tables. Inventory list table selection uses a local `"all" | Set<string | number>` type instead of importing `Selection` from `react-aria-components` (editor could not resolve that module in the feature file).
 - Replaced Untitled UI default purple `--color-brand-50`–`--color-brand-950` with Aabhushan burgundy. `brand-600` is `#7e143a`; remaining steps are OKLab tints/shades of that hue. Semantic tokens (`bg-brand-solid`, focus ring, brand text) still consume the ramp. Vendor Untitled UI logo source was left unchanged.
+- Implemented spec 05 barcode tagging: permanent unique Code 128 on `articles.barcode` (idempotent assign, no generation-history table), `tag_print_events` print/reprint audit, bwip-js SVG adapter in `packages/integrations`, dedicated `ScanField` with device terminator/suffix, chrome-less `/print/tags` HTML tag view at configured millimetres, batch print from list selection, reprint with required reason, lookup errors Unknown barcode / Unavailable / sold POS rejection. Preview does not record a print; `hardware_validated_at` stays null.
+- Fixed tag print overflow so one article stays on one `@page` (smaller Code 128 bars, CSS-scaled SVG, print-only zero gaps/margins, `break-inside: avoid`). Batch chrome shows configured millimetres as unvalidated and asks for physical confirm after `afterprint`.
+- Polished `/print/tags` screen chrome: sticky toolbar (title, count, size chip, warning), compact physical-confirm step, grey stage with screen-only 2/3-column stamp grid and captions. Printed output stays black/white one-per-page at configured millimetres.
+- Implemented shop logo: `0006` metadata on `shop_profiles`, private `shop-assets` bucket adapter, `POST/DELETE /shop/logo`, `GET /public/shop-branding`, Settings FileUpload, `ShopMark` on sidebar/mobile/auth using `legal_name`, tag-v2 layout (logo or shop name in header, article number once under bars, barcode height from leftover mm with 8 mm floor).
 
 ## Feature Specifications
 
@@ -61,7 +65,7 @@ Specs are listed in intended implementation order. Feed them one by one; do not 
 | 02 | `context/feature-specs/02-staff-authentication-and-access.md` | Implemented and verified; live SMTP still configuration |
 | 03 | `context/feature-specs/03-shop-settings-and-organization.md` | Implemented and verified; SMTP still configuration |
 | 04 | `context/feature-specs/04-inventory-and-article-receiving.md` | Implemented and verified; saleable articles only |
-| 05 | `context/feature-specs/05-barcode-tagging-and-hardware.md` | Hardware drill still required |
+| 05 | `context/feature-specs/05-barcode-tagging-and-hardware.md` | Implemented; hardware drill still required |
 | 06 | `context/feature-specs/06-customers-and-consent.md` | No customer Auth |
 | 07 | `context/feature-specs/07-invoice-calculation-engine.md` | Blocked on invoice examples |
 | 08 | `context/feature-specs/08-pos-billing-and-finalization.md` | Staff POS, not cart/checkout |
@@ -78,7 +82,61 @@ Customer cart/checkout and offline synchronization were not specified as product
 
 ## In Progress
 
-- None. Spec 05 barcode tagging and hardware is next when requested.
+- Spec 05 hardware drill: confirm scanner model, suffix, tag printer, and label size against physical tags. Do not set `hardware_validated_at` or treat a browser preview as acceptance.
+
+## Verification — spec 05
+
+Recorded 20 September 2026.
+
+- Applied `0005_barcode_tagging_and_hardware` on project `nhfmcosxqogxqvhdhzfz`. `app.device_settings.hardware_validated_at` exists and is null. `app.tag_print_events` has RLS enabled and forced. Browser `anon` / `authenticated` have no `SELECT` on `tag_print_events`.
+- Canonical barcode remains `app.articles.barcode` (unique per organization). Reprints copy that payload into `tag_print_events` and never rotate it.
+- `GET /shop/devices` may be read with `settings.write`, `inventory.read`, or `billing.write` so inventory/POS scan fields can consume terminator and suffix. Writing devices stays `settings.write`.
+- `pnpm verify:barcodes` — passed: unique barcode held, Code 128 CHECK held, assign is idempotent, reprint keeps the payload, sold POS add fails as `ARTICLE_SOLD`, unavailable POS add fails as `ARTICLE_NOT_SELLABLE`, unknown barcode 404s, `hardware_validated_at` stays null.
+- `pnpm lint` — passed.
+- `pnpm typecheck` — passed.
+- `pnpm build` — passed (packages, API, worker, Next.js). `/print/tags` is a dedicated print route outside the staff sidebar.
+- `GET /health/live` — `200`. `GET /health/ready` — `200`.
+- `GET /api/v1` — OpenAPI includes `/articles/barcodes/batch`, `/articles/{id}/barcode`, `/articles/{id}/tag-preview`, `/articles/{id}/tag-prints`, and `/articles/lookup`.
+- Unauthenticated `GET /api/v1/articles/lookup?barcode=TEST` — `401 AUTH_INVALID` with `Cache-Control: private, no-store`.
+- Browser: `/inventory` and `/print/tags` redirect unauthenticated users to `/login` (invitation-only, no create-account control).
+- Lockfile scan: no `untitledui-pro`, `@untitledui/pro`, `shadcn`, or `lucide-react`.
+
+Limitations still true: no custom SMTP; signed-in scan/print/reprint was not exercised in this IDE-browser pass (login required). Physical scanner and printer were not available. Lookup p95 was not measured. `hardware_validated_at` remains null and must stay null until a drill succeeds.
+
+## Verification — tag print one page per article
+
+Recorded 20 September 2026.
+
+- On-screen `/print/tags` batch preview was splitting each 50×25 mm tag across pages (4 articles → 6 print pages) because the Code 128 SVG plus padding overflowed the label height.
+- Shrink barcode bars in `packages/integrations/src/barcode.ts` (`height: 6`, lighter vertical pad) and CSS-scale the SVG (`max-height: 12mm` screen / `11mm` print) without `overflow: hidden` so the quiet zone is not clipped.
+- Print CSS in `tag-print-view.tsx`: `@page` size from device millimetres with `margin: 0`, zero html/body print margin, no list gap in print, `break-inside: avoid` / `break-after: page` per card, ~1 mm tag padding. Screen keeps postage-stamp spacing.
+- Chrome: size hint `N × M mm. Printer not confirmed`; **Print tag** vs **Print tags (N)**; physical confirm after `afterprint` (1s fallback). Cancel still asks; staff choose **No, print failed**. Preview still does not record a print.
+- `pnpm --filter @aabhushan/integrations typecheck` / lint — passed.
+- `pnpm --filter @aabhushan/web typecheck` / lint — passed.
+- IDE browser could not open the signed-in print route (redirected to `/login`). Layout fix is ready for a signed-in refresh of the batch URL: expected print page count equals tag count with no footer split. Hardware drill still incomplete; do not set `hardware_validated_at`.
+
+## Verification — shop logo and tag-v2
+
+Recorded 20 September 2026.
+
+- Applied `0006_shop_logo_metadata` on project `nhfmcosxqogxqvhdhzfz`. `shop_profiles` has logo content-type / byte-size / checksum columns with CHECK when a key is present.
+- Created private Storage bucket `shop-assets` (1 MB, jpeg/png/webp, not public).
+- API: `POST/DELETE /api/v1/shop/logo`, `GET /api/v1/public/shop-branding`, profile DTO exposes `logo_url` / `has_logo` (no object key). Tag preview embeds `logo_data_uri`, `legal_name`, `barcode_height_mm`, `logo_omitted_for_height`; template `tag-v2`.
+- Sidebar / mobile / login use `ShopMark` with legal name; login shows fallback initial when no logo.
+- `pnpm --filter @aabhushan/{domain,application,integrations,contracts,db,api,web} typecheck` — passed.
+- Lint on api/web/application/integrations/domain/db — passed.
+- Live: `GET /api/v1/public/shop-branding` → `{"legal_name":"Aabhushan","logo_url":null}`; OpenAPI lists `/shop/logo` and `/public/shop-branding`; `/login` 200 with ShopMark.
+- `pnpm verify:barcodes` — passed (tag-v2 template strings).
+- Signed-in Settings upload and `/print/tags` layout were not exercised in this IDE-browser pass (login required). Physical scanner/printer drill still incomplete; `hardware_validated_at` stays null.
+
+## Verification — print tags screen chrome
+
+Recorded 20 September 2026.
+
+- `/print/tags` screen chrome in `tag-print-view.tsx`: sticky toolbar with title, count, size chip, and short unvalidated warning; Print / Back actions; compact physical-confirm step after `afterprint`; grey `bg-secondary` stage with screen-only `sm:grid-cols-2` / `xl:grid-cols-3` stamp frames and captions.
+- Printed output unchanged in intent: chrome/frames/captions `print:hidden`, one stamp per `@page`, black/white, barcode max-height preserved. No hardware validation claimed.
+- `pnpm --filter @aabhushan/web typecheck` — passed.
+- `pnpm --filter @aabhushan/web lint` — passed.
 
 ## Verification — burgundy brand palette
 
@@ -375,13 +433,14 @@ Limitations still true: no Supabase project, no SMTP, no live DB schema applied,
 
 ## Next Up
 
-- **Implementation — spec 05:** unique barcode generation, tag print/reprint, and hardware-validated lookup. Read `05-barcode-tagging-and-hardware.md` when requested.
+- **Implementation — spec 06:** customers and consent when requested. Read `06-customers-and-consent.md`.
+- **Hardware drill — spec 05:** confirm barcode reader model, scan suffix, tag printer, and label millimetres; print a real tag and scan it back. Do not mark hardware validated from a preview.
 - **Configuration — Auth/SMTP:** disable public signup, set site/redirect URLs, and configure custom SMTP. First Auth user and owner membership are already in place.
 - **Business examples:** obtain representative invoices, pricing calculations, active/settled Girvi examples, and opening-data samples. Record approved rules and expected results before implementing calculators.
 - **Foundation — workspace:** done in spec 01. Use `pnpm install` and the root scripts; copy `.env.example` before starting API/worker.
-- **Foundation — data and identity:** `0001`/`0002`/`0003`/`0004` and the first owner membership are applied on the live project. Organization-scoped RLS is in place for runtime roles, including inventory tables.
+- **Foundation — data and identity:** `0001`/`0002`/`0003`/`0004`/`0005` and the first owner membership are applied on the live project. Organization-scoped RLS is in place for runtime roles, including inventory and tag-print tables.
 - **Foundation — staff flow:** application code, schema, settings UI, and first owner membership are done. Remaining: disable public signup and configure custom SMTP in the dashboard.
-- **Inventory and tagging:** article receipt, weights/purity/location, and movement history are done in spec 04. Remaining: unique barcode generation, tag print/reprint, lookup with printed tags, and reviewed stock checks against the shop's scanner and printer.
+- **Inventory and tagging:** article receipt, unique Code 128 assign, tag print/reprint, dedicated scan lookup, and print audit are done in specs 04–05. Remaining: physical scanner/printer drill and reviewed stock checks against the shop's devices.
 - **Billing:** implement the approved decimal calculation engine, drafts/quotes, stale-quote handling, atomic finalization, invoice numbering, stock locking, and idempotency. Verify that two counters cannot sell the same article.
 - **Customers and payments:** deliver customer records and consent, split/partial collections, allocations, receipts, dues, and controlled returns/refunds/reversals with traceable history.
 - **Girvi:** implement confirmed loan terms, separate collateral custody, effective-dated interest, repayment allocation, settlement, and physical release. Verify against approved examples and concurrent-payment scenarios.
@@ -424,13 +483,13 @@ Limitations still true: no Supabase project, no SMTP, no live DB schema applied,
 
 ## Session Notes
 
-- Spec 04 is implemented in this repository. Later specs from 05 onward are still documentation only until requested.
+- Spec 05 coding is implemented in this repository. Hardware validation is not. Later specs from 06 onward are still documentation only until requested.
 - Auth setup and SMTP remain configuration: `docs/supabase-auth-and-smtp.md`. Staff invite UI calls the API; missing SMTP still cannot be treated as a successful send.
 - Untitled UI MCP is project-configured in `.cursor/mcp.json` without auth. Reload Cursor / enable the `untitledui` server in Settings → MCP if tools are missing. Free-only; no PRO login.
 - `apps/web/utils/is-react-component.ts` has documented vendor patches: detect `forwardRef` via `Symbol.for("react.forward_ref")`, not `$$typeof.toString()`; import React types with `import type * as React from "react"`.
 - Vendor `Button` uses named React imports (`isValidElement` and type-only `FC`/`ReactElement`/`ReactNode`), not a default `React` export. `@types/react` is `export =` and has no ESM default.
 - Product name is Aabhushan (`@aabhushan/*`). The workspace directory may still use the older folder name.
-- Resume with `05-barcode-tagging-and-hardware.md` when requested. Read the latest `ui-context.md` and `ai-workflow-rules.md` first.
+- Resume with `06-customers-and-consent.md` when requested, or with the spec 05 hardware drill when devices are available. Read the latest `ui-context.md` and `ai-workflow-rules.md` first.
 - Read the latest `ui-context.md` and `ai-workflow-rules.md` before UI work. Free-only Untitled UI is a settled constraint and is not an open licensing question.
 - Do not confuse Aabhushan's current MVP with the earlier broader Jewellery OS plan. Current choices include Next.js, Express, Supabase Auth/PostgreSQL, pg-boss, and no Redis; older Clerk/BullMQ/multi-branch assumptions do not carry over automatically.
 - Keep undefined financial behavior out of implementation. Record pending rules here and proceed with independent foundation work while awaiting examples or decisions.

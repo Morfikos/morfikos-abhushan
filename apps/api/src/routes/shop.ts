@@ -1,18 +1,24 @@
 import type { Express, NextFunction, Request, Response } from "express";
 import type { Pool } from "@aabhushan/db";
+import type { ServerEnv } from "@aabhushan/config/server";
+import multer from "multer";
 
 import {
   createMetalRate,
   getDeviceSettings,
   getDocumentSequences,
+  getPublicShopBranding,
   getReminderSettings,
   getShopProfile,
   listAuditEvents,
   listMetalRates,
+  removeShopLogo,
   updateDeviceSettings,
   updateDocumentSequences,
   updateReminderSettings,
   updateShopProfile,
+  uploadShopLogo,
+  type ShopAssetStorage,
 } from "@aabhushan/application";
 import {
   auditListQuerySchema,
@@ -23,10 +29,19 @@ import {
   reminderSettingsPatchSchema,
   shopProfilePatchSchema,
 } from "@aabhushan/contracts";
+import { SHOP_LOGO_MAX_BYTES } from "@aabhushan/domain";
 import { createShopSettingsRepository, withOrganizationContext } from "@aabhushan/db";
 
 import type { StaffRequest } from "../auth/require-staff-access";
 import { parseBody, parseQuery, sendHandlerError } from "../http/errors";
+
+/** Seeded single-organization id for public branding (MVP one-shop). */
+const PUBLIC_ORGANIZATION_ID = "11111111-1111-4111-8111-111111111111";
+
+const logoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: SHOP_LOGO_MAX_BYTES, files: 1 },
+});
 
 async function withShopRepo<T>(pool: Pool, req: StaffRequest, fn: (repo: ReturnType<typeof createShopSettingsRepository>) => Promise<T>): Promise<T> {
   return withOrganizationContext(pool, { organizationId: req.staffAccess.membership.organization_id }, async (client) => {
@@ -44,12 +59,34 @@ function handle(fn: (req: StaffRequest, res: Response) => Promise<void>) {
   };
 }
 
-export function registerShopRoutes(app: Express, pool: Pool, requireStaff: (req: Request, res: Response, next: NextFunction) => void): void {
+export function registerShopRoutes(
+  app: Express,
+  pool: Pool,
+  requireStaff: (req: Request, res: Response, next: NextFunction) => void,
+  storage: ShopAssetStorage | null,
+): void {
+  app.get(
+    "/api/v1/public/shop-branding",
+    (req, res, next) => {
+      void (async () => {
+        const branding = await withOrganizationContext(pool, { organizationId: PUBLIC_ORGANIZATION_ID }, async (client) => {
+          const repo = createShopSettingsRepository(client, PUBLIC_ORGANIZATION_ID);
+          return getPublicShopBranding(repo, storage);
+        });
+        res.status(200).json(branding);
+      })().catch((error: unknown) => {
+        if (!sendHandlerError(req, res, error)) {
+          next(error);
+        }
+      });
+    },
+  );
+
   app.get(
     "/api/v1/shop/profile",
     requireStaff,
     handle(async (req, res) => {
-      const profile = await withShopRepo(pool, req, (repo) => getShopProfile(repo));
+      const profile = await withShopRepo(pool, req, (repo) => getShopProfile(repo, storage));
       res.status(200).json(profile);
     }),
   );
@@ -59,7 +96,67 @@ export function registerShopRoutes(app: Express, pool: Pool, requireStaff: (req:
     requireStaff,
     handle(async (req, res) => {
       const patch = parseBody(shopProfilePatchSchema, req.body);
-      const profile = await withShopRepo(pool, req, (repo) => updateShopProfile(repo, req.staffAccess, patch));
+      const profile = await withShopRepo(pool, req, (repo) => updateShopProfile(repo, req.staffAccess, patch, storage));
+      res.status(200).json(profile);
+    }),
+  );
+
+  app.post(
+    "/api/v1/shop/logo",
+    requireStaff,
+    (req, res, next) => {
+      logoUpload.single("file")(req, res, (error: unknown) => {
+        if (error instanceof multer.MulterError) {
+          if (error.code === "LIMIT_FILE_SIZE") {
+            res.status(422).json({
+              code: "VALIDATION_ERROR",
+              message: "Shop logo must be at most 1 MB.",
+              field_errors: [{ field: "file", message: "Maximum size is 1 MB." }],
+              request_id: req.headers["x-request-id"] ?? null,
+            });
+            return;
+          }
+          res.status(422).json({
+            code: "VALIDATION_ERROR",
+            message: "Invalid logo upload.",
+            field_errors: [{ field: "file", message: error.message }],
+            request_id: req.headers["x-request-id"] ?? null,
+          });
+          return;
+        }
+        if (error) {
+          next(error);
+          return;
+        }
+        next();
+      });
+    },
+    handle(async (req, res) => {
+      const file = req.file;
+      if (!file) {
+        res.status(422).json({
+          code: "VALIDATION_ERROR",
+          message: "Attach a JPEG, PNG, or WebP file as field \"file\".",
+          field_errors: [{ field: "file", message: "File is required." }],
+          request_id: req.headers["x-request-id"] ?? null,
+        });
+        return;
+      }
+      const profile = await withShopRepo(pool, req, (repo) =>
+        uploadShopLogo(repo, req.staffAccess, storage, {
+          bytes: file.buffer,
+          declaredContentType: file.mimetype,
+        }),
+      );
+      res.status(200).json(profile);
+    }),
+  );
+
+  app.delete(
+    "/api/v1/shop/logo",
+    requireStaff,
+    handle(async (req, res) => {
+      const profile = await withShopRepo(pool, req, (repo) => removeShopLogo(repo, req.staffAccess, storage));
       res.status(200).json(profile);
     }),
   );
@@ -179,3 +276,6 @@ export function registerShopRoutes(app: Express, pool: Pool, requireStaff: (req:
     }),
   );
 }
+
+// Keep ServerEnv import available for future storage wiring without unused noise.
+void (0 as unknown as ServerEnv);

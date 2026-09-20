@@ -18,6 +18,7 @@ export const PROTECTED_STAFF_PATHS = [
   "/girvi",
   "/notifications",
   "/settings",
+  "/print",
 ] as const;
 
 export function isPublicAuthPath(pathname: string): boolean {

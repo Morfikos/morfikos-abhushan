@@ -122,7 +122,7 @@ This matrix is a working proposal until the shop confirms who may override price
 
 ### `shop_profiles`
 
-Shop legal identity, contacts, footer, optional logo object key (file bytes arrive in spec 13).
+Shop legal identity, contacts, footer, and optional logo. Logo **bytes** live in the private Supabase Storage bucket `shop-assets`; this table stores `logo_object_key`, `logo_content_type`, `logo_byte_size`, and `logo_checksum_sha256`. Clients never receive the object key — only short-lived `logo_url` or print-time `logo_data_uri`. See `docs/shop-logo-storage.md`.
 
 ### `metal_rates`
 

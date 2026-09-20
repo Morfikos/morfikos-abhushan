@@ -6,20 +6,25 @@ import {
   metalRateListSchema,
   metalRateSchema,
   reminderSettingsSchema,
+  shopBrandingPublicSchema,
   shopProfileSchema,
   staffDirectoryItemSchema,
   staffListSchema,
   articleListSchema,
   articleSchema,
+  articleBarcodeBatchResultSchema,
   catalogueCategoryListSchema,
   catalogueCategorySchema,
   inventoryMovementListSchema,
   stockCountSchema,
   storageLocationListSchema,
   storageLocationSchema,
+  tagPreviewSchema,
+  tagPrintEventSchema,
   articleBulkDeleteResultSchema,
   type Article,
   type ArticleAdjustment,
+  type ArticleBarcodeBatchResult,
   type ArticleBulkDeleteResult,
   type ArticleCreate,
   type ArticleInspectionRelease,
@@ -40,6 +45,7 @@ import {
   type MetalRateList,
   type ReminderSettings,
   type ReminderSettingsPatch,
+  type ShopBrandingPublic,
   type ShopProfile,
   type ShopProfilePatch,
   type StaffDirectoryItem,
@@ -50,6 +56,9 @@ import {
   type StorageLocation,
   type StorageLocationCreate,
   type StorageLocationList,
+  type TagPreview,
+  type TagPrintCreate,
+  type TagPrintEvent,
 } from "@aabhushan/contracts";
 
 import { publicEnv } from "@/lib/public-env";
@@ -119,6 +128,55 @@ export async function fetchShopProfile(accessToken: string): Promise<ShopProfile
 
 export async function patchShopProfile(accessToken: string, patch: ShopProfilePatch): Promise<ShopProfile> {
   return staffRequest(accessToken, "/api/v1/shop/profile", { method: "PATCH", body: patch, schema: shopProfileSchema });
+}
+
+export async function uploadShopLogoRequest(accessToken: string, file: File): Promise<ShopProfile> {
+  const form = new FormData();
+  form.append("file", file);
+  const response = await fetch(apiUrl("/api/v1/shop/logo"), {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "application/json",
+    },
+    body: form,
+    cache: "no-store",
+  });
+  const body: unknown = await response.json().catch(() => null);
+  if (!response.ok) {
+    const record = typeof body === "object" && body !== null ? (body as { code?: unknown; message?: unknown; field_errors?: unknown }) : {};
+    const code = typeof record.code === "string" ? record.code : "REQUEST_FAILED";
+    const message = typeof record.message === "string" ? record.message : "The request failed.";
+    const fieldErrors = Array.isArray(record.field_errors)
+      ? record.field_errors.flatMap((item) => {
+          if (typeof item !== "object" || item === null) {
+            return [];
+          }
+          const field = "field" in item && typeof item.field === "string" ? item.field : "";
+          const fieldMessage = "message" in item && typeof item.message === "string" ? item.message : "";
+          return field && fieldMessage ? [{ field, message: fieldMessage }] : [];
+        })
+      : [];
+    throw new StaffApiError(response.status, code, message, fieldErrors);
+  }
+  return shopProfileSchema.parse(body);
+}
+
+export async function removeShopLogoRequest(accessToken: string): Promise<ShopProfile> {
+  return staffRequest(accessToken, "/api/v1/shop/logo", { method: "DELETE", schema: shopProfileSchema });
+}
+
+export async function fetchPublicShopBranding(): Promise<ShopBrandingPublic> {
+  const response = await fetch(apiUrl("/api/v1/public/shop-branding"), {
+    method: "GET",
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+  const body: unknown = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new StaffApiError(response.status, "REQUEST_FAILED", "Could not load shop branding.");
+  }
+  return shopBrandingPublicSchema.parse(body);
 }
 
 export async function fetchMetalRates(
@@ -341,5 +399,40 @@ export async function bulkDeleteArticlesRequest(
     method: "POST",
     body: { ids },
     schema: articleBulkDeleteResultSchema,
+  });
+}
+
+export async function assignArticleBarcodeRequest(accessToken: string, articleId: string): Promise<Article> {
+  return staffRequest(accessToken, `/api/v1/articles/${articleId}/barcode`, {
+    method: "POST",
+    body: {},
+    schema: articleSchema,
+  });
+}
+
+export async function assignArticleBarcodesBatchRequest(
+  accessToken: string,
+  ids: string[],
+): Promise<ArticleBarcodeBatchResult> {
+  return staffRequest(accessToken, "/api/v1/articles/barcodes/batch", {
+    method: "POST",
+    body: { ids },
+    schema: articleBarcodeBatchResultSchema,
+  });
+}
+
+export async function fetchTagPreview(accessToken: string, articleId: string): Promise<TagPreview> {
+  return staffRequest(accessToken, `/api/v1/articles/${articleId}/tag-preview`, { schema: tagPreviewSchema });
+}
+
+export async function recordTagPrintRequest(
+  accessToken: string,
+  articleId: string,
+  input: TagPrintCreate,
+): Promise<TagPrintEvent> {
+  return staffRequest(accessToken, `/api/v1/articles/${articleId}/tag-prints`, {
+    method: "POST",
+    body: input,
+    schema: tagPrintEventSchema,
   });
 }

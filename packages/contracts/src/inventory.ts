@@ -281,6 +281,66 @@ export const stockCountSchema = z.object({
   created_at: z.string().datetime({ offset: true }),
 });
 
+export const tagPrintKindSchema = z.enum(["initial", "reprint", "batch"]);
+
+export const articleBarcodeBatchSchema = z
+  .object({
+    ids: z.array(z.string().uuid()).min(1).max(100),
+  })
+  .strict();
+
+export const articleBarcodeBatchResultSchema = z.object({
+  items: z.array(articleSchema),
+});
+
+export const tagPrintCreateSchema = z
+  .object({
+    print_kind: tagPrintKindSchema,
+    reason: z.string().trim().max(500).optional(),
+    template_version: z.string().trim().min(1).max(40),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (value.print_kind === "reprint" && !value.reason) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "A reason is required to reprint a tag.",
+        path: ["reason"],
+      });
+    }
+  });
+
+export const tagPrintEventSchema = z.object({
+  id: z.string().uuid(),
+  article_id: z.string().uuid(),
+  barcode: z.string().min(1),
+  print_kind: tagPrintKindSchema,
+  reason: z.string().nullable(),
+  template_version: z.string().min(1),
+  actor_staff_user_id: z.string().uuid(),
+  created_at: z.string().datetime({ offset: true }),
+});
+
+export const tagPreviewSchema = z.object({
+  article_id: z.string().uuid(),
+  article_number: z.string().min(1),
+  barcode: z.string().min(1),
+  metal: metalSchema,
+  purity: z.string().min(1),
+  gross_weight_grams: z.string(),
+  net_metal_weight_grams: z.string(),
+  tag_width_mm: z.string(),
+  tag_height_mm: z.string(),
+  template_version: z.string().min(1),
+  barcode_svg: z.string().min(1),
+  barcode_height_mm: z.string(),
+  legal_name: z.string().min(1),
+  /** Embedded for print; null when absent or omitted for height. */
+  logo_data_uri: z.string().nullable(),
+  logo_omitted_for_height: z.boolean(),
+  hardware_validated: z.literal(false),
+});
+
 export type CatalogueCategory = z.infer<typeof catalogueCategorySchema>;
 export type CatalogueCategoryCreate = z.infer<typeof catalogueCategoryCreateSchema>;
 export type CatalogueCategoryList = z.infer<typeof catalogueCategoryListSchema>;
@@ -304,3 +364,9 @@ export type InventoryMovement = z.infer<typeof inventoryMovementSchema>;
 export type InventoryMovementList = z.infer<typeof inventoryMovementListSchema>;
 export type StockCountCreate = z.infer<typeof stockCountCreateSchema>;
 export type StockCount = z.infer<typeof stockCountSchema>;
+export type TagPrintKind = z.infer<typeof tagPrintKindSchema>;
+export type ArticleBarcodeBatch = z.infer<typeof articleBarcodeBatchSchema>;
+export type ArticleBarcodeBatchResult = z.infer<typeof articleBarcodeBatchResultSchema>;
+export type TagPrintCreate = z.infer<typeof tagPrintCreateSchema>;
+export type TagPrintEvent = z.infer<typeof tagPrintEventSchema>;
+export type TagPreview = z.infer<typeof tagPreviewSchema>;

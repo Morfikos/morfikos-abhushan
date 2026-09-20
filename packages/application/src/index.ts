@@ -14,19 +14,24 @@ export {
   createMetalRate,
   getDeviceSettings,
   getDocumentSequences,
+  getPublicShopBranding,
   getReminderSettings,
   getShopProfile,
   listAuditEvents,
   listMetalRates,
+  removeShopLogo,
   updateDeviceSettings,
   updateDocumentSequences,
   updateReminderSettings,
   updateShopProfile,
+  uploadShopLogo,
 } from "./shop-settings";
 export type {
   AuditWrite,
   PaginatedRows,
   PaginationInput,
+  ShopAssetStorage,
+  ShopProfileRecord,
   ShopSettingsRepository,
 } from "./shop-settings";
 export { inviteStaffMember, listStaffDirectory, suspendStaffMember } from "./staff-directory";
@@ -59,7 +64,11 @@ export {
   listCatalogueCategories,
   listStorageLocations,
   lookupArticleByBarcode,
+  assignArticleBarcode,
+  assignArticleBarcodesBatch,
+  getArticleTagPreview,
   receiveArticle,
+  recordArticleTagPrint,
   releaseArticleFromInspection,
   updateArticle,
 } from "./inventory";

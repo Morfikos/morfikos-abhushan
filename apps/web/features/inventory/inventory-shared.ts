@@ -1,4 +1,4 @@
-import type { ArticleStatus, InventoryMovementType } from "@aabhushan/contracts";
+import type { ArticleStatus, InventoryMovementType, TagPrintKind } from "@aabhushan/contracts";
 import { kolkataBusinessDate } from "@aabhushan/domain";
 
 import { StaffApiError } from "@/lib/staff-api";
@@ -104,6 +104,22 @@ export function inventoryErrorMessage(error: unknown): string {
   return "The request failed. Check the connection and try again. The article was not marked received.";
 }
 
+export function scanLookupErrorMessage(error: unknown): string {
+  if (error instanceof StaffApiError) {
+    if (error.status === 404 || error.code === "NOT_FOUND") {
+      return "Unknown barcode.";
+    }
+    if (error.code === "ARTICLE_SOLD") {
+      return "This article is sold.";
+    }
+    if (error.code === "ARTICLE_NOT_SELLABLE") {
+      return "Unavailable.";
+    }
+    return error.message;
+  }
+  return "Network error.";
+}
+
 export function fieldError(error: unknown, field: string): string | undefined {
   if (!(error instanceof StaffApiError)) {
     return undefined;
@@ -116,4 +132,15 @@ export async function sha256Hex(file: File): Promise<string> {
   return Array.from(new Uint8Array(digest))
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
+}
+
+export function tagPrintHref(input: { ids: string[]; kind: TagPrintKind; reason?: string }): string {
+  const params = new URLSearchParams({
+    ids: input.ids.join(","),
+    kind: input.kind,
+  });
+  if (input.reason) {
+    params.set("reason", input.reason);
+  }
+  return `/print/tags?${params.toString()}`;
 }

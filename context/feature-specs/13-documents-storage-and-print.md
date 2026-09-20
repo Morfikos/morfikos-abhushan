@@ -11,6 +11,8 @@ Store article photos, collateral evidence, necessary identity files, invoices, a
 
 Staff need documents without public links. PDF or print failure must not undo a sale or repayment. A correct on-screen preview is not proof a physical invoice is usable.
 
+**Early landing:** shop logo upload already uses a private `shop-assets` bucket, checksum metadata on `shop_profiles`, and signed URLs / print data URIs (`docs/shop-logo-storage.md`, `packages/integrations` storage adapter). Spec 13 should **reuse** that adapter and expand to a general `stored_objects` catalog rather than inventing a second upload path.
+
 ## Scope
 
 ### In this unit

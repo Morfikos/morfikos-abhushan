@@ -4,13 +4,14 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Article, ArticleFile, InventoryMovement } from "@aabhushan/contracts";
-import { Image01, Scan } from "@untitledui/icons";
+import { Image01 } from "@untitledui/icons";
 
 import { EmptyState } from "@/components/application/empty-state/empty-state";
 import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { SelectField } from "@/components/shared/select-field";
 import { staffHasPermission, useStaff } from "@/features/auth/staff-shell";
 import {
@@ -22,6 +23,7 @@ import {
   inventoryErrorMessage,
   movementTypeDotClass,
   movementTypeLabel,
+  tagPrintHref,
 } from "@/features/inventory/inventory-shared";
 import {
   adjustArticleRequest,
@@ -42,6 +44,8 @@ export function ArticleDetail({ articleId }: { articleId: string }) {
   const [toStatus, setToStatus] = useState<"available" | "unavailable">("unavailable");
   const [locationId, setLocationId] = useState("");
   const [releaseStatus, setReleaseStatus] = useState<"available" | "unavailable">("available");
+  const [reprintReason, setReprintReason] = useState("");
+  const [showReprint, setShowReprint] = useState(false);
 
   useEffect(() => {
     if (!allowed) {
@@ -155,7 +159,12 @@ export function ArticleDetail({ articleId }: { articleId: string }) {
       <div className="grid gap-4 xl:grid-cols-[minmax(16rem,20rem)_1fr_minmax(16rem,20rem)]">
         <div className="flex flex-col gap-4">
           <PhotographCard files={article.files} />
-          <TagSlot barcode={article.barcode} />
+          <TagSlot
+            barcode={article.barcode}
+            canWrite={canWrite}
+            onPrintTag={() => router.push(tagPrintHref({ ids: [article.id], kind: "initial" }))}
+            onReprint={() => setShowReprint(true)}
+          />
         </div>
 
         <SpecificationGrid article={article} />
@@ -229,8 +238,34 @@ export function ArticleDetail({ articleId }: { articleId: string }) {
       {sold ? (
         <p className="text-sm text-tertiary">
           Sold identity and weights cannot be edited here. Corrections use return or adjustment workflows in later units.
+          Reprint of the historical tag is allowed and keeps the same barcode.
         </p>
       ) : null}
+
+      <ConfirmDialog
+        isOpen={showReprint}
+        title="Reprint tag"
+        confirmLabel="Reprint tag"
+        confirmColor="primary"
+        message={
+          <div className="flex flex-col gap-3">
+            <p>The same barcode will be printed. A reason is required for the audit record.</p>
+            <Input label="Reason" value={reprintReason} isRequired onChange={setReprintReason} />
+          </div>
+        }
+        onConfirm={() => {
+          const reason = reprintReason.trim();
+          if (!reason) {
+            return;
+          }
+          setShowReprint(false);
+          router.push(tagPrintHref({ ids: [article.id], kind: "reprint", reason }));
+        }}
+        onCancel={() => {
+          setShowReprint(false);
+          setReprintReason("");
+        }}
+      />
     </section>
   );
 }
@@ -277,23 +312,38 @@ function PhotographCard({ files }: { files: ArticleFile[] }) {
   );
 }
 
-function TagSlot({ barcode }: { barcode: string | null }) {
+function TagSlot({
+  barcode,
+  canWrite,
+  onPrintTag,
+  onReprint,
+}: {
+  barcode: string | null;
+  canWrite: boolean;
+  onPrintTag: () => void;
+  onReprint: () => void;
+}) {
   return (
     <CardShell title="Printed tag">
-      <div className="flex items-start gap-3">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-secondary ring-1 ring-secondary ring-inset">
-          <Scan className="size-5 text-fg-quaternary" aria-hidden="true" />
-        </div>
-        <div className="min-w-0">
-          {barcode ? (
-            <>
-              <p className="font-mono text-sm font-medium text-primary break-all">{barcode}</p>
-              <p className="mt-1 text-xs text-tertiary">Print preview arrives with tagging (spec 05).</p>
-            </>
-          ) : (
-            <p className="text-sm text-tertiary">Barcode is assigned when the piece is tagged.</p>
-          )}
-        </div>
+      <div className="flex flex-col gap-3">
+        {barcode ? (
+          <p className="font-mono text-sm font-medium text-primary break-all">{barcode}</p>
+        ) : (
+          <p className="text-sm text-tertiary">Barcode is assigned when the piece is tagged.</p>
+        )}
+        <p className="text-xs text-tertiary">Printer not confirmed. A preview is not a physical tag.</p>
+        {canWrite ? (
+          <div className="flex flex-wrap gap-2">
+            <Button color="primary" size="sm" onPress={onPrintTag}>
+              Print tag
+            </Button>
+            {barcode ? (
+              <Button color="secondary" size="sm" onPress={onReprint}>
+                Reprint tag
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </CardShell>
   );
