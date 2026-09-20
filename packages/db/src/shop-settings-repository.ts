@@ -5,11 +5,13 @@ import type {
   DeviceSettings,
   DeviceSettingsPatch,
   DocumentSequence,
+  MakingChargeDefault,
   MetalRate,
   ReminderSettings,
   ReminderSettingsPatch,
   ShopProfilePatch,
 } from "@aabhushan/contracts";
+import { makingChargeSchema } from "@aabhushan/contracts";
 import type {
   PaginationInput,
   PaginatedRows,
@@ -25,6 +27,12 @@ const RATE_SORT_COLUMNS = {
   metal: "metal",
   purity: "purity",
   created_at: "created_at",
+} as const;
+
+const MAKING_DEFAULT_SORT_COLUMNS = {
+  metal: "metal",
+  purity: "purity",
+  updated_at: "updated_at",
 } as const;
 
 const AUDIT_SORT_COLUMNS = {
@@ -59,6 +67,15 @@ type RateRow = {
   effective_business_date: Date | string;
   created_by_staff_user_id: string;
   created_at: Date;
+};
+
+type MakingDefaultRow = {
+  id: string;
+  metal: string;
+  purity: string;
+  making_charge: unknown;
+  updated_by_staff_user_id: string;
+  updated_at: Date;
 };
 
 type SequenceRow = {
@@ -136,9 +153,24 @@ function mapRate(row: RateRow): MetalRate {
   };
 }
 
+function mapMakingDefault(row: MakingDefaultRow): MakingChargeDefault {
+  return {
+    id: row.id,
+    metal: row.metal === "silver" ? "silver" : "gold",
+    purity: row.purity,
+    making_charge: makingChargeSchema.parse(row.making_charge),
+    updated_by_staff_user_id: row.updated_by_staff_user_id,
+    updated_at: asIsoDateTime(row.updated_at),
+  };
+}
+
 function mapSequence(row: SequenceRow): DocumentSequence {
   const documentType =
-    row.document_type === "receipt" || row.document_type === "girvi_account" || row.document_type === "article"
+    row.document_type === "receipt" ||
+    row.document_type === "girvi_account" ||
+    row.document_type === "article" ||
+    row.document_type === "credit_note" ||
+    row.document_type === "refund"
       ? row.document_type
       : "invoice";
 
@@ -323,6 +355,65 @@ export function createShopSettingsRepository(client: PoolClient, organizationId:
         throw new Error("Metal rate insert returned no row.");
       }
       return mapRate(row);
+    },
+
+    async listMakingChargeDefaults(input: PaginationInput): Promise<PaginatedRows<MakingChargeDefault>> {
+      const sort =
+        MAKING_DEFAULT_SORT_COLUMNS[input.sort as keyof typeof MAKING_DEFAULT_SORT_COLUMNS] ?? "metal";
+      const direction = input.direction === "asc" ? "ASC" : "DESC";
+      const offset = (input.page - 1) * input.pageSize;
+      const list = await client.query<MakingDefaultRow>(
+        `
+        SELECT id, metal, purity, making_charge, updated_by_staff_user_id, updated_at
+        FROM app.making_charge_defaults
+        WHERE organization_id = $1
+        ORDER BY ${sort} ${direction}, purity ASC
+        LIMIT $2 OFFSET $3
+        `,
+        [organizationId, input.pageSize, offset],
+      );
+      const count = await client.query<{ total: string }>(
+        `SELECT count(*)::text AS total FROM app.making_charge_defaults WHERE organization_id = $1`,
+        [organizationId],
+      );
+      return {
+        items: list.rows.map(mapMakingDefault),
+        total: Number.parseInt(count.rows[0]?.total ?? "0", 10),
+      };
+    },
+
+    async upsertMakingChargeDefault(input) {
+      const result = await client.query<MakingDefaultRow>(
+        `
+        INSERT INTO app.making_charge_defaults (
+          organization_id, metal, purity, making_charge, updated_by_staff_user_id
+        )
+        VALUES ($1, $2, $3, $4::jsonb, $5)
+        ON CONFLICT (organization_id, metal, purity)
+        DO UPDATE SET
+          making_charge = EXCLUDED.making_charge,
+          updated_by_staff_user_id = EXCLUDED.updated_by_staff_user_id,
+          updated_at = timezone('utc', now())
+        RETURNING id, metal, purity, making_charge, updated_by_staff_user_id, updated_at
+        `,
+        [organizationId, input.metal, input.purity, JSON.stringify(input.makingCharge), input.updatedByStaffUserId],
+      );
+      const row = result.rows[0];
+      if (!row) {
+        throw new Error("Making charge default upsert returned no row.");
+      }
+      return mapMakingDefault(row);
+    },
+
+    async deleteMakingChargeDefault(id: string) {
+      const result = await client.query(
+        `
+        DELETE FROM app.making_charge_defaults
+        WHERE organization_id = $1 AND id = $2
+        `,
+        [organizationId, id],
+      );
+      return (result.rowCount ?? 0) > 0;
     },
 
     async listSequences(): Promise<DocumentSequence[]> {

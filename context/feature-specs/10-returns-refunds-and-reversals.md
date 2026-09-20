@@ -1,6 +1,6 @@
 # 10 — Returns, Refunds, and Reversals
 
-**Status:** Specification only — not implemented  
+**Status:** Implemented and verified  
 **Depends on:** `09-payments-and-outstanding-balances`, `04-inventory-and-article-receiving`  
 **Enables:** accurate dues, stock re-entry after inspection, dashboard returns  
 **Blocked by:** shop rules for inspection, credit notes, and who approves refunds  

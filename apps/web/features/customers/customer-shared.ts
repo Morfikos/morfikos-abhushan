@@ -39,6 +39,16 @@ export function whatsappConsentLabel(status: CustomerConsentStatus | null): stri
   return "No WhatsApp consent";
 }
 
+export function whatsappConsentShortLabel(status: CustomerConsentStatus | null): string {
+  if (status === "granted") {
+    return "Granted";
+  }
+  if (status === "revoked") {
+    return "Revoked";
+  }
+  return "None";
+}
+
 export function fieldError(error: unknown, field: string): string | undefined {
   if (!(error instanceof StaffApiError)) {
     return undefined;

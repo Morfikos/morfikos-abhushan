@@ -5,6 +5,9 @@ import type {
   DocumentSequence,
   MetalRate,
   MetalRateCreate,
+  MakingCharge,
+  MakingChargeDefault,
+  MakingChargeDefaultUpsert,
   ReminderSettings,
   ReminderSettingsPatch,
   ShopBrandingPublic,
@@ -19,7 +22,7 @@ import {
 } from "@aabhushan/domain";
 
 import { assertAnyPermission, assertPermission } from "./authorize";
-import { configurationError, conflictError, validationError } from "./http-error";
+import { configurationError, conflictError, notFoundError, validationError } from "./http-error";
 import type { ResolvedStaffAccess } from "./staff-access";
 
 export type PaginationInput = {
@@ -93,6 +96,14 @@ export type ShopSettingsRepository = {
     effectiveBusinessDate: string;
     createdByStaffUserId: string;
   }): Promise<MetalRate>;
+  listMakingChargeDefaults(input: PaginationInput): Promise<PaginatedRows<MakingChargeDefault>>;
+  upsertMakingChargeDefault(input: {
+    metal: MakingChargeDefaultUpsert["metal"];
+    purity: string;
+    makingCharge: MakingCharge;
+    updatedByStaffUserId: string;
+  }): Promise<MakingChargeDefault>;
+  deleteMakingChargeDefault(id: string): Promise<boolean>;
   listSequences(): Promise<DocumentSequence[]>;
   updateSequences(items: DocumentSequence[]): Promise<DocumentSequence[]>;
   getDevices(): Promise<DeviceSettings>;
@@ -301,6 +312,60 @@ export async function createMetalRate(
     }
     throw error;
   }
+}
+
+export async function listMakingChargeDefaults(
+  repository: ShopSettingsRepository,
+  access: ResolvedStaffAccess,
+  input: PaginationInput,
+): Promise<PaginatedRows<MakingChargeDefault>> {
+  assertPermission(access, "rates.read");
+  return repository.listMakingChargeDefaults(input);
+}
+
+export async function upsertMakingChargeDefault(
+  repository: ShopSettingsRepository,
+  access: ResolvedStaffAccess,
+  input: MakingChargeDefaultUpsert,
+): Promise<MakingChargeDefault> {
+  assertPermission(access, "rates.write");
+  const row = await repository.upsertMakingChargeDefault({
+    metal: input.metal,
+    purity: input.purity,
+    makingCharge: input.making_charge,
+    updatedByStaffUserId: access.staff_user_id,
+  });
+  await repository.writeAudit({
+    actorStaffUserId: access.staff_user_id,
+    action: "shop.making_default.upsert",
+    entityType: "making_charge_default",
+    entityId: row.id,
+    payload: {
+      metal: row.metal,
+      purity: row.purity,
+      making_charge: row.making_charge,
+    },
+  });
+  return row;
+}
+
+export async function deleteMakingChargeDefault(
+  repository: ShopSettingsRepository,
+  access: ResolvedStaffAccess,
+  id: string,
+): Promise<void> {
+  assertPermission(access, "rates.write");
+  const deleted = await repository.deleteMakingChargeDefault(id);
+  if (!deleted) {
+    throw notFoundError("Making default was not found.");
+  }
+  await repository.writeAudit({
+    actorStaffUserId: access.staff_user_id,
+    action: "shop.making_default.delete",
+    entityType: "making_charge_default",
+    entityId: id,
+    payload: {},
+  });
 }
 
 export async function getDocumentSequences(

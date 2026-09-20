@@ -183,6 +183,74 @@ export const apiVersionDocument = {
     "/customers/{id}/identity-files": {
       get: { summary: "Restricted identity-file metadata; billing-only staff receive 403" },
     },
+    "/invoices/quote": {
+      post: {
+        summary:
+          "Server-authoritative invoice quote; fails closed until an approved calculation policy has owner-confirmed methods",
+      },
+    },
+    "/invoices/drafts": {
+      post: { summary: "Create a resumable invoice draft; does not reserve stock" },
+    },
+    "/invoices/drafts/{id}": {
+      get: { summary: "Load an invoice draft with lines and latest quote error if any" },
+      patch: { summary: "Add or remove article lines on a draft; duplicate article is 409" },
+    },
+    "/invoices": {
+      get: { summary: "Paginated invoice list including drafts and finalized sales" },
+    },
+    "/invoices/{id}": {
+      get: { summary: "Invoice detail with immutable line snapshots when finalized" },
+    },
+    "/invoices/{id}/finalize": {
+      post: {
+        summary:
+          "Atomically finalize a draft (locks, quote, stock, payments, audit, outbox). Requires Idempotency-Key. Live success blocked until approved calculation fixtures.",
+      },
+    },
+    "/invoices/{id}/payments": {
+      get: { summary: "Collections allocated to one invoice with receipt numbers" },
+    },
+    "/invoices/{id}/returns": {
+      post: {
+        summary:
+          "Accept a return of a finalized invoice line. Writes a credit note, moves the article to return_inspection, and requires Idempotency-Key. Does not edit the issued invoice.",
+      },
+    },
+    "/invoices/{id}/corrections": {
+      get: { summary: "Linked returns, credit notes, refunds, and reversals for one finalized invoice" },
+    },
+    "/payments": {
+      get: { summary: "Paginated manually verified collections; not a sales measure" },
+      post: {
+        summary:
+          "Post split tenders with invoice allocations under row locks. Requires Idempotency-Key. Overpayment is rejected; no gateway or bank confirmation is implied.",
+      },
+    },
+    "/payments/{id}": {
+      get: { summary: "One collection with its allocations and receipt number" },
+    },
+    "/payments/{id}/refunds": {
+      post: {
+        summary:
+          "Refund money already collected against a posted collection. Requires refunds.approve and Idempotency-Key. Does not delete the original payment.",
+      },
+    },
+    "/payments/{id}/reversals": {
+      post: {
+        summary:
+          "Reverse a mistaken posted collection with a linked compensating payment. Requires refunds.approve and Idempotency-Key. Cannot reverse a payment that was refunded.",
+      },
+    },
+    "/customers/{id}/sales-statement": {
+      get: { summary: "Sales dues and collection history only; Girvi balances are never included" },
+    },
+    "/collections/daily": {
+      get: {
+        summary:
+          "Collections received for a business date, inclusive from/to range, or all-time when dates omitted; grouped by method; separate from sales",
+      },
+    },
   },
 } as const;
 
@@ -342,6 +410,7 @@ export {
   customerListSchema,
   customerPatchSchema,
   customerSchema,
+  customerWhatsAppConsentFilterSchema,
 } from "./customers";
 export type {
   Customer,
@@ -357,5 +426,118 @@ export type {
   CustomerIdentityFileList,
   CustomerList,
   CustomerListItem,
+  CustomerListQuery,
   CustomerPatch,
+  CustomerWhatsAppConsentFilter,
 } from "./customers";
+export {
+  DEFAULT_INVOICE_LINE_PRICING,
+  INVOICE_SORT_FIELDS,
+  MAKING_CHARGE_DEFAULT_SORT_FIELDS,
+  calculationPolicySchema,
+  calculationPolicyStatusSchema,
+  invoiceDraftCreateSchema,
+  invoiceDraftPatchSchema,
+  invoiceDraftQuickArticleSchema,
+  invoiceFinalizePaymentSchema,
+  invoiceFinalizeSchema,
+  invoiceLinePricingSchema,
+  invoiceListItemSchema,
+  invoiceListQuerySchema,
+  invoiceListSchema,
+  invoiceLineSchema,
+  invoiceQuoteErrorSchema,
+  invoiceQuoteLineBreakdownSchema,
+  invoiceQuoteLineRequestSchema,
+  invoiceQuoteRequestSchema,
+  invoiceQuoteResponseSchema,
+  invoiceSchema,
+  invoiceStatusSchema,
+  makingChargeDefaultListQuerySchema,
+  makingChargeDefaultListSchema,
+  makingChargeDefaultSchema,
+  makingChargeDefaultUpsertSchema,
+  makingChargeSchema,
+  paymentMethodSchema,
+} from "./invoices";
+export {
+  PAYMENT_SORT_FIELDS,
+  customerSalesStatementSchema,
+  dailyCollectionMethodSchema,
+  dailyCollectionsQuerySchema,
+  dailyCollectionsSchema,
+  invoicePaymentsSchema,
+  outstandingInvoiceSchema,
+  paymentAllocationInputSchema,
+  paymentAllocationSchema,
+  paymentCreateResultSchema,
+  paymentCreateSchema,
+  paymentKindSchema,
+  paymentListQuerySchema,
+  paymentListSchema,
+  paymentSchema,
+  paymentStatusSchema,
+  paymentTenderSchema,
+} from "./payments";
+export { businessDateSpanDays, MAX_BUSINESS_DATE_SPAN_DAYS, refineBusinessDateBounds } from "./business-date-range";
+export type {
+  CustomerSalesStatement,
+  DailyCollections,
+  DailyCollectionsQuery,
+  InvoicePayments,
+  OutstandingInvoice,
+  Payment,
+  PaymentAllocation,
+  PaymentAllocationInput,
+  PaymentCreate,
+  PaymentCreateResult,
+  PaymentKind,
+  PaymentList,
+  PaymentListQuery,
+  PaymentStatus,
+  PaymentTender,
+} from "./payments";
+export {
+  creditNoteSchema,
+  invoiceCorrectionsSchema,
+  invoiceReturnAcceptResultSchema,
+  invoiceReturnCreateSchema,
+  invoiceReturnSchema,
+  invoiceReturnStatusSchema,
+  paymentRefundCreateSchema,
+  paymentReversalCreateSchema,
+} from "./returns";
+export type {
+  CreditNote,
+  InvoiceCorrections,
+  InvoiceReturn,
+  InvoiceReturnAcceptResult,
+  InvoiceReturnCreate,
+  InvoiceReturnStatus,
+  PaymentRefundCreate,
+  PaymentReversalCreate,
+} from "./returns";
+export type {
+  CalculationPolicyDto,
+  Invoice,
+  InvoiceDraftCreate,
+  InvoiceDraftPatch,
+  InvoiceDraftQuickArticle,
+  InvoiceFinalize,
+  InvoiceFinalizePayment,
+  InvoiceLinePricing,
+  InvoiceList,
+  InvoiceListItem,
+  InvoiceListQuery,
+  InvoiceLine,
+  InvoiceQuoteError,
+  InvoiceQuoteLineRequest,
+  InvoiceQuoteRequest,
+  InvoiceQuoteResponse,
+  InvoiceStatus,
+  MakingCharge,
+  MakingChargeDefault,
+  MakingChargeDefaultList,
+  MakingChargeDefaultUpsert,
+  PaymentMethod,
+} from "./invoices";

@@ -30,6 +30,8 @@ Until SMTP is configured:
 - `/auth/check-email` is an instruction screen, not a delivery guarantee.
 - Do not fake a successful send in application code.
 
+If using Resend (`smtp.resend.com`, port `465`, username `resend`, API key as password): the **sender domain must be verified** in [Resend Domains](https://resend.com/domains). A configured SMTP form with an unverified from-domain (e.g. `account@morfikos.com` while `morfikos.com` is pending) returns Auth `500` / `Error sending recovery email` with Resend `550` “domain is not verified”. Check Supabase Auth logs for the gomail/Resend detail.
+
 The exact SMTP provider and from-address remain an open shop-operation question.
 
 ## First owner

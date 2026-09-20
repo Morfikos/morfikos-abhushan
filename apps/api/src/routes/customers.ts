@@ -57,8 +57,10 @@ export function registerCustomerRoutes(
           pageSize: query.page_size,
           sort: query.sort,
           direction: query.direction,
-          isActive: query.is_active,
+          ...(query.is_active !== undefined ? { isActive: query.is_active } : {}),
           ...(query.q ? { q: query.q } : {}),
+          ...(query.is_walk_in !== undefined ? { isWalkIn: query.is_walk_in } : {}),
+          ...(query.whatsapp_consent ? { whatsappConsent: query.whatsapp_consent } : {}),
         }),
       );
       res.status(200).json({

@@ -20,7 +20,9 @@ import type { ResolvedStaffAccess } from "./staff-access";
 
 export type CustomerListFilters = PaginationInput & {
   q?: string;
-  isActive: boolean;
+  isActive?: boolean;
+  isWalkIn?: boolean;
+  whatsappConsent?: "granted" | "revoked" | "none";
 };
 
 export type CustomerAuditWrite = {

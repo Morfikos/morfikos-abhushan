@@ -16,8 +16,14 @@
     "verify:inventory": "pnpm --filter @aabhushan/db verify:inventory",
     "verify:barcodes": "pnpm --filter @aabhushan/db verify:barcodes",
     "verify:customers": "pnpm --filter @aabhushan/db verify:customers",
+    "verify:invoice-calculation": "pnpm --filter @aabhushan/db verify:invoice-fixtures && pnpm --filter @aabhushan/db verify:invoice-calculation",
+    "verify:pos-billing": "pnpm --filter @aabhushan/db verify:pos-billing",
+    "verify:payments": "pnpm --filter @aabhushan/db verify:payments",
+    "verify:returns": "pnpm --filter @aabhushan/db verify:returns",
+    "seed:calculation-policy": "pnpm --filter @aabhushan/db seed:calculation-policy",
     "seed:sample-articles": "pnpm --filter @aabhushan/db seed:sample-articles",
-    "seed:sample-customers": "pnpm --filter @aabhushan/db seed:sample-customers"
+    "seed:sample-customers": "pnpm --filter @aabhushan/db seed:sample-customers",
+    "seed:sample-unpaid-invoices": "pnpm --filter @aabhushan/db seed:sample-unpaid-invoices"
   },
   "devDependencies": {
     "@eslint/js": "^9.35.0",

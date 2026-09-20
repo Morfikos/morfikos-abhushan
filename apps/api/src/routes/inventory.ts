@@ -148,6 +148,7 @@ export function registerInventoryRoutes(
           ...(query.barcode ? { barcode: query.barcode } : {}),
           ...(query.article_number ? { articleNumber: query.article_number } : {}),
           ...(query.category_id ? { categoryId: query.category_id } : {}),
+          ...(query.metal ? { metal: query.metal } : {}),
           ...(query.purity ? { purity: query.purity } : {}),
           ...(query.status ? { status: query.status } : {}),
           ...(query.min_gross_weight_grams ? { minGrossWeightGrams: query.min_gross_weight_grams } : {}),

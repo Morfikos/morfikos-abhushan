@@ -68,6 +68,7 @@ export const customerListItemSchema = z.object({
   phone_display: z.string().nullable(),
   email: z.string().nullable(),
   is_active: z.boolean(),
+  is_walk_in: z.boolean(),
   whatsapp_consent: customerConsentStatusSchema.nullable(),
   created_at: z.string().datetime({ offset: true }),
 });
@@ -146,6 +147,10 @@ export type CustomerConsentList = z.infer<typeof customerConsentListSchema>;
 
 export const CUSTOMER_SORT_FIELDS = ["name", "created_at", "phone"] as const;
 
+/** Directory filter: granted/revoked match consent aggregate; none means no WhatsApp consent status. */
+export const customerWhatsAppConsentFilterSchema = z.enum(["granted", "revoked", "none"]);
+export type CustomerWhatsAppConsentFilter = z.infer<typeof customerWhatsAppConsentFilterSchema>;
+
 export const customerListQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   page_size: z.coerce.number().int().min(1).max(100).default(20),
@@ -155,9 +160,15 @@ export const customerListQuerySchema = z.object({
   is_active: z
     .enum(["true", "false"])
     .optional()
-    .transform((value) => (value === undefined ? true : value === "true")),
+    .transform((value) => (value === undefined ? undefined : value === "true")),
+  is_walk_in: z
+    .enum(["true", "false"])
+    .optional()
+    .transform((value) => (value === undefined ? undefined : value === "true")),
+  whatsapp_consent: customerWhatsAppConsentFilterSchema.optional(),
 });
 
 export const customerListSchema = paginatedResponseSchema(customerListItemSchema, CUSTOMER_SORT_FIELDS);
 
 export type CustomerList = z.infer<typeof customerListSchema>;
+export type CustomerListQuery = z.infer<typeof customerListQuerySchema>;

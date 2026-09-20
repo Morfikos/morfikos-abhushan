@@ -4,10 +4,13 @@ import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { CurrentStaff, StaffPermission } from "@aabhushan/contracts";
+import { customerInitials } from "@aabhushan/domain";
 import { LogOut01 } from "@untitledui/icons";
 
 import { SidebarNavigationSimple } from "@/components/application/app-navigation/sidebar-navigation/sidebar-simple";
+import { Avatar } from "@/components/base/avatar/avatar";
 import { Button } from "@/components/base/buttons/button";
+import { Tooltip } from "@/components/base/tooltip/tooltip";
 import { navigationForPermissions } from "@/features/auth/navigation";
 import { createQueryClient, staffMeQueryKey } from "@/lib/query-client";
 import { fetchCurrentStaff, fetchShopProfile, StaffApiError } from "@/lib/staff-api";
@@ -29,6 +32,7 @@ export function staffHasPermission(staff: CurrentStaff, permission: StaffPermiss
 
 function StaffShellChrome({ children, staff, onSignOut }: { children: ReactNode; staff: CurrentStaff; onSignOut: () => void }) {
   const pathname = usePathname();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const profileQuery = useQuery({
     queryKey: ["shop", "profile", staff.membership.organization_id],
     queryFn: async () => {
@@ -56,18 +60,33 @@ function StaffShellChrome({ children, staff, onSignOut }: { children: ReactNode;
         showAccountCard={false}
         shopLegalName={profileQuery.data?.legal_name ?? "Aabhushan"}
         shopLogoUrl={profileQuery.data?.logo_url ?? null}
-        featureCard={
-          <div className="flex flex-col gap-3">
-            <div>
-              <p className="text-sm font-semibold text-primary">{staff.display_name}</p>
-              <p className="text-xs text-tertiary">
-                {staff.email} · {staff.membership.role}
-              </p>
+        collapsed={sidebarCollapsed}
+        onCollapsedChange={setSidebarCollapsed}
+        featureCard={(isCollapsed) =>
+          isCollapsed ? (
+            <div className="flex flex-col items-center gap-2">
+              <Tooltip title={`${staff.display_name} · ${staff.membership.role}`} placement="right">
+                <span className="inline-flex">
+                  <Avatar size="sm" initials={customerInitials(staff.display_name)} alt="" />
+                </span>
+              </Tooltip>
+              <Tooltip title="Sign out" placement="right">
+                <Button color="secondary" size="sm" iconLeading={LogOut01} aria-label="Sign out" onPress={() => void onSignOut()} />
+              </Tooltip>
             </div>
-            <Button color="secondary" size="sm" iconLeading={LogOut01} onPress={() => void onSignOut()}>
-              Sign out
-            </Button>
-          </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <div>
+                <p className="text-sm font-semibold text-primary">{staff.display_name}</p>
+                <p className="text-xs text-tertiary">
+                  {staff.email} · {staff.membership.role}
+                </p>
+              </div>
+              <Button color="secondary" size="sm" iconLeading={LogOut01} onPress={() => void onSignOut()}>
+                Sign out
+              </Button>
+            </div>
+          )
         }
       />
       <div className="min-w-0 flex-1 px-4 py-6 lg:px-8">{children}</div>

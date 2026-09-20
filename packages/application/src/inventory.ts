@@ -26,6 +26,7 @@ import type {
   CatalogueCategory,
   CatalogueCategoryCreate,
   InventoryMovement,
+  Metal,
   StockCount,
   StockCountCreate,
   StorageLocation,
@@ -45,6 +46,7 @@ export type ArticleListFilters = PaginationInput & {
   barcode?: string;
   articleNumber?: string;
   categoryId?: string;
+  metal?: Metal;
   purity?: string;
   status?: ArticleStatus;
   minGrossWeightGrams?: string;

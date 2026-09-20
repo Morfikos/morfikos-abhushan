@@ -6,9 +6,11 @@ type ShopMarkProps = {
   className?: string;
   /** Compact for mobile header / tight spaces */
   size?: "sm" | "md";
+  /** When false, render only the logo/initial (icon rail). */
+  showName?: boolean;
 };
 
-export function ShopMark({ legalName, logoUrl, className, size = "md" }: ShopMarkProps) {
+export function ShopMark({ legalName, logoUrl, className, size = "md", showName = true }: ShopMarkProps) {
   const markSize = size === "sm" ? "size-7" : "size-8";
   const initial = legalName.trim().charAt(0).toUpperCase() || "A";
 
@@ -31,7 +33,9 @@ export function ShopMark({ legalName, logoUrl, className, size = "md" }: ShopMar
           {initial}
         </span>
       )}
-      <span className="truncate text-lg font-semibold tracking-tight text-primary">{legalName}</span>
+      {showName ? (
+        <span className="truncate text-lg font-semibold tracking-tight text-primary">{legalName}</span>
+      ) : null}
     </span>
   );
 }

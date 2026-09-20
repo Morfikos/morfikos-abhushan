@@ -4,17 +4,21 @@ Update this file after every meaningful implementation change. Record completed 
 
 ## Current Phase
 
-Spec 06 customers and consent is implemented. Specs 01–05 remain implemented; spec 05 hardware drill remains incomplete.
+Spec 10 (returns, refunds, and reversals) is implemented and verified on top of specs 07–09. Live sales still need daily metal rates. Specs 01–09 remain implemented; spec 05 hardware drill remains incomplete.
 
-**Last updated:** 20 September 2026 (customer create form polish).
+**Last updated:** 21 September 2026 (Customer list directory filters).
 
-SQL `0001`, `0002`, `0003`, `0004`, `0005`, `0006`, and `0007` are applied on project `nhfmcosxqogxqvhdhzfz`. First owner `shikhar.nitsri@gmail.com` has an active membership. Custom SMTP and Auth dashboard settings (signup disable, redirects) are still outstanding. Private Storage bucket `shop-assets` must exist (see `docs/shop-logo-storage.md`).
+SQL `0001`–`0014` are applied on project `nhfmcosxqogxqvhdhzfz`. First owner `shikhar.nitsri@gmail.com` has an active membership.
 
 ## Current Goal
 
-- Collect the shop's invoice and Girvi examples alongside foundation work so financial calculations can be implemented against confirmed rules.
+- Enter daily metal rates under Settings so POS drafts quote and finalize successfully.
 - Configure custom SMTP and remaining Auth dashboard settings as separate environment work (`docs/supabase-auth-and-smtp.md`).
-- Confirm scanner model, suffix, tag printer, and label millimetres, then run the spec 05 hardware drill. `hardware_validated_at` stays null until that evidence exists.
+- Confirm scanner model, suffix, tag printer, and label millimetres, then run the spec 05 hardware drill.
+
+## In Progress
+
+- Spec 05 hardware drill: confirm scanner model, suffix, tag printer, and label size against physical tags.
 
 ## Completed
 
@@ -27,7 +31,7 @@ SQL `0001`, `0002`, `0003`, `0004`, `0005`, `0006`, and `0007` are applied on pr
 - Created `ai-workflow-rules.md` using the supplied template, covering incremental work, missing requirements, protected files, documentation updates, and completion checks.
 - Created this initial project progress tracker in the supplied format.
 - Checked template heading order and document structure during artifact creation. This is documentation verification, not application testing or business-owner approval of every proposed rule.
-- Created 16 implementation-ready feature specs in `context/feature-specs/` covering the MVP end to end. Schema fields, endpoints, and permission names in those specs are proposed for implementation and are not owner-approved business rules. Invoice and Girvi calculators remain blocked on shop examples.
+- Created 16 implementation-ready feature specs in `context/feature-specs/` covering the MVP end to end. Schema fields, endpoints, and permission names in those specs are proposed for implementation unless marked owner-approved. Invoice `invoice.v1` rules are owner-approved; Girvi calculators remain blocked on shop examples.
 - Implemented spec 01 workspace foundation: pnpm workspace (`apps/web`, `apps/api`, `apps/worker`, shared packages), typed config, Express health/version routes, Next.js placeholder with free Untitled UI (commit `c981a73bcd6b6c68d2a54070f20f020191212828`), worker lifecycle without jobs, Compose skeleton, empty `app` schema SQL, and `.env.example` files. Reconciled the architecture/code-standards UI row from shadcn/ui to free Untitled UI.
 - Renamed the product from Aabhooshad to Aabhushan across docs, UI copy, env defaults, workspace package scope (`@aabhushan/*`), and the example database name `aabhushan_dev`. The local folder name was left unchanged.
 - Loaded API CJS packages (`cors`, `express`, `pino`) through `createRequire` so ESM + `verbatimModuleSyntax` no longer treat their `export =` typings as missing default exports.
@@ -57,6 +61,35 @@ SQL `0001`, `0002`, `0003`, `0004`, `0005`, `0006`, and `0007` are applied on pr
 - Polished customers directory UX: removed the POS combobox from `/customers`, hide the name/phone search card when the directory is empty (inventory-style empty vs filtered-empty), and fixed Create customer supporting text to “Add a customer for billing or Girvi.” Combobox remains for POS/Girvi.
 - Polished New customer form: Contact and WhatsApp cards, per-purpose consent toggles (matching profile), live E.164 phone hint, collapsed optional email/address/notes, sticky Save/Cancel, discard confirm on dirty Cancel/Back, Toggle `w-full` so hints wrap. Combobox create modal scrolls.
 - Added `pnpm seed:sample-customers` to insert five idempotent demo customers (varied WhatsApp consent) for local directory/UI testing.
+- Added `pnpm seed:sample-unpaid-invoices` to create two finalized unpaid invoices (articles `SEEDDUE01` / `SEEDDUE02`) for Anjali Devi so Payments → Record payment can be exercised without manual POS credit sales. Idempotent; does not consume `ART0000N` sample stock.
+- Fixed Record payment allocations sync: rebuild on `customerId` + `statement.dataUpdatedAt` + sync epoch so cache hits cannot leave an empty invoice list under a non-zero Sales due badge; honest empty vs due>0 messaging; Walk-in excluded from the collection combobox; tenders reset on customer change; statement invalidation awaited after a successful post.
+- Payments period filters: All (default) / Today / Week / Month / Custom drive tiles and list together; API from/to bounds on payments list and collections; pinned Untitled UI date-range picker.
+- Invoice list period + status filters: same All/Today/Week/Month/Custom on `business_date`, Draft/Finalized status, shared `period-bounds` + contracts `business-date-range` helpers.
+- Inventory list metal filter: optional Gold/Silver on `GET /articles` and primary toolbar SelectField (All / Gold / Silver).
+- Customer list directory filters: Active (default Active) / Type (All / Named / Walk-in) / WhatsApp (All / Granted / Revoked / None); `is_active` optional for All; `whatsapp_consent` list query; `is_walk_in=false` for named customers; POS/combobox pass `isActive: true` explicitly.
+- Implemented spec 07 invoice calculation engine with owner-approved `invoice.v1`: decimal helpers, `calculation_policies` migration `0008`, pure `quoteInvoice` (metal → making → wastage → stones → discounts → 3% GST → ₹1 round-off), fixtures under `packages/domain/fixtures/invoice-examples/`, `POST /api/v1/invoices/quote`, and `pnpm seed:calculation-policy`.
+- Added desktop staff sidebar expand/collapse: session-only React state, icons-only 72px rail with tooltips, ChevronLeft/Right toggle; mobile drawer stays full labels.
+- Staff sidebar rail uses `#fafafa` (`bg-sidebar`); active nav item uses `bg-quaternary` with darker hover so it stays visible on the rail.
+- Replaced the brand ramp with Aabhushan blue: `brand-600` is `#2c5ce6` (`rgb(44 92 230)`); 50–950 are OKLab tints/shades of that hue in `apps/web/styles/theme.css`.
+- Inventory list filter bar unified: flat `ScanField` (no brand callout), one toolbar row with Scan/Search/Status/Category and More filters/Clear aligned to field bottoms.
+- Article detail visual polish: header secondary line (category · metal · purity · location), sectioned Specification with weight strip, unified photo+tag left rail, scrollable movement timeline, full-width Adjustment.
+- Receive article form visual polish: Identification and Weights section cards, Gross/Non-metal 2-col with Net full-width strip, optional accordions with chevrons, sticky action bar.
+- Customer directory list polish: search folded into Directory card (`max-w-md`), short WhatsApp badges (Granted/Revoked/None), mono phone, truncated email, row ChevronRight.
+- Staff list pages chrome synced: shared `ListSearchToolbar`; Customers/Invoices/Inventory use Header+badge+in-card toolbar; invoice orphan search removed; inventory filters folded into Articles card.
+- Customer profile visual polish: Customers breadcrumb, short WhatsApp badge, Contact/Details/WhatsApp/Identity section cards (`max-w-3xl`), 2-col consent toggles, sticky Save, compact identity empty.
+- Settings pages visual polish: free Tabs nav; section cards + sticky saves on form tabs; Staff/Rates invite cards + TableCard badges; numbering header row; humanized audit actions.
+- Implemented spec 08 POS billing and finalization: `0009` invoices/lines/payments/allocations/idempotency/outbox; `0010` line/invoice pricing inputs; draft CRUD + quote with making/wastage/stones/discounts; atomic finalize with article locks, stale `quote_version` 409, invoice numbering, sale movements, optional tenders, audit, outbox, Idempotency-Key; staff POS UI with Pricing modal and invoice discount controls. Live sale requires approved `invoice.v1` plus an applicable metal rate.
+- POS billing UX speed: available-article search combobox (`PosArticleSearch`), scan autofocus/refocus after draft mutations, **Pay grand total** tender fill, missing-rate banner → `/settings?tab=rates` (Settings reads `tab` query), inline making Apply on line rows via existing `line_pricing` PATCH.
+- POS UX wins: `0011` walk-in customer (`is_walk_in`) + POS Walk-in button; `0012` making_charge_defaults by metal+purity with Settings CRUD and apply on draft add; finalized **New sale**; explicit Finalize disabled reasons; Unknown/Sold/Unavailable scan copy; `STALE_QUOTE` refetch + reconfirm.
+- POS quick receive & add: `POST /invoices/drafts/:id/quick-articles` (`billing.write`) creates minimal `available`+`receipt` article and adds it to the draft in one transaction; POS **Receive & add** dialog.
+- POS billing visual polish: one Sale `TableCard` (header + count badge, in-card customer/scan/search toolbar, EmptyState); dense lines (article caption, horizontal making Apply, icon Pricing/Remove, No rate badge); totals rail with dominant grand total and tidy discount Apply; ScanField `hint={null}` on POS only.
+- POS browse articles batch add: replaced article ComboBox with **Browse articles** modal (available-only checkboxes, search, Load more, Add N via batch `add_article_ids`, cap 50); Receive & add from toolbar and modal footer; scan remains primary.
+- POS browse articles open-list fix: `useInfiniteQuery` (no wipeable local `items` mirror); IntersectionObserver auto-load; empty vs “More available — Load more” when draft exclusions hide the page.
+- POS customer field polish: draft `customer_id` PATCH on select/Walk-in/New; combobox deferred search + infinite Load more + Walk-in pin + selected sync; toolbar **New customer** POS-light create; Walk-in badge; Create list row removed from combobox.
+- POS customer clear: trailing `XClose` clears local selection/search (no null PATCH); scan/finalize blocked until re-select.
+- POS making value polish: method switch resets value + unit labels; client validate (percent 0–100); Apply/Save gated; `percentSchema`/`assertPercent` capped at 100; Select/table debug ingest removed.
+- Implemented spec 09 payments and outstanding balances: `0013` `app.receipts` (unique receipt number and one receipt per payment per org) plus collection/allocation indexes, RLS, and grants; `POST /api/v1/payments` with required Idempotency-Key, invoice locks in id order, overpayment rejection, split tender spread across allocations, receipt numbering from `document_sequences`, audit, and post-commit outbox `receipt.requested`; `invoices.amount_paid_inr` / `amount_due_inr` rewritten from the allocation sum in the same transaction; payment read/list, invoice payments, customer sales statement, and daily collections by method; POS finalize tenders now issue receipts through the same tables. Staff UI: Payments workspace (daily collections tiles + filtered list), Record payment dialog, payment detail, invoice **Collections** card, customer **Sales** tab. Overpayments and advances stay rejected; due dates are not modelled.
+- Implemented spec 10 returns, refunds, and reversals: `0014` `invoice_returns` and `credit_notes` plus `payments.kind` / `reverses_payment_id`, CN and RFD sequences, and inspection-gated `return_in` restock. Accept-return, refund, and reversal require Idempotency-Key; finalized invoice amounts and line snapshots stay unchanged; credit reduces due; refunds and reversals are new compensating payments (`refunds.approve`); POS cannot sell `return_inspection` stock. Staff UI: invoice **Return article** + **Corrections**, payment **Refund** / **Reverse**, customer Sales credits vs refunds.
 
 ## Feature Specifications
 
@@ -70,10 +103,10 @@ Specs are listed in intended implementation order. Feed them one by one; do not 
 | 04 | `context/feature-specs/04-inventory-and-article-receiving.md` | Implemented and verified; saleable articles only |
 | 05 | `context/feature-specs/05-barcode-tagging-and-hardware.md` | Implemented; hardware drill still required |
 | 06 | `context/feature-specs/06-customers-and-consent.md` | Implemented and verified; no customer Auth |
-| 07 | `context/feature-specs/07-invoice-calculation-engine.md` | Blocked on invoice examples |
-| 08 | `context/feature-specs/08-pos-billing-and-finalization.md` | Staff POS, not cart/checkout |
-| 09 | `context/feature-specs/09-payments-and-outstanding-balances.md` | Manual collections |
-| 10 | `context/feature-specs/10-returns-refunds-and-reversals.md` | Inspection before restock |
+| 07 | `context/feature-specs/07-invoice-calculation-engine.md` | Implemented; owner-approved `invoice.v1` fixtures |
+| 08 | `context/feature-specs/08-pos-billing-and-finalization.md` | Implemented; POS quick receive & add + prior UX wins |
+| 09 | `context/feature-specs/09-payments-and-outstanding-balances.md` | Implemented and verified; overpayment rejected, no advances |
+| 10 | `context/feature-specs/10-returns-refunds-and-reversals.md` | Implemented and verified; inspection before restock |
 | 11 | `context/feature-specs/11-girvi-accounts-and-collateral.md` | Separate from inventory |
 | 12 | `context/feature-specs/12-girvi-interest-settlement-and-release.md` | Blocked on Girvi examples |
 | 13 | `context/feature-specs/13-documents-storage-and-print.md` | Private files and PDFs |
@@ -83,9 +116,275 @@ Specs are listed in intended implementation order. Feed them one by one; do not 
 
 Customer cart/checkout and offline synchronization were not specified as product features: they are out of MVP scope. Connectivity failures are retryable/unresolved online states only.
 
-## In Progress
+## Verification — Customer list directory filters
 
-- Spec 05 hardware drill: confirm scanner model, suffix, tag printer, and label size against physical tags. Do not set `hardware_validated_at` or treat a browser preview as acceptance.
+Recorded 21 September 2026.
+
+- Directory toolbar: Active / Type / WhatsApp SelectFields next to search; defaults Active + All + All; Clear restores defaults; empty copy mentions filter.
+- List API: optional `is_active`, `is_walk_in` true/false, `whatsapp_consent` granted|revoked|none; POS/combobox keep explicit `isActive: true`.
+- `pnpm --filter @aabhushan/contracts --filter @aabhushan/application --filter @aabhushan/db --filter @aabhushan/api --filter @aabhushan/web typecheck` — passed.
+- `pnpm --filter @aabhushan/web --filter @aabhushan/api lint` — passed.
+
+## Verification — Inventory list metal filter
+
+Recorded 21 September 2026.
+
+- `articleListQuerySchema` / list repository accept optional `metal` (`gold` | `silver`).
+- Inventory toolbar: Metal SelectField next to Status and Category; Clear resets to All metals.
+- `pnpm --filter @aabhushan/{contracts,application,db,api,web} typecheck` — passed.
+- `pnpm --filter @aabhushan/{web,api} lint` — passed.
+- Signed-in checks: All / Gold / Silver; combines with status/category; Clear → All.
+
+## Verification — Invoice list period and status filters
+
+Recorded 21 September 2026.
+
+- Shared `packages/contracts/src/business-date-range.ts` and `apps/web/lib/period-bounds.ts` reused by Payments and Invoices.
+- `GET /invoices` accepts `business_date_from` / `business_date_to`; list sorts by `business_date` when a period is active, otherwise `updated_at`.
+- Invoice list toolbar: period ButtonGroup + Today/Custom pickers, status SelectField, Clear resets to All.
+- `pnpm --filter @aabhushan/{contracts,application,db,api,web} typecheck` — passed.
+- `pnpm --filter @aabhushan/{web,api} lint` — passed.
+- Signed-in checks: All history; Today/Week/Month/Custom by business date; Draft/Finalized; Clear → All.
+
+## Verification — Payments period filters
+
+Recorded 21 September 2026.
+
+- Unified All / Today / Week / Month / Custom period drives both Collections received tiles and the Collections list (default All = no date bounds).
+- API: `received_business_date_from` / `_to` on `GET /payments`; `business_date_from` / `_to` on `GET /collections/daily` (omit all dates for all-time). Max span 366 days; inverted ranges rejected.
+- UI: pinned Untitled UI `date-range-picker` + `range-calendar`; Today uses `DatePicker` for any single business day; Custom uses the range picker.
+- `pnpm --filter @aabhushan/{contracts,application,db,api,web} typecheck` — passed.
+- `pnpm --filter @aabhushan/{web,api} lint` — passed.
+- `pnpm verify:payments` — passed (all-time collections ≥ day total; list range includes fixture business date).
+- Signed-in checks: default All shows history; Today / Week / Month / Custom update tiles and list together; Clear returns to All.
+
+## Verification — seed sample unpaid invoices
+
+Recorded 21 September 2026.
+
+- `pnpm seed:sample-unpaid-invoices` created INV00001 (₹13,390.00 due) and INV00002 (₹6,695.00 due) for Anjali Devi (`9876500003`) via `createInvoiceDraft` + `finalizeInvoice` with no tenders; articles `SEEDDUE01` / `SEEDDUE02`.
+- Second run reported `already_present` for both fixtures (idempotent; no duplicate articles).
+- Next step for signed-in UI: Payments → Record payment → Anjali Devi.
+
+## Verification — Record payment allocations sync
+
+Recorded 21 September 2026.
+
+- Bug: selecting or re-selecting a customer (or **Record another**) cleared `allocations` to `[]`, while the sync effect depended only on `statement.data`. A React Query cache hit kept the same data reference, so the badge still showed `sales_due_inr` while the list claimed no unpaid invoice.
+- Fix: `allocationsFromOutstanding` helper; sync effect depends on `customer?.id`, `statement.dataUpdatedAt`, `initialInvoiceId`, and `allocationSyncEpoch`; **Record another** rebuilds immediately from the current statement; empty copy and `submitReason` key off statement outstanding + sales due (not local allocations alone).
+- Hardening: `CustomerCombobox` `excludeWalkIn` on Record payment only; customer select/clear resets tenders and `tenderAmountsTouched`; mutation success awaits statement/`payments` invalidation before the success screen stays interactive.
+- `pnpm --filter @aabhushan/web typecheck` — passed.
+- `pnpm --filter @aabhushan/web lint` — passed.
+- Signed-in checks for the owner: (1) Record payment → Anjali → invoices with dues; (2) clear → re-select Anjali → list still appears; (3) partial payment → Record another → remaining dues; (4) Walk-in not offered.
+
+## Verification — payments dialog polish
+
+Recorded 21 September 2026.
+
+- Shared `MoneyInput` and `MethodSelect` under `apps/web/components/shared/`; money arithmetic moved to `apps/web/lib/money.ts` (`subtractMoney`, `compareMoney`, …); method labels to `apps/web/lib/payment-methods.ts`.
+- Record payment dialog: sticky header/footer, progressive disclosure (tender/totals only after allocation), 12-col grids, brand Collecting total + Difference row, footer `submitReason`, Allocate all dues / Full / leaves-X, structured confirmation, receipt copy on success, customer combobox `autoFocus` when no prefill.
+- POS totals panel adopts `MethodSelect` and `MoneyInput` for tender and fixed-amount invoice discount.
+- `pnpm --filter @aabhushan/web typecheck` — passed.
+- `pnpm --filter @aabhushan/web lint` — passed.
+- Signed-in browser checks for the owner: several unpaid invoices (sticky footer), partial below due, amount above due with message, two-tender split. Cursor browser has no staff session.
+
+## Verification — payments dialog render loop and money comparison
+
+Recorded 21 September 2026.
+
+- `/payments` threw "Maximum update depth exceeded" on load. `RecordPaymentDialog` is mounted unconditionally by `PaymentsWorkspace`, so its effects ran with `isOpen=false`. The tender-sync effect listed `tenders` in its own dependency array and wrote a new array on every pass; its guard compared `only.amount` against `allocationTotal` while the branch wrote `""` in the `"0.00"` case, so the comparison never converged. Instrumented logs showed `guardAmountEqualsTotal:false` with `writeIsNoOpByValue:true` and `renderCount` reaching 14 in 26 ms with no input.
+- Fix: read `tenders` through the `setTenders` updater (dropping it from the dependency array), compare against the value actually being written, and return `current` unchanged so React bails out. Post-fix logs recorded only `setTenders bailed out` and `renderCount` 18 after 39 seconds.
+- Second defect in the same file: `sumMoney` returns a decimal string, so `sumMoney([amount]) > sumMoney([dueInr])` compared money lexicographically. Evaluated cases: `9.00` vs `10000.00` wrongly over-allocated (blocking partial collections), `100.00` vs `20.00` wrongly allowed past the client guard. Added `compareMoney` in `payment-shared.ts` comparing paise as `bigint`; `moneyEquals` now uses it, and both the `overAllocated` filter and the allocation `isInvalid` check call it.
+- Server behaviour was already correct and unchanged: `pnpm verify:payments` proves overpayment rejection independently of this client guard.
+- `pnpm --filter @aabhushan/web typecheck` — passed.
+- `pnpm --filter @aabhushan/web lint` — passed.
+- Signed-in confirmation by the owner: `/payments` loads without the overlay and the Record payment dialog opens.
+
+## Verification — outside-click dismiss for modals
+
+Recorded 21 September 2026.
+
+- Cause: React Aria `ModalOverlay` defaults `isDismissable` to false, so backdrop clicks did nothing on Record payment, Payment detail, POS line pricing, and POS quick receive (and any other caller that omitted the prop).
+- Fix: shared [`modal.tsx`](apps/web/components/application/modals/modal.tsx) defaults `isDismissable` before `{...props}` so callers can still force false while pending. Record payment / line pricing / quick receive pass `isDismissable={!pending}`. Payment detail uses the default. Confirm / Return / Refund / Browse / New customer already guarded.
+- `pnpm --filter @aabhushan/web typecheck` — passed.
+- `pnpm --filter @aabhushan/web lint` — passed.
+- Signed-in browser pass incomplete: Cursor browser redirected to `/login`. Confirm locally: backdrop closes idle modals; backdrop blocked while saving; Select/ComboBox/DatePicker still close on outside click; nested customer list + modal backdrop closes Record payment.
+
+## Verification — Record payment customer dropdown on autofocus
+
+Recorded 21 September 2026.
+
+- Cause: Record payment autofocuses `CustomerCombobox` while the customer query is still empty. React Aria opens then closes the empty menu; when rows arrive the field is already focused so the list stays closed. A later blur + click opens it.
+- Fix in `customer-combobox.tsx`: when `autoFocus` is set and real customer rows exist, blur then `requestAnimationFrame` focus once so `menuTrigger="focus"` opens a populated list. Controlled `isOpen` is not used — this ComboBox/react-stately build clears `isOpen`.
+- `pnpm --filter @aabhushan/web typecheck` — passed.
+- `pnpm --filter @aabhushan/web lint` — passed.
+- Signed-in browser pass incomplete: Cursor browser redirected `/payments` to `/login`. Confirm locally: Record payment with no prefilled customer shows the dropdown after load; select closes it; reopen works; prefilled open does not flash an empty list; POS click/type unchanged.
+
+## Verification — spec 10
+
+Recorded 21 September 2026.
+
+- Applied `0014_returns_refunds_and_reversals` on project `nhfmcosxqogxqvhdhzfz`. `app.invoice_returns` and `app.credit_notes` have RLS enabled and forced. Browser `anon` / `authenticated` have no table grants. `payments.kind` is `collection` | `refund` | `reversal` with `reverses_payment_id`; document sequences `credit_note` (CN) and `refund` (RFD) were seeded from the invoice sequence.
+- Finalized invoice amounts and line snapshots are never rewritten. Accept-return writes a linked return + credit note, `return_in` movement to `return_inspection`, audit, and `credit_note.requested` outbox. Due is `GREATEST(0, grand_total − credits − net collected)`; refunds subtract collected cash; reversals mark the original `reversed` so the same payment is not subtracted twice.
+- `pnpm verify:returns` — passed: missing/wrong org context denied returns and credit notes; accepted return credited the grand total on a single-line paid invoice without editing issued amounts; article status `return_inspection`; POS add of the uninspected article was `ARTICLE_NOT_SELLABLE`; duplicate return 409; billing without `refunds.approve` 403; credit plus refund left paid and due at 0.00; refund larger than collected 422; refund then reverse 409 and reverse then refund 409; idempotent return and refund retries reused the original rows; customer statement reconstructed due from invoice + payments + credits + refunds.
+- `pnpm verify:payments` — passed (due sync now subtracts credits; daily collections still count `kind='collection'` only).
+- `pnpm --filter @aabhushan/{contracts,application,db,api,web} typecheck` — passed.
+- Lint on contracts/application/db/api/web — passed.
+- Live `GET /api/v1` includes `/invoices/{id}/returns`, `/invoices/{id}/corrections`, `/payments/{id}/refunds`, and `/payments/{id}/reversals`. No `DELETE /invoices/{id}`.
+- Signed-in browser pass incomplete: the Cursor browser has no staff session and redirected `/invoices` to `/login`. Confirm locally while signed in: invoice **Return article** + **Corrections**, payment **Refund** / **Reverse**, customer Sales **Credits** vs payment history, inventory **Under review**, POS cannot add an uninspected return. Credit-note and refund PDFs sit in the outbox until spec 13.
+
+## Verification — spec 09
+
+Recorded 21 September 2026.
+
+- Applied `0013_payments_and_outstanding_balances` on project `nhfmcosxqogxqvhdhzfz`. `app.receipts` has RLS enabled and forced, unique `(organization_id, receipt_number)` and `(organization_id, payment_id)`, and no `anon` / `authenticated` grants. Added `payments (organization_id, received_business_date, status, method)` and `payment_allocations (organization_id, payment_id)` indexes.
+- No `customer_sales_balances` table. Customer sales due is derived from finalized invoices minus allocations on read; `invoices.amount_paid_inr` / `amount_due_inr` are rewritten from the allocation sum inside the locked transaction.
+- `lockInvoicesAscending` takes `SELECT … FOR UPDATE` in id order first, then re-reads invoice totals and the allocation sum in a second statement, so a waiter under `READ COMMITTED` sees the winner's committed allocation instead of its pre-lock snapshot.
+- `pnpm verify:payments` — passed: RLS denied payments and receipts without organization context; partial and split-tender collections posted with unique receipt numbers; paid/due projections reconciled with allocations; overpayment and tender/allocation mismatch rejected; draft-invoice and foreign-organization allocations rejected; missing `Idempotency-Key` rejected; idempotent retry returned the original payment without a second post; key reuse with a different payload rejected; two simultaneous full-due collections settled exactly once with the loser refused; statement sales due matched finalized invoice dues; daily collections stayed fully allocated to sales invoices with no Girvi reference from the collection tables.
+- `pnpm verify:pos-billing` — passed (finalize tenders now write payments, allocations, and receipts through the spec 09 path).
+- `pnpm --filter @aabhushan/{contracts,application,db,api,web} typecheck` — passed.
+- `pnpm lint` — passed.
+- `pnpm build` — passed (packages, API, worker, Next.js; `/payments` is a dynamic staff route).
+- OpenAPI document includes `/payments`, `/payments/{id}`, `/invoices/{id}/payments`, `/customers/{id}/sales-statement`, and `/collections/daily`.
+- Signed-in browser pass incomplete: the Cursor browser has no staff session and redirected to `/login`. Confirm locally while signed in: `/payments` daily tiles and Collections list, Record payment split tender against an unpaid invoice, invoice **Collections** card, customer **Sales** tab. Receipt documents are queued to the outbox only; no consumer renders them until spec 13, and no WhatsApp is sent.
+
+## Verification — sidebar surface colors
+
+Recorded 20 September 2026.
+
+- Theme: `--color-bg-sidebar: #fafafa` and `--background-color-sidebar`; aside uses `bg-sidebar`.
+- Nav idle transparent + `hover:bg-tertiary`; selected `bg-quaternary hover:bg-neutral-300` on `nav-item.tsx` and `nav-button.tsx`.
+- `pnpm --filter @aabhushan/web typecheck` — passed.
+- `pnpm --filter @aabhushan/web lint` — passed.
+
+## Verification — POS making value polish
+
+Date: 21 September 2026
+
+- Inline making: method change resets to method default; unit-specific aria-label/placeholder; `validateMakingValue` gates Apply and Enter; invalid hint under controls.
+- Pricing dialog making field shares the same defaults/validation; Update quote disabled when invalid.
+- `percentSchema` and `assertPercent` reject values above 100 (making, wastage, discount %).
+- Removed leftover Select/table agent debug ingest fetches.
+- `pnpm --filter @aabhushan/{contracts,domain,web} typecheck` — passed.
+
+## Verification — POS customer clear icon
+
+Date: 21 September 2026
+
+- Combobox shows trailing `XClose` when selected; clears local customer + input; draft `customer_id` unchanged until next select.
+- Wired from POS `onClear`; hidden when finalized.
+- `ui-context.md` POS customer row notes clear X.
+- `pnpm --filter @aabhushan/web typecheck` — passed.
+
+## Verification — POS customer field polish
+
+Date: 21 September 2026
+
+- `selectCustomer` PATCHes draft `customer_id` when the draft exists; combobox, Walk-in, and New customer share that path and refocus scan.
+- `CustomerCombobox`: `useDeferredValue` + `useInfiniteQuery` (pageSize 20, active-only), Load more row, Walk-in pinned, selected `inputValue` sync; Create list row removed.
+- Toolbar **New customer** (`customers.write`) opens POS-light dialog (name, optional phone, WhatsApp invoice); scan autofocus paused while open; Walk-in badge beside label.
+- Spec 08 and `ui-context.md` POS customer bullets updated.
+- `pnpm --filter @aabhushan/web typecheck` — passed.
+
+## Verification — POS browse articles open-list fix
+
+Recorded 21 September 2026.
+
+- Replaced mirrored `useQuery` + local `items` with `useInfiniteQuery`; list derived from pages so empty-search open always shows cached/fresh available stock.
+- Scroll-root IntersectionObserver sentinel calls `fetchNextPage`; Load more fallback retained; “More available — Load more” when visible empty but `hasNextPage`.
+- `pnpm --filter @aabhushan/web typecheck` — passed.
+
+## Verification — POS browse articles batch add
+
+Recorded 21 September 2026.
+
+- `PosBrowseArticlesDialog`: available-only list (`status=available`), exclude draft lines, multi-check, **Add N to sale** one PATCH, Load more, 50-id cap, footer **Receive & add**.
+- Toolbar: Scan + Browse articles + Receive & add (article ComboBox removed).
+- Spec 08 and `ui-context.md` POS bullets updated.
+- `pnpm --filter @aabhushan/web typecheck` — passed.
+
+## Verification — POS billing visual polish
+
+Recorded 21 September 2026.
+
+- Sale `TableCard` with count badge, in-card customer/Walk-in + scan + search + Receive & add, EmptyState when no lines; dense line table and totals rail with dominant grand total.
+- Extracted `pos-line-table.tsx` and `pos-totals-panel.tsx`; `ScanField` accepts `hint={null}` (POS hides terminator hint; inventory default unchanged).
+- `ui-context.md` POS layout bullet updated.
+- `pnpm --filter @aabhushan/web typecheck` — passed.
+- Browser signed-in pass incomplete: Cursor browser redirected to `/login` (no staff password in this session). Confirm locally while signed in: empty Sale EmptyState, compact making row, No rate badge, discount Apply hidden when Method is None, scan autofocus, inventory scan hint still visible.
+
+## Verification — POS quick receive & add
+
+Recorded 21 September 2026.
+
+- `POST /api/v1/invoices/drafts/:id/quick-articles` under `billing.write`: insert available article + draft line + requote in one org transaction.
+- POS **Receive & add** dialog (category, metal, purity, weights, optional location/HUID); no barcode assign.
+- Specs 04/08 updated.
+- `pnpm --filter @aabhushan/{contracts,application,db,api,web} typecheck` — passed.
+- `pnpm --filter @aabhushan/web lint` — passed.
+- `pnpm verify:pos-billing` — passed (includes quick-receive onto draft + reject on finalized).
+
+## Verification — spec 08 POS UX wins
+
+Recorded 20 September 2026.
+
+- Applied `0011_walk_in_customer` and `0012_making_charge_defaults` on project `nhfmcosxqogxqvhdhzfz`.
+- Walk-in: `customers.is_walk_in` unique per org; seed ensures Walk-in; POS **Walk-in** selects via `is_walk_in=true` list filter.
+- Making defaults: Settings Daily rates tab CRUD; new draft lines resolve making by metal+purity before `DEFAULT_INVOICE_LINE_PRICING`.
+- Finalized invoice detail **New sale** → `/invoices/new`.
+- Finalize disabled reason covers customer/lines/quote/pending; scan errors map Unknown/Sold/Unavailable; `STALE_QUOTE` refetches draft and re-opens confirm.
+- Spec 08 flows updated.
+- `pnpm --filter @aabhushan/{contracts,application,db,api,web} typecheck` — passed.
+- `pnpm --filter @aabhushan/web lint` — passed.
+- `pnpm seed:sample-customers` — Walk-in created.
+- `pnpm verify:pos-billing` — passed.
+- `pnpm verify:customers` — passed.
+
+## Verification — spec 08 POS billing UX speed
+
+Recorded 20 September 2026.
+
+- Manual available-article search (`PosArticleSearch` + `fetchArticles` `status=available`) shares `add_article_ids` with scan; duplicates blocked with the same message.
+- ScanField autofocus/refocus after customer select and successful add/remove/pricing/discount; skipped while Pricing modal is open.
+- Tender panel **Pay grand total** fills first tender amount with server `grand_total_inr` (does not finalize).
+- Missing-rate quote banner links to `/settings?tab=rates`; Settings opens Daily rates from `tab` query.
+- Inline making method+value Apply patches `line_pricing` and re-quotes; Pricing modal kept for wastage/stones/line discount.
+- Spec 08 UI flow and UI/UX sections updated.
+- `pnpm --filter @aabhushan/web typecheck` — passed.
+- `pnpm --filter @aabhushan/web lint` — passed.
+- `pnpm verify:pos-billing` — passed (backend path unchanged).
+
+## Verification — spec 08
+
+Recorded 20 September 2026 (updated with line pricing UI + `0010`).
+
+- Applied `0009_pos_billing_and_finalization` and `0010_invoice_line_pricing_inputs` on project `nhfmcosxqogxqvhdhzfz`.
+- POS draft lines persist `pricing_input`; invoices persist `invoice_discount_input`. Pricing modal and invoice discount controls re-quote via `PATCH /invoices/drafts/:id`.
+- `pnpm verify:pos-billing` — passed: missing org context denied, draft create/patch, missing Idempotency-Key rejected, finalize fail-closed when metal rate missing, concurrent fail-closed held, article lock sold-once pattern held, live finalize with approved `invoice.v1` + rate marks article sold, idempotency same-hash replay and different-hash reject.
+- `pnpm --filter @aabhushan/{contracts,application,db,api,web} typecheck` — passed.
+- Lint on contracts/application/db/api/web — passed.
+- Authenticated signed-in POS browser exercise of the Pricing modal was not run in this session.
+
+## Verification — desktop sidebar collapse
+
+Recorded 20 September 2026.
+
+- UI-only: `sidebar-simple.tsx` (`collapsed` / `onCollapsedChange`, 280↔72 width + spacer), `nav-list.tsx` (`NavButton` when collapsed), `ShopMark` `showName`, `StaffShellChrome` session state and compact footer via `featureCard(collapsed)`.
+- Mobile drawer always receives expanded content (`renderContent(false)`). Preference is not persisted.
+- `pnpm --filter @aabhushan/web typecheck` — passed.
+- `pnpm --filter @aabhushan/web lint` — passed.
+
+## Verification — spec 07
+
+Recorded 20 September 2026 (updated with owner-approved invoice.v1).
+
+- Applied `0008_calculation_policies` on project `nhfmcosxqogxqvhdhzfz`. `app.calculation_policies` has RLS enabled and forced. Browser `anon` / `authenticated` have no table grants.
+- Four owner fixtures under `packages/domain/fixtures/invoice-examples/` cover zero making, per-gram making + wastage + stones, percent making + line/invoice discounts, and IGST round-off.
+- `pnpm verify:invoice-calculation` — passed: fixtures exact match, draft policy `CALCULATION_POLICY_UNAPPROVED`, approved-empty `CALCULATION_RULE_UNSUPPORTED`, weight/discount input rejects, RLS deny without org, approved `invoice.v1` sample quote totals.
+- `pnpm seed:calculation-policy` — idempotent upsert of approved `invoice.v1` methods.
+- `pnpm --filter @aabhushan/{domain,contracts,application,db,api} typecheck` — passed.
+- Lint on domain/contracts/application/db/api — passed.
+- OpenAPI document includes `/invoices/quote`.
 
 ## Verification — customer create form polish
 
@@ -178,11 +477,79 @@ Recorded 20 September 2026.
 - `pnpm --filter @aabhushan/web typecheck` — passed.
 - `pnpm --filter @aabhushan/web lint` — passed.
 
-## Verification — burgundy brand palette
+## Verification — blue brand palette
 
 Recorded 20 September 2026.
 
-- `--color-brand-50`–`--color-brand-950` in `apps/web/styles/theme.css` now use Aabhushan burgundy. `brand-600` is `#7e143a` (`rgb(126 20 58)`). Semantic tokens still map primary actions, hover, focus, and subtle surfaces onto that ramp.
+- `--color-brand-50`–`--color-brand-950` in `apps/web/styles/theme.css` use Aabhushan blue. `brand-600` is `#2c5ce6` (`rgb(44 92 230)`). Semantic tokens still map primary actions, hover, focus, and subtle surfaces onto that ramp.
+- Docs updated: `ui-context.md`, `architecture.md`, `untitled-ui-import.md`, spec 01 foundation note.
+- `pnpm --filter @aabhushan/web typecheck` — passed.
+- `pnpm --filter @aabhushan/web lint` — passed.
+- Browser `/login`: Sign in button computed background `rgb(44, 92, 230)`.
+
+## Verification — inventory filter bar unify
+
+Recorded 20 September 2026.
+
+- `ScanField` is flat (no `bg-brand-primary` callout); inventory toolbar is one `xl:grid-cols-5` row with More filters/Clear in an `items-end` actions cell; advanced purity/weight block stays below when expanded.
+- Inventory passes `hint=""` so scan matches Search height; tooltip still explains scan behavior.
+- `pnpm --filter @aabhushan/web typecheck` — passed.
+- `pnpm --filter @aabhushan/web lint` — passed.
+- Browser signed-in `/inventory` not rechecked (session redirected to `/login`).
+
+## Verification — article detail visual polish
+
+Recorded 20 September 2026.
+
+- Header secondary line: category · metal · purity · location. Specification regrouped (Identity, Metal and weights with weight strip, Stones, Source and place, Cost); Status removed from grid. Photograph + Printed tag unified in one left rail with aspect-square well. Movement list `max-h-112` scrollable. Adjustment full width with `md:grid-cols-2` for status/location.
+- `pnpm --filter @aabhushan/web typecheck` — passed.
+- `pnpm --filter @aabhushan/web lint` — passed.
+
+## Verification — receive article form visual polish
+
+Recorded 20 September 2026.
+
+- Identification and Weights are separate cards with `text-lg` headers; Gross/Non-metal `md:grid-cols-2`; Net metal full-width read-only strip; optional sections use ChevronDown + Optional label; sticky Receive/Cancel bar preserved.
+- `pnpm --filter @aabhushan/web typecheck` — passed.
+- `pnpm --filter @aabhushan/web lint` — passed.
+
+## Verification — customer directory list polish
+
+Recorded 20 September 2026.
+
+- Search lives inside Directory `TableCard` under the header (`max-w-md`); orphan Search card removed. Filtered-empty empty state sits in the same card under the toolbar. Short WhatsApp badges via `whatsappConsentShortLabel`; mono phone; truncated email; ChevronRight open column.
+- `pnpm --filter @aabhushan/web typecheck` — passed.
+- `pnpm --filter @aabhushan/web lint` — passed.
+
+## Verification — staff list pages chrome sync
+
+Recorded 20 September 2026.
+
+- Shared `ListSearchToolbar`; Customers and Invoices use it inside `TableCard` under Header+badge. Inventory filters live in the Articles card (minimal scan+search card only when catalogue empty). Filtered-empty inside card; ChevronRight on rows. `ui-context.md` staff list pages note updated.
+- `pnpm --filter @aabhushan/web typecheck` — passed.
+- `pnpm --filter @aabhushan/web lint` — passed.
+
+## Verification — customer profile visual polish
+
+Recorded 20 September 2026.
+
+- Profile header: Customers breadcrumb, mono phone, short consent badge. Profile tab: Contact + Details + WhatsApp (2-col toggles) + Identity cards in `max-w-3xl`; sticky Save on Details; compact identity empty/list.
+- `pnpm --filter @aabhushan/web typecheck` — passed.
+- `pnpm --filter @aabhushan/web lint` — passed.
+
+## Verification — settings pages visual polish
+
+Recorded 20 September 2026.
+
+- Settings uses `Tabs` (`button-minimal`); form tabs in `max-w-3xl` section cards with sticky saves; Staff/Rates/Audit TableCards with badges; numbering single header row; audit humanized labels + truncated entity IDs. `ui-context.md` Settings layout note updated.
+- `pnpm --filter @aabhushan/web typecheck` — passed.
+- `pnpm --filter @aabhushan/web lint` — passed.
+
+## Verification — burgundy brand palette
+
+Recorded 20 September 2026 (superseded by blue brand palette).
+
+- `--color-brand-50`–`--color-brand-950` in `apps/web/styles/theme.css` previously used Aabhushan burgundy. `brand-600` was `#7e143a` (`rgb(126 20 58)`).
 - Running `pnpm dev` at `http://localhost:3000`: computed `Sign in` button background is `rgb(126, 20, 58)`; wordmark and `text-brand-secondary` links are `rgb(109, 16, 49)` (`brand-700`). Confirmed on `/` and `/login`. `/auth/recovery` loaded the same primary button/link tokens. `/inventory` redirected to `/login` without a staff session, so signed-in nav selection was not visually rechecked.
 - Vendor Untitled UI logo source under `components/foundations/logo/` still has hardcoded purple stops and is not rendered.
 
@@ -473,28 +840,27 @@ Limitations still true: no Supabase project, no SMTP, no live DB schema applied,
 
 ## Next Up
 
-- **Implementation — spec 07:** invoice calculation engine when requested, blocked on owner-approved invoice examples. Read `07-invoice-calculation-engine.md`.
+- **Shop rates for live POS:** enter daily metal rates so drafts quote and finalize successfully (`pnpm seed:calculation-policy` already seeds `invoice.v1`).
 - **Hardware drill — spec 05:** confirm barcode reader model, scan suffix, tag printer, and label millimetres; print a real tag and scan it back. Do not mark hardware validated from a preview.
 - **Configuration — Auth/SMTP:** disable public signup, set site/redirect URLs, and configure custom SMTP. First Auth user and owner membership are already in place.
-- **Business examples:** obtain representative invoices, pricing calculations, active/settled Girvi examples, and opening-data samples. Record approved rules and expected results before implementing calculators.
+- **Girvi examples:** obtain representative loan terms before implementing interest settlement (spec 12).
+- **Billing follow-ons:** receipt/invoice/credit-note/refund document print (spec 13) consumes the `receipt.requested`, `credit_note.requested`, and `refund.requested` outbox events that specs 09–10 already queue.
 - **Foundation — workspace:** done in spec 01. Use `pnpm install` and the root scripts; copy `.env.example` before starting API/worker.
-- **Foundation — data and identity:** `0001`/`0002`/`0003`/`0004`/`0005`/`0006`/`0007` and the first owner membership are applied on the live project. Organization-scoped RLS is in place for runtime roles, including inventory, tag-print, and customer tables.
-- **Foundation — staff flow:** application code, schema, settings UI, and first owner membership are done. Remaining: disable public signup and configure custom SMTP in the dashboard.
-- **Inventory and tagging:** article receipt, unique Code 128 assign, tag print/reprint, dedicated scan lookup, and print audit are done in specs 04–05. Remaining: physical scanner/printer drill and reviewed stock checks against the shop's devices.
-- **Billing:** implement the approved decimal calculation engine, drafts/quotes, stale-quote handling, atomic finalization, invoice numbering, stock locking, and idempotency. Verify that two counters cannot sell the same article.
-- **Customers and payments:** customer records and consent are done in spec 06. Remaining: split/partial collections, allocations, receipts, dues, and controlled returns/refunds/reversals with traceable history.
-- **Girvi:** implement confirmed loan terms, separate collateral custody, effective-dated interest, repayment allocation, settlement, and physical release. Verify against approved examples and concurrent-payment scenarios.
-- **Documents and automation:** implement private file access, invoice/receipt PDFs, transactional outbox, pg-boss jobs, official WhatsApp integration, consent checks, scheduled reminders, and retry/reconciliation states.
-- **Dashboard and imports:** implement reconciled stock/sales/collection/Girvi reports, exports, and reviewed opening imports. Keep sales dues separate from loan principal and interest.
-- **Pilot readiness:** complete authorization/concurrency tests, relevant end-to-end flows, actual hardware checks, quota/worker monitoring, independent backups, a restore drill, staff training, and supervised launch.
+- **Foundation — data and identity:** `0001`–`0014` and the first owner membership are applied on the live project.
+- **Inventory and tagging:** specs 04–05 done except physical scanner/printer drill.
+- **Customers and payments:** customer records and consent are done in spec 06; collections, allocations, receipts, dues, linked returns, credit notes, refunds, and reversals are done in specs 09–10. Remaining: Girvi.
+- **Girvi:** implement confirmed loan terms after owner examples.
+- **Documents and automation:** private files, PDFs, outbox, WhatsApp (specs 13–14).
+- **Dashboard and imports:** reconciled reports and opening imports (specs 15–16).
+- **Pilot readiness:** authorization/concurrency, hardware checks, backups, restore drill, staff training, supervised launch.
 
 ## Open Questions
 
 - **Shop operation:** confirm that launch is one branch, how many staff/counters will use it, and which people can override prices, adjust stock, refund money, or release collateral. One branch is the documented working assumption, not a confirmed staffing survey.
-- **Invoice rules:** obtain approved invoice samples and confirm purity/rate handling, making-charge methods, wastage conventions, stones, discounts, tax treatment, required fields, and rounding. These block final calculator and document approval, not workspace setup.
+- **Invoice rules:** owner-approved for `invoice.v1` (20 September 2026): separate purity rates ₹/g net metal, making fixed/per-gram/% metal, wastage % net×rate (default none), fixed stone charges, line then invoice discounts, tax-exclusive 3% GST (intra default), HALF_UP paise then ₹1 payable round-off. Accountant should confirm GST registration / place-of-supply before live inter-state invoices.
 - **Girvi terms:** confirm rate period, simple/compound method, day/month convention, minimum period, grace/extra charges if any, allocation order, principal-reduction effective date, settlement rounding, and correction/backdating policy. The proposed simple-interest method is not yet owner-approved.
 - **Credit policy:** confirm due dates, permitted credit sales, payment corrections, and whether customer advances/overpayments are essential. The current MVP default rejects overpayments unless a separate credit workflow is implemented.
-- **Returns:** confirm inspection, re-entry into available stock, credit-note behavior, and who approves refunds. Returned pieces must not become available automatically before inspection.
+- **Returns:** inspection checklist, restock pricing after return, whether credit notes can remain unrefunded store credit (MVP: credit reduces invoice due only), and who besides owner/admin may approve refunds. Returned pieces already move to `return_inspection` and are not sellable until spec 04 inspection release.
 - **Opening records:** identify existing stock, sales dues, active Girvi accounts, collateral packets, opening interest balances, and accrual dates. Confirm import format and who reviews totals.
 - **Hardware:** confirm barcode reader model, scan suffix, tag printer, label dimensions, invoice paper size, and any required bilingual output.
 - **WhatsApp:** choose the official provider, confirm account ownership/readiness, permitted Girvi messaging, templates, consent records, language, reminder timing, and messaging budget. Automated delivery has not been configured.
@@ -511,8 +877,8 @@ Limitations still true: no Supabase project, no SMTP, no live DB schema applied,
 - **No Redis:** explicitly requested. The documented queue choice is pg-boss with a separate Node.js worker using PostgreSQL; this is a design selection, not an installed integration.
 - **Modular monolith:** maintain clear inventory, billing, payments, customers, Girvi, and notification boundaries while allowing local database transactions and a small deployment footprint.
 - **Initial single-business/single-branch operation:** use organization-aware records and permissions as preparation for growth; full multi-tenant onboarding and branch transfers are deferred.
-- **Free-only Untitled UI:** explicitly confirmed. Use Untitled UI tokens and approved public Base/Application UI components, with Aabhushan burgundy (`#7e143a` as `brand-600` and generated 50–950 shades) instead of the library default purple. Inter, original page compositions, no PRO purchase or paid-template dependency. This supersedes the earlier Morfikos/shadcn direction.
-- **Decimal arithmetic and historical snapshots:** preserve reproducible invoice and Girvi results. Exact commercial calculation policies remain open until confirmed with the shop.
+- **Free-only Untitled UI:** explicitly confirmed. Use Untitled UI tokens and approved public Base/Application UI components, with Aabhushan blue (`#2c5ce6` as `brand-600` and generated 50–950 shades) instead of the library default purple. Inter, original page compositions, no PRO purchase or paid-template dependency. This supersedes the earlier Morfikos/shadcn direction and the interim burgundy ramp.
+- **Decimal arithmetic and historical snapshots:** preserve reproducible invoice and Girvi results. Invoice commercial rules are encoded as approved `invoice.v1`.
 - **Transactional posting and idempotency:** invoice, stock, initial payment, audit, and outbox writes commit together; repeat submissions cannot create duplicate financial operations.
 - **Outbox and asynchronous side effects:** PDFs and WhatsApp messages run after commit, so provider failures do not undo valid sales or repayments. Consumers handle retries and ambiguous external outcomes explicitly.
 - **Separate Girvi collateral:** pledged jewellery is not saleable inventory. Financial settlement and physical release are distinct recorded actions.
@@ -523,13 +889,16 @@ Limitations still true: no Supabase project, no SMTP, no live DB schema applied,
 
 ## Session Notes
 
-- Spec 06 coding is implemented in this repository. Later specs from 07 onward are still documentation only until requested. Spec 05 hardware validation is not.
+- Specs 07–10 are complete for MVP billing, collections, and corrections: `invoice.v1` calculator, POS scan/pricing/finalize, manual payments with allocations/receipts/dues, and linked returns/credit notes/refunds/reversals. Enter daily metal rates to sell. Spec 05 hardware validation is still incomplete.
+- Spec 09 posts money but does not render receipt documents: `receipt.requested` sits in the outbox with no consumer until spec 13. Spec 10 queues `credit_note.requested` and `refund.requested` the same way. Overpayments and customer advances are rejected by design; credit notes reduce invoice due only (no general wallet).
+- Resume with daily metal rates, or with the spec 05 hardware drill when devices are available, or with later specs (11+) when requested. Read the latest `ui-context.md` and `ai-workflow-rules.md` first.
+- Auth setup and SMTP remain configuration: `docs/supabase-auth-and-smtp.md`.
+- Untitled UI MCP is project-configured in `.cursor/mcp.json` without auth. Free-only; no PRO login.
 - Auth setup and SMTP remain configuration: `docs/supabase-auth-and-smtp.md`. Staff invite UI calls the API; missing SMTP still cannot be treated as a successful send.
 - Untitled UI MCP is project-configured in `.cursor/mcp.json` without auth. Reload Cursor / enable the `untitledui` server in Settings → MCP if tools are missing. Free-only; no PRO login.
 - `apps/web/utils/is-react-component.ts` has documented vendor patches: detect `forwardRef` via `Symbol.for("react.forward_ref")`, not `$$typeof.toString()`; import React types with `import type * as React from "react"`.
 - Vendor `Button` uses named React imports (`isValidElement` and type-only `FC`/`ReactElement`/`ReactNode`), not a default `React` export. `@types/react` is `export =` and has no ESM default.
 - Product name is Aabhushan (`@aabhushan/*`). The workspace directory may still use the older folder name.
-- Resume with `07-invoice-calculation-engine.md` when requested and invoice examples exist, or with the spec 05 hardware drill when devices are available. Read the latest `ui-context.md` and `ai-workflow-rules.md` first.
 - Read the latest `ui-context.md` and `ai-workflow-rules.md` before UI work. Free-only Untitled UI is a settled constraint and is not an open licensing question.
 - Do not confuse Aabhushan's current MVP with the earlier broader Jewellery OS plan. Current choices include Next.js, Express, Supabase Auth/PostgreSQL, pg-boss, and no Redis; older Clerk/BullMQ/multi-branch assumptions do not carry over automatically.
 - Keep undefined financial behavior out of implementation. Record pending rules here and proceed with independent foundation work while awaiting examples or decisions.

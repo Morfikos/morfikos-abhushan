@@ -200,6 +200,7 @@ export const articleListQuerySchema = z.object({
   barcode: z.string().trim().max(80).optional(),
   article_number: z.string().trim().max(40).optional(),
   category_id: z.string().uuid().optional(),
+  metal: metalSchema.optional(),
   purity: z.string().trim().max(40).optional(),
   status: articleStatusSchema.optional(),
   min_gross_weight_grams: weightGramsSchema.optional(),

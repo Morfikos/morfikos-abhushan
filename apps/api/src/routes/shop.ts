@@ -5,12 +5,14 @@ import multer from "multer";
 
 import {
   createMetalRate,
+  deleteMakingChargeDefault,
   getDeviceSettings,
   getDocumentSequences,
   getPublicShopBranding,
   getReminderSettings,
   getShopProfile,
   listAuditEvents,
+  listMakingChargeDefaults,
   listMetalRates,
   removeShopLogo,
   updateDeviceSettings,
@@ -18,12 +20,15 @@ import {
   updateReminderSettings,
   updateShopProfile,
   uploadShopLogo,
+  upsertMakingChargeDefault,
   type ShopAssetStorage,
 } from "@aabhushan/application";
 import {
   auditListQuerySchema,
   deviceSettingsPatchSchema,
   documentSequencesPatchSchema,
+  makingChargeDefaultListQuerySchema,
+  makingChargeDefaultUpsertSchema,
   metalRateCreateSchema,
   metalRateListQuerySchema,
   reminderSettingsPatchSchema,
@@ -33,7 +38,7 @@ import { SHOP_LOGO_MAX_BYTES } from "@aabhushan/domain";
 import { createShopSettingsRepository, withOrganizationContext } from "@aabhushan/db";
 
 import type { StaffRequest } from "../auth/require-staff-access";
-import { parseBody, parseQuery, sendHandlerError } from "../http/errors";
+import { parseBody, parsePathUuid, parseQuery, sendHandlerError } from "../http/errors";
 
 /** Seeded single-organization id for public branding (MVP one-shop). */
 const PUBLIC_ORGANIZATION_ID = "11111111-1111-4111-8111-111111111111";
@@ -192,6 +197,50 @@ export function registerShopRoutes(
       const body = parseBody(metalRateCreateSchema, req.body);
       const rate = await withShopRepo(pool, req, (repo) => createMetalRate(repo, req.staffAccess, body));
       res.status(201).json(rate);
+    }),
+  );
+
+  app.get(
+    "/api/v1/shop/making-defaults",
+    requireStaff,
+    handle(async (req, res) => {
+      const query = parseQuery(makingChargeDefaultListQuerySchema, req);
+      const result = await withShopRepo(pool, req, (repo) =>
+        listMakingChargeDefaults(repo, req.staffAccess, {
+          page: query.page,
+          pageSize: query.page_size,
+          sort: query.sort,
+          direction: query.direction,
+        }),
+      );
+      res.status(200).json({
+        items: result.items,
+        page: query.page,
+        page_size: query.page_size,
+        total: result.total,
+        sort: query.sort,
+        direction: query.direction,
+      });
+    }),
+  );
+
+  app.put(
+    "/api/v1/shop/making-defaults",
+    requireStaff,
+    handle(async (req, res) => {
+      const body = parseBody(makingChargeDefaultUpsertSchema, req.body);
+      const row = await withShopRepo(pool, req, (repo) => upsertMakingChargeDefault(repo, req.staffAccess, body));
+      res.status(200).json(row);
+    }),
+  );
+
+  app.delete(
+    "/api/v1/shop/making-defaults/:id",
+    requireStaff,
+    handle(async (req, res) => {
+      const id = parsePathUuid(req.params.id, "id");
+      await withShopRepo(pool, req, (repo) => deleteMakingChargeDefault(repo, req.staffAccess, id));
+      res.status(204).send();
     }),
   );
 

@@ -2,6 +2,7 @@
 
 import { cx } from "@/utils/cx";
 import type { NavItemDividerType, NavItemType } from "../config";
+import { NavButton } from "./nav-button";
 import { NavItemBase } from "./nav-item";
 
 interface NavListProps {
@@ -11,13 +12,15 @@ interface NavListProps {
     className?: string;
     /** List of items to display. */
     items: (NavItemType | NavItemDividerType)[];
+    /** When true, flat links render as icon-only buttons with tooltips. */
+    collapsed?: boolean;
 }
 
-export const NavList = ({ activeUrl, items, className }: NavListProps) => {
+export const NavList = ({ activeUrl, items, className, collapsed = false }: NavListProps) => {
     const activeItem = items.find((item) => item.href === activeUrl || item.items?.some((subItem) => subItem.href === activeUrl));
 
     return (
-        <ul className={cx("flex flex-col px-4 pt-5", className)}>
+        <ul className={cx("flex flex-col pt-5", collapsed ? "items-center px-2" : "px-4", className)}>
             {items.map((item, index) => {
                 if (item.divider) {
                     return (
@@ -51,6 +54,20 @@ export const NavList = ({ activeUrl, items, className }: NavListProps) => {
                                 </ul>
                             </dd>
                         </details>
+                    );
+                }
+
+                if (collapsed) {
+                    return (
+                        <li key={item.label} className="py-px">
+                            <NavButton
+                                label={item.label}
+                                icon={item.icon}
+                                href={item.href}
+                                current={activeUrl === item.href}
+                                tooltipPlacement="right"
+                            />
+                        </li>
                     );
                 }
 

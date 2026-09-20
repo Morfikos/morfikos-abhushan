@@ -8,7 +8,14 @@ const decimalString = z
   .refine((value) => Number.parseInt(value.split(".")[0] ?? "0", 10) >= 0, "Rate must be a non-negative decimal string.");
 
 export const metalSchema = z.enum(["gold", "silver"]);
-export const documentTypeSchema = z.enum(["invoice", "receipt", "girvi_account", "article"]);
+export const documentTypeSchema = z.enum([
+  "invoice",
+  "receipt",
+  "girvi_account",
+  "article",
+  "credit_note",
+  "refund",
+]);
 export const scanTerminatorSchema = z.enum(["Enter", "Tab", "None"]);
 export const invoicePaperSizeSchema = z.enum(["A4", "A5", "80mm"]);
 export const reminderLanguageSchema = z.enum(["en", "hi"]);

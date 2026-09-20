@@ -148,6 +148,41 @@ async function main(): Promise<void> {
       });
     }
 
+    const walkInExisting = await client.query<{ id: string }>(
+      `
+      SELECT id
+      FROM app.customers
+      WHERE organization_id = $1 AND is_walk_in
+      LIMIT 1
+      `,
+      [ORGANIZATION_ID],
+    );
+    if (walkInExisting.rows[0]) {
+      created.push({
+        display_name: "Walk-in",
+        phone: "(none)",
+        whatsapp: "none",
+        status: "skipped_existing",
+      });
+    } else {
+      await client.query(
+        `
+        INSERT INTO app.customers (
+          organization_id, display_name, phone_normalized, phone_display,
+          email, address_line, notes, is_walk_in
+        )
+        VALUES ($1, 'Walk-in', NULL, NULL, NULL, NULL, 'System walk-in POS customer.', true)
+        `,
+        [ORGANIZATION_ID],
+      );
+      created.push({
+        display_name: "Walk-in",
+        phone: "(none)",
+        whatsapp: "none",
+        status: "created",
+      });
+    }
+
     await client.query("COMMIT");
     console.log(JSON.stringify({ organization_id: ORGANIZATION_ID, customers: created }, null, 2));
   } catch (error) {

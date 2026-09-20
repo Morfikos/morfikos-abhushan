@@ -414,6 +414,10 @@ export function createInventoryRepository(
         values.push(input.categoryId);
         where.push(`a.category_id = $${String(values.length)}`);
       }
+      if (input.metal) {
+        values.push(input.metal);
+        where.push(`a.metal = $${String(values.length)}`);
+      }
       if (input.purity) {
         values.push(input.purity);
         where.push(`a.purity = $${String(values.length)}`);

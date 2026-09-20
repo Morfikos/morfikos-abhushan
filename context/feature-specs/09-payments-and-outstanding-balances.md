@@ -1,9 +1,9 @@
 # 09 — Payments and Outstanding Balances
 
-**Status:** Specification only — not implemented  
+**Status:** Implemented  
 **Depends on:** `08-pos-billing-and-finalization`  
 **Enables:** returns/refunds, dashboard collections, receipt PDFs, due reminders  
-**Blocked by:** confirmation of due dates, credit sales, and whether overpayments/advances are required  
+**Blocked by:** confirmation of due dates, credit sales, and whether overpayments/advances are required. Implemented with the MVP default: overpayment is rejected and no customer credit is created. Due dates are not modelled.  
 
 ## Feature Overview & Objectives
 
@@ -111,6 +111,8 @@ Constraint: sum(allocations for invoice) ≤ invoice grand total minus credits, 
 
 Girvi balances never live here.
 
+Implemented without this table. Customer sales due is derived from finalized invoices minus allocations on every read. `invoices.amount_paid_inr` / `amount_due_inr` are the only cached fields and are rewritten from the allocation sum inside the same locked transaction, so they stay reconcilable projections.
+
 ## API Contracts
 
 | Method | Path | Permission | Idempotent |
@@ -120,6 +122,8 @@ Girvi balances never live here.
 | `GET` | `/api/v1/invoices/:id/payments` | billing | |
 | `GET` | `/api/v1/customers/:id/sales-statement` | billing | |
 | `GET` | `/api/v1/collections/daily` | billing/admin | query by business date |
+
+Implemented permissions: posting is `payments.write`; payment read, list, and daily collections accept `payments.write` or `reports.read`; invoice payments and the customer sales statement also accept `billing.write` so POS and the customer profile can read them. `GET /api/v1/payments` (paged list with customer/invoice/method/date filters) was added for the Payments list screen required below.
 
 Payment service:
 
