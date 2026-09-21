@@ -21,3 +21,4 @@ exports/*.csv
 .DS_Store
 *.log
 .pnpm-store/
+.tools/

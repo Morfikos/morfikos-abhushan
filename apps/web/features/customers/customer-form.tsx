@@ -8,7 +8,9 @@ import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
 import { TextArea } from "@/components/base/textarea/textarea";
 import { Toggle } from "@/components/base/toggle/toggle";
+import { SectionCard } from "@/components/shared/section-card";
 import { SelectField } from "@/components/shared/select-field";
+import { StickyFormActions } from "@/components/shared/sticky-form-actions";
 import {
   consentPurposeLabel,
   customerErrorMessage,
@@ -204,11 +206,10 @@ export function CustomerForm({
         submit();
       }}
     >
-      <div className="flex flex-col gap-4 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-5">
-        <div>
-          <h2 className="text-lg font-semibold text-primary">Contact</h2>
-          <p className="text-sm text-tertiary">Staff-only record. Customers do not have an account or portal.</p>
-        </div>
+      <SectionCard
+        title="Contact"
+        description="Staff-only record. Customers do not have an account or portal."
+      >
         <Input
           label="Name"
           isRequired
@@ -230,15 +231,12 @@ export function CustomerForm({
             Boolean(localError === "Add a phone number before granting WhatsApp consent.")
           }
         />
-      </div>
+      </SectionCard>
 
-      <div className="flex flex-col gap-4 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-5">
-        <div>
-          <h2 className="text-lg font-semibold text-primary">WhatsApp</h2>
-          <p className="text-sm text-tertiary">
-            Nothing is sent from this screen. You can change each purpose later on the profile.
-          </p>
-        </div>
+      <SectionCard
+        title="WhatsApp"
+        description="Nothing is sent from this screen. You can change each purpose later on the profile."
+      >
         {WHATSAPP_PURPOSES.map((purpose) => {
           const granted = values.purposes[purpose];
           return (
@@ -264,7 +262,7 @@ export function CustomerForm({
             ]}
           />
         ) : null}
-      </div>
+      </SectionCard>
 
       <OptionalSection title="Email, address, and notes">
         <Input
@@ -297,14 +295,14 @@ export function CustomerForm({
         </Button>
       ) : null}
 
-      <div className={cx("flex flex-wrap gap-3", actionsClassName)}>
+      <StickyFormActions variant="inset" className={cx("flex flex-wrap gap-3", actionsClassName)}>
         <Button color="primary" size="md" isLoading={isSubmitting} isDisabled={isSubmitting} onPress={submit}>
           {submitLabel}
         </Button>
         <Button color="secondary" size="md" isDisabled={isSubmitting} onPress={onCancel}>
           Cancel
         </Button>
-      </div>
+      </StickyFormActions>
     </form>
   );
 }

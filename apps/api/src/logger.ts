@@ -24,6 +24,16 @@ const REDACT_PATHS = [
   "*.notes",
   "*.address_line",
   "*.object_key",
+  "upload_url",
+  "download_url",
+  "signed_url",
+  "logo_url",
+  "*.upload_url",
+  "*.download_url",
+  "*.signed_url",
+  "*.logo_url",
+  "url",
+  "*.url",
 ] as const;
 
 export function loggerOptionsFor(env: Pick<ServerEnv, "LOG_LEVEL" | "NODE_ENV">): LoggerOptions {

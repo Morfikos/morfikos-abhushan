@@ -4,9 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
-import { Button } from "@/components/base/buttons/button";
+import { FormSkeleton } from "@/components/application/skeleton/skeleton";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { StaffPageHeader } from "@/components/shared/staff-page-header";
 import { staffHasPermission, useStaff } from "@/features/auth/staff-shell";
 import {
   CustomerForm,
@@ -63,28 +63,31 @@ export function CustomerCreatePage() {
   }
 
   if (reminders.isLoading) {
-    return <LoadingIndicator size="md" label="Loading customer form" />;
+    return (
+      <section className="mx-auto flex w-full max-w-xl flex-col gap-6">
+        <StaffPageHeader
+          title="New customer"
+          description="Create a staff-only record. This is not a customer account and does not send WhatsApp messages."
+          back={{ label: "Customers", href: "/customers" }}
+        />
+        <FormSkeleton sections={2} fieldsPerSection={3} showStickyActions label="Loading customer form" />
+      </section>
+    );
   }
 
   return (
     <section className="mx-auto flex w-full max-w-xl flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-display-xs font-semibold text-primary">New customer</h1>
-          <p className="text-md text-tertiary">
-            Create a staff-only record. This is not a customer account and does not send WhatsApp messages.
-          </p>
-        </div>
-        <Button color="secondary" size="md" onPress={requestCancel}>
-          Back to directory
-        </Button>
-      </div>
+      <StaffPageHeader
+        title="New customer"
+        description="Create a staff-only record. This is not a customer account and does not send WhatsApp messages."
+        back={{ label: "Customers", onPress: requestCancel }}
+      />
       <CustomerForm
         initial={initial}
         submitLabel="Save customer"
         isSubmitting={mutation.isPending}
         error={mutation.error}
-        actionsClassName="sticky bottom-0 z-10 -mx-4 border-t border-secondary bg-primary px-4 py-4 md:-mx-6 md:px-6"
+        actionsClassName="md:-mx-6 md:px-6"
         onSubmit={(values) => mutation.mutate(values)}
         onCancel={requestCancel}
         onDirtyChange={setFormDirty}

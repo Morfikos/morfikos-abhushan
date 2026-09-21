@@ -6,6 +6,7 @@ import {
 
 export {
   boundsForPeriod,
+  customPeriodFromParams,
   kolkataTodayCalendar,
   type PeriodBounds,
   type PeriodPreset,

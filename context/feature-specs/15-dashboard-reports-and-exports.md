@@ -1,6 +1,6 @@
 # 15 — Dashboard, Reports, and Exports
 
-**Status:** Specification only — not implemented  
+**Status:** Implemented — `0021` applied; dues are reconstructed as of the range end; `pnpm verify:reports` passed
 **Depends on:** inventory, invoices, payments, Girvi, notifications  
 **Enables:** owner supervision, pilot reviews  
 **Blocked by:** none for measure definitions; profit reporting remains out of scope  

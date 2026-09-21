@@ -8,6 +8,7 @@ import {
   deleteMakingChargeDefault,
   getDeviceSettings,
   getDocumentSequences,
+  getMetalRatesCoverage,
   getPublicShopBranding,
   getReminderSettings,
   getShopProfile,
@@ -31,6 +32,7 @@ import {
   makingChargeDefaultUpsertSchema,
   metalRateCreateSchema,
   metalRateListQuerySchema,
+  metalRatesCoverageQuerySchema,
   reminderSettingsPatchSchema,
   shopProfilePatchSchema,
 } from "@aabhushan/contracts";
@@ -187,6 +189,18 @@ export function registerShopRoutes(
         sort: query.sort,
         direction: query.direction,
       });
+    }),
+  );
+
+  app.get(
+    "/api/v1/shop/rates/coverage",
+    requireStaff,
+    handle(async (req, res) => {
+      const query = parseQuery(metalRatesCoverageQuerySchema, req);
+      const coverage = await withShopRepo(pool, req, (repo) =>
+        getMetalRatesCoverage(repo, req.staffAccess, query.business_date),
+      );
+      res.status(200).json(coverage);
     }),
   );
 

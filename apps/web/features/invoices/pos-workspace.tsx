@@ -13,11 +13,14 @@ import type {
   InvoiceLinePricing,
 } from "@aabhushan/contracts";
 
-import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
+import { Skeleton, TableSkeleton } from "@/components/application/skeleton/skeleton";
+import { StaffBackLink } from "@/components/application/staff-back-link";
+import { TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/base/buttons/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { ScanField } from "@/components/shared/scan-field";
 import { staffHasPermission, useStaff } from "@/features/auth/staff-shell";
+import { useStaffToast } from "@/components/application/toast/staff-toast";
 import { CustomerCombobox } from "@/features/customers/customer-combobox";
 import { PosBrowseArticlesDialog } from "@/features/invoices/pos-browse-articles-dialog";
 import { PosCustomerCreateDialog } from "@/features/invoices/pos-customer-create-dialog";
@@ -133,6 +136,7 @@ function finalizeDisabledReason(input: {
 
 export function PosWorkspace({ draftId }: { draftId?: string }) {
   const staff = useStaff();
+  const toast = useStaffToast();
   const router = useRouter();
   const queryClient = useQueryClient();
   const allowed = staffHasPermission(staff, "billing.write");
@@ -145,6 +149,8 @@ export function PosWorkspace({ draftId }: { draftId?: string }) {
   const [scanError, setScanError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [leaveDiscardOpen, setLeaveDiscardOpen] = useState(false);
+  const [pendingLeaveAction, setPendingLeaveAction] = useState<(() => void) | null>(null);
   const [tenders, setTenders] = useState<TenderRow[]>([emptyTender()]);
   const [idempotencyKey, setIdempotencyKey] = useState(newIdempotencyKey());
   const [creatingDraft, setCreatingDraft] = useState(false);
@@ -316,6 +322,7 @@ export function PosWorkspace({ draftId }: { draftId?: string }) {
     onSuccess: async (finalized) => {
       setConfirmOpen(false);
       setInvoice(finalized);
+      toast.success(`Invoice ${finalized.invoice_number} finalized`);
       await queryClient.invalidateQueries({ queryKey: ["invoices"] });
       router.replace(`/invoices/${finalized.id}`);
     },
@@ -482,6 +489,41 @@ export function PosWorkspace({ draftId }: { draftId?: string }) {
   }
 
   const lines = invoice?.lines ?? [];
+  const draftDirty = lines.length > 0 || customer !== null;
+
+  function resetDraftState() {
+    setCustomer(null);
+    setInvoice(null);
+    setScan("");
+    setScanError(null);
+    setActionError(null);
+    setTenders([emptyTender()]);
+    setIdempotencyKey(newIdempotencyKey());
+    setPricingLine(null);
+    setInvoiceDiscountMode("none");
+    setInvoiceDiscountValue("");
+    setInlineMaking({});
+  }
+
+  function requestLeave(action: () => void) {
+    if (finalizeMutation.isPending) {
+      action();
+      return;
+    }
+    if (draftDirty) {
+      setPendingLeaveAction(() => action);
+      setLeaveDiscardOpen(true);
+      return;
+    }
+    action();
+  }
+
+  function confirmLeaveDraft() {
+    resetDraftState();
+    setLeaveDiscardOpen(false);
+    pendingLeaveAction?.();
+    setPendingLeaveAction(null);
+  }
   const quoteBlocked = Boolean(invoice?.quote_error);
   const missingRate = isMissingRateError(invoice?.quote_error ?? null);
   const canPayFull =
@@ -566,25 +608,61 @@ export function PosWorkspace({ draftId }: { draftId?: string }) {
     }
   }
 
+  const preparingDraft = (creatingDraft || patchMutation.isPending) && !invoice;
+
   return (
-    <section className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(300px,340px)] lg:items-start">
-      <div className="flex flex-col gap-4">
+    <section className="flex flex-col gap-6 md:gap-5 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(300px,340px)] lg:items-start">
+      <div className="flex min-w-0 flex-col gap-4 md:order-1">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
+          <div className="flex flex-col gap-2">
+            <StaffBackLink
+              label="Invoices"
+              onPress={() => requestLeave(() => router.push("/invoices"))}
+            />
             <h1 className="text-display-xs font-semibold text-primary">POS billing</h1>
             <p className="text-md text-tertiary">Scan or search available articles to build a sale.</p>
           </div>
-          <Button color="secondary" size="md" href="/invoices">
-            Back to list
-          </Button>
+          {draftDirty ? (
+            <Button
+              color="secondary"
+              size="md"
+              className="shrink-0"
+              onPress={() =>
+                requestLeave(() => {
+                  resetDraftState();
+                  if (draftId) {
+                    router.replace("/invoices/new");
+                  }
+                })
+              }
+            >
+              New sale
+            </Button>
+          ) : null}
         </div>
 
-        {(creatingDraft || patchMutation.isPending) && !invoice ? (
-          <div className="flex justify-center py-10">
-            <LoadingIndicator label="Preparing draft" />
-          </div>
-        ) : null}
-
+        {preparingDraft ? (
+          <TableCard.Root aria-busy="true" aria-live="polite">
+            <TableCard.Header
+              title="Sale"
+              badge={<Skeleton className="h-5 w-8 rounded-full" />}
+              description="Preparing draft…"
+            />
+            <div className="flex flex-col gap-3 border-b border-secondary px-4 py-4 md:px-6">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                <Skeleton className="h-10 min-w-0 flex-1 rounded-lg" />
+                <Skeleton className="h-10 w-24 shrink-0 rounded-lg" />
+                <Skeleton className="h-10 w-32 shrink-0 rounded-lg" />
+              </div>
+              <div className="flex flex-col gap-2 lg:flex-row lg:items-end">
+                <Skeleton className="h-10 min-w-0 flex-1 rounded-lg" />
+                <Skeleton className="h-10 w-36 shrink-0 rounded-lg" />
+                <Skeleton className="h-10 w-32 shrink-0 rounded-lg" />
+              </div>
+            </div>
+            <TableSkeleton columns={6} rows={5} showCard={false} label="Preparing draft" />
+          </TableCard.Root>
+        ) : (
         <PosSaleCard
           lineCount={lines.length}
           toolbar={
@@ -699,8 +777,32 @@ export function PosWorkspace({ draftId }: { draftId?: string }) {
             onRemoveLine={removeLine}
           />
         </PosSaleCard>
+        )}
       </div>
 
+      {preparingDraft ? (
+        <aside
+          className="sticky top-4 flex flex-col gap-4 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:order-2 lg:order-0"
+          aria-busy="true"
+          aria-live="polite"
+        >
+          <span className="sr-only">Preparing draft</span>
+          <Skeleton className="h-5 w-24" />
+          <div className="flex flex-col gap-3">
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-5/6" />
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-5 w-full" />
+          </div>
+          <div className="flex flex-col gap-2 border-t border-secondary pt-4">
+            <Skeleton className="h-10 w-full rounded-lg" />
+            <Skeleton className="h-10 w-full rounded-lg" />
+            <Skeleton className="h-10 w-full rounded-lg" />
+          </div>
+        </aside>
+      ) : (
+      <div className="md:order-2 lg:contents">
       <PosTotalsPanel
         invoice={invoice}
         quoteBlocked={quoteBlocked}
@@ -729,7 +831,8 @@ export function PosWorkspace({ draftId }: { draftId?: string }) {
         }
         onFinalize={() => setConfirmOpen(true)}
       />
-
+      </div>
+      )}
       <PosLinePricingDialog
         line={pricingLine}
         isOpen={Boolean(pricingLine)}
@@ -776,6 +879,20 @@ export function PosWorkspace({ draftId }: { draftId?: string }) {
         onCreated={(created) => {
           void queryClient.invalidateQueries({ queryKey: ["customers"] });
           void selectCustomer(created);
+        }}
+      />
+
+      <ConfirmDialog
+        isOpen={leaveDiscardOpen}
+        title="Discard changes?"
+        message="This open sale has a customer or line items. Leaving will abandon the draft on this screen."
+        confirmLabel="Discard"
+        confirmColor="primary-destructive"
+        cancelLabel="Keep editing"
+        onConfirm={confirmLeaveDraft}
+        onCancel={() => {
+          setLeaveDiscardOpen(false);
+          setPendingLeaveAction(null);
         }}
       />
 

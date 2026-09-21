@@ -1,8 +1,10 @@
 "use client";
 
 import { isValidElement, type FC, type ReactElement, type ReactNode } from "react";
+import NextLink from "next/link";
 import type { ButtonProps as AriaButtonProps, LinkProps as AriaLinkProps } from "react-aria-components";
 import { Button as AriaButton, Link as AriaLink } from "react-aria-components";
+import { isSameOriginAppPath } from "@/lib/client-navigation";
 import { cx, sortCx } from "@/utils/cx";
 import { isReactComponent } from "@/utils/is-react-component";
 
@@ -251,7 +253,21 @@ export const Button: {
     };
 
     if ("href" in commonProps) {
-        return <AriaLink {...commonProps} href={disabled ? undefined : href} />;
+        const resolvedHref = disabled ? undefined : href;
+        if (resolvedHref && typeof resolvedHref === "string" && isSameOriginAppPath(resolvedHref)) {
+            return (
+                <NextLink
+                    href={resolvedHref}
+                    data-loading={loading ? true : undefined}
+                    data-icon-only={isIcon ? true : undefined}
+                    aria-disabled={disabled || undefined}
+                    className={commonProps.className}
+                >
+                    {commonChildren}
+                </NextLink>
+            );
+        }
+        return <AriaLink {...commonProps} href={resolvedHref} />;
     }
 
     return <AriaButton {...commonProps} type={commonProps.type || "button"} isPending={loading} />;

@@ -1,0 +1,88 @@
+{
+  "id": "06-same-date-repayments",
+  "policyVersion": "girvi.v1",
+  "description": "Two repayments on 16 January post in sequence order and accrue no days between them. The first clears interest; the second reduces principal only.",
+  "policy": {
+    "version": "girvi.v1",
+    "status": "approved",
+    "ratePeriod": "percent_per_30_days",
+    "interestMethod": "simple_on_outstanding_principal",
+    "dayCountConvention": "actual_days_over_30",
+    "minimumPeriod": "none",
+    "gracePeriod": "none",
+    "extraCharges": "none",
+    "allocationOrder": "interest_then_principal",
+    "principalReductionRule": "effective_on_repayment_business_date",
+    "roundingMode": "ROUND_HALF_UP",
+    "roundingScale": 2,
+    "backdatingPolicy": "disabled"
+  },
+  "terms": {
+    "principal_inr": "10000.00",
+    "start_business_date": "2026-01-01",
+    "maturity_business_date": "2026-07-01",
+    "interest": {
+      "status": "approved",
+      "policy_version": "girvi.v1",
+      "rate_percent_per_30_days": "2",
+      "method": "simple_on_outstanding_principal",
+      "day_count": "actual_days_over_30",
+      "allocation_order": "interest_then_principal",
+      "minimum_period": "none",
+      "grace_period": "none",
+      "extra_charges": "none",
+      "principal_reduction": "effective_on_repayment_business_date",
+      "backdating": "disabled",
+      "rounding_mode": "ROUND_HALF_UP",
+      "rounding_scale": 2
+    }
+  },
+  "events": [
+    {
+      "eventType": "disbursement",
+      "effectiveBusinessDate": "2026-01-01",
+      "principalDeltaInr": "10000.00",
+      "interestDeltaInr": "0.00",
+      "sequence": 1
+    },
+    {
+      "eventType": "repayment",
+      "effectiveBusinessDate": "2026-01-16",
+      "principalDeltaInr": "0.00",
+      "interestDeltaInr": "-100.00",
+      "sequence": 1
+    },
+    {
+      "eventType": "repayment",
+      "effectiveBusinessDate": "2026-01-16",
+      "principalDeltaInr": "-500.00",
+      "interestDeltaInr": "0.00",
+      "sequence": 2
+    }
+  ],
+  "checks": [
+    {
+      "label": "Both payments on the same date accrue one 15-day period",
+      "asOfBusinessDate": "2026-01-16",
+      "expectedAccrualSegmentCount": 1,
+      "expected": {
+        "principalOutstandingInr": "9500.00",
+        "interestOutstandingInr": "0.00",
+        "payoffInr": "9500.00",
+        "principalRecoveredInr": "500.00",
+        "interestReceivedInr": "100.00"
+      }
+    },
+    {
+      "label": "The next day accrues on the reduced principal",
+      "asOfBusinessDate": "2026-01-17",
+      "expected": {
+        "principalOutstandingInr": "9500.00",
+        "interestOutstandingInr": "6.33",
+        "payoffInr": "9506.33",
+        "principalRecoveredInr": "500.00",
+        "interestReceivedInr": "100.00"
+      }
+    }
+  ]
+}

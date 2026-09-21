@@ -1,4 +1,6 @@
 export const SHOP_LOGO_MAX_BYTES = 1_048_576;
+/** Packet photos share shop-assets; bucket limit is 5 MB (logo stays 1 MB). */
+export const GIRVI_COLLATERAL_MAX_BYTES = 5_242_880;
 
 export type ShopLogoContentType = "image/jpeg" | "image/png" | "image/webp";
 

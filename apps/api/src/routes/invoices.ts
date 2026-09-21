@@ -217,6 +217,7 @@ export function registerInvoiceRoutes(
             ...(query.business_date_from ? { businessDateFrom: query.business_date_from } : {}),
             ...(query.business_date_to ? { businessDateTo: query.business_date_to } : {}),
             ...(query.q ? { q: query.q } : {}),
+            ...(query.has_due ? { hasDue: true } : {}),
           });
         },
       );

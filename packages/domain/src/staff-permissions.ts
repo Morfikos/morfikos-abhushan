@@ -1,6 +1,6 @@
 import type { StaffPermission, StaffRole } from "@aabhushan/contracts";
 
-export const STAFF_PERMISSION_MAP_VERSION = 2;
+export const STAFF_PERMISSION_MAP_VERSION = 3;
 
 const OWNER_ADMIN_PERMISSIONS = [
   "staff.manage",
@@ -17,6 +17,8 @@ const OWNER_ADMIN_PERMISSIONS = [
   "girvi.write",
   "girvi.release",
   "identity_documents.read",
+  "notifications.read",
+  "notifications.retry",
   "reports.read",
   "audit.read",
 ] as const satisfies readonly StaffPermission[];
@@ -31,10 +33,19 @@ const ROLE_PERMISSIONS: Record<StaffRole, readonly StaffPermission[]> = {
     "payments.write",
     "customers.read",
     "customers.write",
+    "notifications.read",
+    "notifications.retry",
     "reports.read",
   ],
   inventory: ["inventory.read", "inventory.write", "customers.read", "reports.read"],
-  girvi: ["customers.read", "customers.write", "girvi.write", "reports.read"],
+  girvi: [
+    "customers.read",
+    "customers.write",
+    "girvi.write",
+    "notifications.read",
+    "notifications.retry",
+    "reports.read",
+  ],
 };
 
 export function permissionsForRole(role: StaffRole): StaffPermission[] {

@@ -320,6 +320,17 @@ export async function recordPayment(
       eventType: "receipt.requested",
       payload: { payment_id: paymentId, receipt_number: receiptNumber },
     });
+    await repo.insertOutbox({
+      eventKey: `whatsapp.send.requested:transactional_receipt:${paymentId}`,
+      eventType: "whatsapp.send.requested",
+      payload: {
+        purpose: "transactional_receipt",
+        customer_id: body.customer_id,
+        related_type: "payment",
+        related_id: paymentId,
+        dedupe_key: `transactional_receipt:${paymentId}`,
+      },
+    });
   }
 
   for (const invoiceId of [...new Set(invoiceIds)].sort()) {

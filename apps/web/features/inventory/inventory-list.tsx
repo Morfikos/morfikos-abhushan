@@ -6,16 +6,23 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import type { ArticleListItem, ArticleStatus, Metal } from "@aabhushan/contracts";
 import { ChevronRight, FilterLines, Package, SearchLg, Trash01 } from "@untitledui/icons";
 
-import { EmptyState } from "@/components/application/empty-state/empty-state";
-import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
+import { Skeleton, StaffDirectoryLoading } from "@/components/application/skeleton/skeleton";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
+import { ActiveFiltersBar } from "@/components/shared/active-filters-bar";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import {
+  DirectoryEmptyState,
+  DirectoryTableSkeleton,
+  FilteredEmptyState,
+} from "@/components/shared/directory-states";
 import { ListTableFooter } from "@/components/shared/list-table-footer";
+import { type ListFilterCodec, useSyncedListFilters } from "@/lib/list-search-params";
 import { ScanField } from "@/components/shared/scan-field";
 import { SelectField } from "@/components/shared/select-field";
+import { StaffPageHeader } from "@/components/shared/staff-page-header";
 import { staffHasPermission, useStaff } from "@/features/auth/staff-shell";
 import {
   articleStatusColor,
@@ -35,6 +42,27 @@ import {
   lookupArticle,
 } from "@/lib/staff-api";
 import { cx } from "@/utils/cx";
+
+/** Live order: scan + search, then status / metal / category / more. */
+export function InventoryFilterSkeleton() {
+  return (
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+      <Skeleton className="h-10 w-full rounded-lg" />
+      <Skeleton className="h-10 w-full rounded-lg" />
+      <Skeleton className="h-10 w-full rounded-lg" />
+      <Skeleton className="h-10 w-full rounded-lg" />
+      <Skeleton className="h-10 w-full rounded-lg" />
+      <Skeleton className="h-10 w-32 rounded-lg" />
+    </div>
+  );
+}
+
+/** Route Suspense cold load (includes header shimmer). Feature keeps live StaffPageHeader. */
+export function InventoryDirectoryLoading() {
+  return (
+    <StaffDirectoryLoading columns={10} label="Loading inventory" filterSkeleton={<InventoryFilterSkeleton />} />
+  );
+}
 
 type TableSelection = "all" | Set<string | number>;
 
@@ -74,6 +102,38 @@ function hasAdvancedApplied(applied: AppliedFilters): boolean {
   return Boolean(applied.purity || applied.minWeight || applied.maxWeight);
 }
 
+function articleStatusFromParam(value: string | null): "" | ArticleStatus {
+  if (value === "available" || value === "sold" || value === "return_inspection" || value === "unavailable") {
+    return value;
+  }
+  return "";
+}
+
+type InventoryUrlFilters = {
+  status: "" | ArticleStatus;
+};
+
+const inventoryUrlDefaults: InventoryUrlFilters = {
+  status: "",
+};
+
+const inventoryUrlCodec: ListFilterCodec<InventoryUrlFilters> = {
+  ownedKeys: ["status"],
+  defaults: inventoryUrlDefaults,
+  parse(params) {
+    return { status: articleStatusFromParam(params.get("status")) };
+  },
+  serialize(value) {
+    return { status: value.status || undefined };
+  },
+  chips(value) {
+    if (!value.status) {
+      return [];
+    }
+    return [{ id: "status", label: `Status: ${articleStatusLabel(value.status)}` }];
+  },
+};
+
 function deleteBlockedReason(item: ArticleListItem): string | null {
   if (item.deletable) {
     return null;
@@ -101,23 +161,28 @@ export function InventoryList() {
   const allowed = staffHasPermission(staff, "inventory.read");
   const canWrite = staffHasPermission(staff, "inventory.write");
   const scanRef = useRef<HTMLInputElement>(null);
+  const { filters: urlFilters, setFilters: setUrlFilters, clearFilters: clearUrlFilters, chips } =
+    useSyncedListFilters("/inventory", inventoryUrlCodec);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [search, setSearch] = useState("");
   const [scan, setScan] = useState("");
   const [scanError, setScanError] = useState<string | null>(null);
   const [scannedThisSession, setScannedThisSession] = useState<Set<string>>(() => new Set());
-  const [status, setStatus] = useState<"" | ArticleStatus>("");
+  const [status, setStatus] = useState<"" | ArticleStatus>(urlFilters.status);
   const [categoryId, setCategoryId] = useState("");
   const [metal, setMetal] = useState<"" | Metal>("");
   const [purity, setPurity] = useState("");
   const [minWeight, setMinWeight] = useState("");
   const [maxWeight, setMaxWeight] = useState("");
-  const [applied, setApplied] = useState<AppliedFilters>(emptyApplied);
+  const [applied, setApplied] = useState<AppliedFilters>({ ...emptyApplied, status: urlFilters.status });
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [selectedKeys, setSelectedKeys] = useState<TableSelection>(new Set());
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [showBatchReprint, setShowBatchReprint] = useState(false);
+  const [batchReprintReason, setBatchReprintReason] = useState("");
+  const [pendingReprintIds, setPendingReprintIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (!allowed) {
@@ -136,6 +201,11 @@ export function InventoryList() {
       setShowMoreFilters(true);
     }
   }, [applied]);
+
+  useEffect(() => {
+    setStatus(urlFilters.status);
+    setApplied((current) => ({ ...current, status: urlFilters.status }));
+  }, [urlFilters.status]);
 
   const categories = useQuery({
     queryKey: ["inventory", "categories", staff.membership.organization_id],
@@ -212,12 +282,26 @@ export function InventoryList() {
   const selectedIds =
     selectedKeys === "all" ? items.map((item) => item.id) : [...selectedKeys].map((key) => String(key));
   const selectedCount = selectedIds.length;
+  const selectedArticles = selectedIds
+    .map((id) => itemsById.get(id))
+    .filter((item): item is ArticleListItem => Boolean(item));
+  const selectedUntaggedCount = selectedArticles.filter((item) => !item.barcode).length;
+  const selectedTaggedCount = selectedArticles.filter((item) => Boolean(item.barcode)).length;
+  const selectionPrintMode =
+    selectedCount === 0
+      ? "none"
+      : selectedUntaggedCount === selectedCount
+        ? "print"
+        : selectedTaggedCount === selectedCount
+          ? "reprint"
+          : "mixed";
 
   function applyStatus(value: "" | ArticleStatus) {
     setStatus(value);
     setPage(1);
     setSelectedKeys(new Set());
     setApplied((current) => ({ ...current, status: value }));
+    setUrlFilters({ status: value });
   }
 
   function applyCategory(value: string) {
@@ -263,6 +347,7 @@ export function InventoryList() {
     setSelectedKeys(new Set());
     setApplied(emptyApplied);
     setShowMoreFilters(false);
+    clearUrlFilters();
   }
 
   function lookupScannedArticle(barcode: string) {
@@ -310,8 +395,24 @@ export function InventoryList() {
       setActionError("Select at least one article to print tags.");
       return;
     }
+    if (selectionPrintMode === "mixed") {
+      setActionError("Select only untagged articles to print, or only tagged articles to reprint.");
+      return;
+    }
+    if (selectionPrintMode === "reprint") {
+      setActionError(null);
+      setPendingReprintIds(selectedIds);
+      setBatchReprintReason("");
+      setShowBatchReprint(true);
+      return;
+    }
     setActionError(null);
-    router.push(tagPrintHref({ ids: selectedIds, kind: selectedIds.length === 1 ? "initial" : "batch" }));
+    router.push(
+      tagPrintHref({
+        ids: selectedIds,
+        kind: selectedIds.length === 1 ? "initial" : "batch",
+      }),
+    );
   }
 
   const filterToolbar = (
@@ -362,56 +463,56 @@ export function InventoryList() {
 
   return (
     <section className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-display-xs font-semibold text-primary">Inventory</h1>
-          <p className="text-md text-tertiary">Saleable articles only. Girvi collateral never appears here.</p>
-        </div>
-        {canWrite ? (
-          <div className="flex flex-wrap gap-2">
-            {!catalogueEmpty ? (
-              <Button color="secondary" size="md" href="/inventory/stock-counts/new">
-                Record stock count
+      <StaffPageHeader
+        title="Inventory"
+        description="Saleable articles only. Girvi collateral never appears here."
+        actions={
+          canWrite ? (
+            <>
+              {!catalogueEmpty ? (
+                <Button color="secondary" size="md" href="/inventory/stock-counts/new">
+                  Record stock count
+                </Button>
+              ) : null}
+              <Button color="primary" size="md" href="/inventory/receive">
+                Receive article
               </Button>
-            ) : null}
-            <Button color="primary" size="md" href="/inventory/receive">
-              Receive article
-            </Button>
-          </div>
-        ) : null}
-      </div>
+            </>
+          ) : null
+        }
+      />
 
       {catalogueEmpty ? (
         <div className="flex flex-col gap-3 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-5">
           {filterToolbar}
+          <ActiveFiltersBar chips={chips} onClear={clearFilters} />
         </div>
       ) : null}
 
-      {showInitialLoading ? <LoadingIndicator size="md" label="Loading articles" /> : null}
+      {showInitialLoading ? (
+        <DirectoryTableSkeleton
+          title="Articles"
+          columns={10}
+          label="Loading articles"
+          filterSkeleton={<InventoryFilterSkeleton />}
+        />
+      ) : null}
       {query.isError ? <p className="text-sm text-error-primary">{inventoryErrorMessage(query.error)}</p> : null}
       {actionError ? <p className="text-sm text-error-primary">{actionError}</p> : null}
 
       {catalogueEmpty ? (
-        <EmptyState size="md" className="mx-auto py-10">
-          <EmptyState.Header pattern="none">
-            <div className="mb-3 flex size-12 items-center justify-center rounded-lg bg-secondary ring-1 ring-secondary ring-inset">
-              <Package className="size-6 text-fg-quaternary" aria-hidden="true" />
-            </div>
-            <EmptyState.Content>
-              <p className="text-lg font-semibold text-primary">No articles yet</p>
-              <EmptyState.Description>
-                Receive jewellery to create a unique shop record. Manual lookup works without a scanner.
-              </EmptyState.Description>
-            </EmptyState.Content>
-          </EmptyState.Header>
-          {canWrite ? (
-            <EmptyState.Footer>
+        <DirectoryEmptyState
+          icon={Package}
+          title="No articles yet"
+          description="Receive jewellery to create a unique shop record. Manual lookup works without a scanner."
+          action={
+            canWrite ? (
               <Button color="primary" size="md" href="/inventory/receive">
                 Receive article
               </Button>
-            </EmptyState.Footer>
-          ) : null}
-        </EmptyState>
+            ) : null
+          }
+        />
       ) : null}
 
       {showArticlesCard ? (
@@ -423,7 +524,9 @@ export function InventoryList() {
               canWrite && selectedCount > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   <Button color="secondary" size="sm" onPress={openBatchPrint}>
-                    Print tags ({selectedCount})
+                    {selectionPrintMode === "reprint"
+                      ? `Reprint tags (${selectedCount})`
+                      : `Print tags (${selectedCount})`}
                   </Button>
                   <Button color="secondary-destructive" size="sm" iconLeading={Trash01} onPress={openBulkDelete}>
                     Delete selected ({selectedCount})
@@ -432,24 +535,17 @@ export function InventoryList() {
               ) : null
             }
           />
-          <div className="border-b border-secondary px-4 py-4 md:px-6">{filterToolbar}</div>
+          <div className="flex flex-col gap-3 border-b border-secondary px-4 py-4 md:px-6">
+            {filterToolbar}
+            <ActiveFiltersBar chips={chips} onClear={clearFilters} />
+          </div>
 
           {filteredEmpty ? (
-            <EmptyState size="md" className="mx-auto py-10">
-              <EmptyState.Header pattern="none">
-                <EmptyState.Content>
-                  <p className="text-lg font-semibold text-primary">No articles match these filters</p>
-                  <EmptyState.Description>
-                    Try clearing filters or adjusting purity and weight ranges.
-                  </EmptyState.Description>
-                </EmptyState.Content>
-              </EmptyState.Header>
-              <EmptyState.Footer>
-                <Button color="secondary" size="md" onPress={clearFilters}>
-                  Clear filters
-                </Button>
-              </EmptyState.Footer>
-            </EmptyState>
+            <FilteredEmptyState
+              title="No articles match these filters"
+              description="Try clearing filters or adjusting purity and weight ranges."
+              onClear={clearFilters}
+            />
           ) : null}
 
           {items.length > 0 ? (
@@ -578,6 +674,37 @@ export function InventoryList() {
           if (pendingDelete) {
             deleteMutation.mutate(pendingDelete);
           }
+        }}
+      />
+
+      <ConfirmDialog
+        isOpen={showBatchReprint}
+        title={pendingReprintIds.length === 1 ? "Reprint tag" : "Reprint tags"}
+        confirmLabel={pendingReprintIds.length === 1 ? "Reprint tag" : "Reprint tags"}
+        confirmColor="primary"
+        message={
+          <div className="flex flex-col gap-3">
+            <p>
+              The same barcode will be printed for each selected article. A reason is required for the audit
+              record.
+            </p>
+            <Input label="Reason" value={batchReprintReason} isRequired onChange={setBatchReprintReason} />
+          </div>
+        }
+        onConfirm={() => {
+          const reason = batchReprintReason.trim();
+          if (!reason || pendingReprintIds.length === 0) {
+            return;
+          }
+          setShowBatchReprint(false);
+          setBatchReprintReason("");
+          router.push(tagPrintHref({ ids: pendingReprintIds, kind: "reprint", reason }));
+          setPendingReprintIds([]);
+        }}
+        onCancel={() => {
+          setShowBatchReprint(false);
+          setBatchReprintReason("");
+          setPendingReprintIds([]);
         }}
       />
     </section>

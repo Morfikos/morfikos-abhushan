@@ -4,13 +4,15 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Heading } from "react-aria-components";
 
-import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
 import { Dialog, Modal, ModalOverlay } from "@/components/application/modals/modal";
+import { DefinitionListSkeleton, PanelSkeleton } from "@/components/application/skeleton/skeleton";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { staffHasPermission, useStaff } from "@/features/auth/staff-shell";
 import { PaymentCorrectionDialog } from "@/features/payments/payment-correction-dialog";
 import { paymentAccessToken, paymentErrorMessage, paymentKindLabel } from "@/features/payments/payment-shared";
+import { ReceiptDocumentsCard } from "@/features/payments/receipt-documents-card";
+import { RefundDocumentsCard } from "@/features/payments/refund-documents-card";
 import { formatInr } from "@/lib/money";
 import { paymentMethodLabel } from "@/lib/payment-methods";
 import { fetchPayment } from "@/lib/staff-api";
@@ -65,7 +67,12 @@ export function PaymentDetailDialog({
             ) : null}
           </div>
 
-          {query.isLoading ? <LoadingIndicator size="sm" label="Loading receipt" /> : null}
+          {query.isLoading ? (
+            <div className="flex flex-col gap-4">
+              <DefinitionListSkeleton rows={5} label="Loading receipt" />
+              <PanelSkeleton rows={3} label="Loading receipt" />
+            </div>
+          ) : null}
           {query.isError ? (
             <p className="text-sm text-error-primary" role="alert">
               {paymentErrorMessage(query.error)}
@@ -122,6 +129,9 @@ export function PaymentDetailDialog({
               <p className="text-xs text-tertiary">
                 Receipt print and PDF run from the outbox after commit. Nothing is sent from this screen.
               </p>
+
+              {payment.kind === "collection" ? <ReceiptDocumentsCard paymentId={payment.id} /> : null}
+              {payment.kind === "refund" ? <RefundDocumentsCard paymentId={payment.id} /> : null}
             </>
           ) : null}
 

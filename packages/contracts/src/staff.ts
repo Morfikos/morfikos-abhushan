@@ -18,6 +18,8 @@ export const staffPermissionSchema = z.enum([
   "girvi.write",
   "girvi.release",
   "identity_documents.read",
+  "notifications.read",
+  "notifications.retry",
   "reports.read",
   "audit.read",
 ]);

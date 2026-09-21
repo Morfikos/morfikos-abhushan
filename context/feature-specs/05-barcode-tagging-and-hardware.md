@@ -47,9 +47,9 @@ A print preview is not acceptance. This unit must be validated against the shop�
 
 ### Generate and print after receiving
 
-1. After an article is saved, staff open Print tag or select multiple received rows.
+1. After an article is saved without a barcode, staff open **Print tag** (detail) or select only untagged rows on the list (**Print tags**).
 2. The API ensures each selected article has a barcode.
-3. The web opens a dedicated print view: white paper, dark text, Code 128, quiet zone, article number, metal, purity, weight as configured.
+3. The web opens a dedicated print view: white paper, dark text, Code 128, quiet zone, article number, metal, purity, weight as configured. Titles say Print tag / Print tags.
 4. Staff confirm Print. The browser print dialog is explicit.
 5. Staff record whether the physical tag printed. Failed printer output can be retried without changing the barcode.
 
@@ -62,9 +62,14 @@ A print preview is not acceptance. This unit must be validated against the shop�
 
 ### Reprint
 
-1. Authorized staff choose Reprint on the article.
-2. They enter a reason.
-3. The same barcode is printed and an audit row is written.
+1. When an article already has a barcode, detail shows **Reprint tag** only (not a second Print tag). List **Reprint tags** requires a homogeneous tagged selection; mixed tagged/untagged selection is refused.
+2. Staff enter a reason (required for the audit record). Batch reprint uses one shared reason for the selection.
+3. The same barcode is printed and an audit row is written. The print view title and primary button say Reprint.
+
+### After identity or weight edit
+
+1. Saving location, photograph, or source refs alone returns to the article with no print prompt.
+2. Saving metal, purity, or weight fields that change the stamp offers **Print tag** (untagged) or **Reprint tag** (tagged, with reason). Staff may Skip.
 
 ## Data Models & Schema Changes
 
@@ -116,6 +121,9 @@ Barcode payload must be deterministic and collision-checked inside the organizat
 - **Tag template `tag-v2`:** barcode is the visual highlight. Thin header shows shop logo **or** shop legal name (not both) plus metal/purity. Article number appears once under the bars (human-readable), not in the header. Supporting type is small (~6–7px). Bar height is computed from leftover millimetres with an 8 mm floor; if the stamp is too short for logo + floor, omit the logo and use the shop name.
 - Monospace only for the article/barcode identifier
 - Free buttons labeled Print tag and Reprint tag — icons never replace those labels
+- Detail shows **Print tag** only when barcode is null, and **Reprint tag** only when barcode is set
+- List selection must be homogeneous: all untagged → Print tags (`initial`/`batch`); all tagged → Reprint tags with one shared reason; mixed selection errors
+- After edit, offer print/reprint only when metal, purity, or weight stamp fields changed
 - Batch print uses the free table + checkboxes
 - Empty/error: Unknown barcode, Unavailable, Printer not confirmed
 
@@ -126,6 +134,7 @@ Scanner Enter on POS (spec 08) must only add a line. This unit provides the shar
 - Scanner connected as keyboard but suffix unexpected: show raw buffer and fail lookup rather than submitting the wrong form
 - Two staff print the same new article: barcode assign is idempotent
 - Article sold: reprint of the historical tag is allowed for recovery; lookup for POS add must fail as sold
+- After an identity or weight edit, reprint is offered only when stamp fields changed; the same barcode is printed with the updated metal/purity/weight on the stamp
 - Printer offline: keep the barcode; show print failure
 - Preview OK, physical unreadable: do not mark hardware validation complete
 - Offline browser: do not queue scans as future sales; show connectivity error

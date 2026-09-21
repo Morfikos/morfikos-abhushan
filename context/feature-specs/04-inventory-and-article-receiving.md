@@ -61,6 +61,14 @@ Billing staff may also create the same kind of minimal `available`+`receipt` art
 2. Opening a row shows identification, weights, pricing defaults, source, location, photographs, and movement history.
 3. Manual lookup works without a scanner.
 
+### Edit an article
+
+1. Authorized staff open an unsold article and choose **Edit article** (`/inventory/:id/edit`).
+2. They may change category, metal, purity, weights, HUID, supplier/karigar, location, and photograph. Article number, barcode, and receipt date stay immutable. Stones and acquisition cost stay receive-only (not on PATCH).
+3. Photograph on detail: if a photo already exists, show the image only (no dropzone). First photo can be uploaded on detail when missing. On edit, show **Replace photograph** to reveal the dropzone; **Cancel replace** restores the current image. Save uploads the staged file.
+4. Save calls `PATCH /api/v1/articles/:id` with `row_version`. A new photograph uses the spec 13 grant → upload → confirm path and **replaces** the previous `article_files` row (one current photo).
+5. After save, staff may **Print tag** (no barcode yet) or **Reprint tag** (same barcode, reason required). Skip returns to detail. Sold articles have no Edit control; identity/weights stay locked (API rejects those patches).
+
 ### Adjust or count
 
 1. Authorized staff record a stock count or an adjustment with a reason.
@@ -176,6 +184,11 @@ Hard-delete is limited to mistaken receipts: status `available`, movements are o
 - Status badges with labels: Available, Sold, Under review, Unavailable
 - Row and bulk delete for `inventory.write`, always behind a confirmation modal; disable delete when the article is not a mistaken receipt
 - Article detail is a full page grouped as identification, weights, source, location, photographs, history
+- Unsold articles with `inventory.write` offer **Edit article** (full page, not a modal)
+- Photograph on detail and edit uses private signed URLs; re-upload replaces the current file
+- Detail hides the dropzone when a photograph already exists; first upload remains on detail when missing
+- Edit uses **Replace photograph** / **Cancel replace** before showing the dropzone; upload still commits on save
+- After edit save, offer Print tag or Reprint tag; never auto-print
 - Weights right-aligned with g units and tabular numerals
 - File upload uses public `file-upload-base.tsx`
 - Empty state uses free empty-state foundation

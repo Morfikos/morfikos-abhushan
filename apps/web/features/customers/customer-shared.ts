@@ -49,6 +49,12 @@ export function whatsappConsentShortLabel(status: CustomerConsentStatus | null):
   return "None";
 }
 
+export function whatsappConsentBadgeColor(
+  status: CustomerConsentStatus | null,
+): "success" | "gray" {
+  return status === "granted" ? "success" : "gray";
+}
+
 export function fieldError(error: unknown, field: string): string | undefined {
   if (!(error instanceof StaffApiError)) {
     return undefined;

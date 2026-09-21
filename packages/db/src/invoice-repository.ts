@@ -338,6 +338,9 @@ export function createInvoiceRepository(
           `(c.display_name ILIKE $${String(params.length)} OR COALESCE(i.invoice_number, '') ILIKE $${String(params.length)})`,
         );
       }
+      if (input.hasDue) {
+        filters.push("i.amount_due_inr > 0");
+      }
 
       const where = filters.join(" AND ");
       const countResult = await client.query<{ count: number }>(

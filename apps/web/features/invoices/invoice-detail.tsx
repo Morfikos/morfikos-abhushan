@@ -5,12 +5,19 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import type { InvoiceLine } from "@aabhushan/contracts";
 
-import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
+import {
+  DetailHeaderSkeleton,
+  PanelSkeleton,
+  TableSkeleton,
+} from "@/components/application/skeleton/skeleton";
+import { StaffBackLink } from "@/components/application/staff-back-link";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { staffHasPermission, useStaff } from "@/features/auth/staff-shell";
+import { CreditNoteDocumentsCard } from "@/features/invoices/credit-note-documents-card";
 import { InvoiceCorrectionsCard } from "@/features/invoices/invoice-corrections-card";
+import { InvoiceDocumentsCard } from "@/features/invoices/invoice-documents-card";
 import { formatInr, invoiceAccessToken, invoiceErrorMessage, isZeroMoney } from "@/features/invoices/invoice-shared";
 import { PosWorkspace } from "@/features/invoices/pos-workspace";
 import { ReturnArticleDialog } from "@/features/invoices/return-article-dialog";
@@ -47,9 +54,17 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
 
   if (query.isLoading) {
     return (
-      <div className="flex justify-center py-16">
-        <LoadingIndicator label="Loading invoice" />
-      </div>
+      <section className="flex flex-col gap-6">
+        <DetailHeaderSkeleton label="Loading invoice" />
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+          <div className="flex flex-col gap-4">
+            <TableSkeleton columns={5} rows={6} showCard titleWidth="w-24" label="Loading invoice lines" />
+            <PanelSkeleton rows={3} label="Loading collections" />
+            <PanelSkeleton rows={3} label="Loading corrections" />
+          </div>
+          <PanelSkeleton rows={5} label="Loading snapshot" />
+        </div>
+      </section>
     );
   }
 
@@ -73,8 +88,9 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
   return (
     <section className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="mb-2 flex flex-wrap items-center gap-2">
+        <div className="flex flex-col gap-2">
+          <StaffBackLink href="/invoices" label="Invoices" />
+          <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-display-xs font-semibold text-primary">{invoice.invoice_number}</h1>
             <Badge color="success" size="sm">
               Finalized
@@ -96,9 +112,6 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
             href="/invoices/new"
           >
             New sale
-          </Button>
-          <Button color="secondary" size="md" href="/invoices">
-            Back to list
           </Button>
         </div>
       </div>
@@ -179,6 +192,10 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
           <p className="mt-2 text-xs text-tertiary">
             Credits reduce due. Refunds return money already collected. Issued invoice lines stay unchanged.
           </p>
+          <InvoiceDocumentsCard invoiceId={invoice.id} />
+          {(correctionsQuery.data?.credit_notes.length ?? 0) > 0 ? (
+            <CreditNoteDocumentsCard invoiceId={invoice.id} />
+          ) : null}
         </aside>
       </div>
 

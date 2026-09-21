@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
+import { PanelSkeleton } from "@/components/application/skeleton/skeleton";
 import { Badge } from "@/components/base/badges/badges";
 import { useStaff } from "@/features/auth/staff-shell";
 import { formatInr, invoiceAccessToken, invoiceErrorMessage } from "@/features/invoices/invoice-shared";
@@ -30,7 +30,7 @@ export function InvoiceCorrectionsCard({ invoiceId }: { invoiceId: string }) {
         ) : null}
       </div>
 
-      {query.isLoading ? <LoadingIndicator size="sm" label="Loading corrections" /> : null}
+      {query.isLoading ? <PanelSkeleton rows={3} showTitle={false} label="Loading corrections" /> : null}
       {query.isError ? (
         <p className="text-sm text-error-primary" role="alert">
           {invoiceErrorMessage(query.error)}

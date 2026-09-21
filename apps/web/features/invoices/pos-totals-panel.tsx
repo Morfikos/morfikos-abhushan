@@ -74,7 +74,7 @@ export function PosTotalsPanel({
   const showDiscountValue = invoiceDiscountMode !== "none";
 
   return (
-    <aside className="sticky top-4 flex flex-col gap-4 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary">
+    <aside className="sticky top-4 flex min-w-[min(100%,18rem)] flex-col gap-4 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:max-lg:static">
       <div>
         <h2 className="text-lg font-semibold text-primary">Totals</h2>
       </div>
@@ -107,7 +107,7 @@ export function PosTotalsPanel({
         <>
           <div className="rounded-lg bg-brand-primary px-3 py-3">
             <p className="text-sm font-medium text-brand-secondary">Grand total</p>
-            <p className="text-display-sm font-semibold tabular-nums text-brand-primary">
+            <p className="text-2xl font-semibold tabular-nums text-brand-primary md:text-display-sm">
               {formatInr(invoice?.grand_total_inr ?? "0")}
             </p>
           </div>

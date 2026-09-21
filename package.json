@@ -20,7 +20,13 @@
     "verify:pos-billing": "pnpm --filter @aabhushan/db verify:pos-billing",
     "verify:payments": "pnpm --filter @aabhushan/db verify:payments",
     "verify:returns": "pnpm --filter @aabhushan/db verify:returns",
+    "verify:girvi": "pnpm --filter @aabhushan/db verify:girvi",
+    "verify:girvi-settlement": "pnpm --filter @aabhushan/db verify:girvi-fixtures && pnpm --filter @aabhushan/db verify:girvi-settlement",
+    "verify:documents": "pnpm --filter @aabhushan/db verify:documents",
+    "verify:notifications": "pnpm --filter @aabhushan/db verify:notifications",
+    "verify:reports": "pnpm --filter @aabhushan/db verify:reports",
     "seed:calculation-policy": "pnpm --filter @aabhushan/db seed:calculation-policy",
+    "seed:girvi-calculation-policy": "pnpm --filter @aabhushan/db seed:girvi-calculation-policy",
     "seed:sample-articles": "pnpm --filter @aabhushan/db seed:sample-articles",
     "seed:sample-customers": "pnpm --filter @aabhushan/db seed:sample-customers",
     "seed:sample-unpaid-invoices": "pnpm --filter @aabhushan/db seed:sample-unpaid-invoices"

@@ -5,6 +5,11 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/base/buttons/button";
 import { fetchCurrentStaff, StaffApiError } from "@/lib/staff-api";
+import {
+  clearStaffSessionCache,
+  readStaffSessionCache,
+  writeStaffSessionCache,
+} from "@/lib/staff-session-cache";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
 export function PrintStaffGate({ children }: { children: ReactNode }) {
@@ -13,6 +18,11 @@ export function PrintStaffGate({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const cached = readStaffSessionCache();
+    if (cached?.permissions.includes("inventory.write")) {
+      setReady(true);
+    }
+
     let cancelled = false;
 
     async function load() {
@@ -20,6 +30,7 @@ export function PrintStaffGate({ children }: { children: ReactNode }) {
       const { data } = await supabase.auth.getSession();
       const accessToken = data.session?.access_token;
       if (!accessToken) {
+        clearStaffSessionCache();
         router.replace("/login");
         return;
       }
@@ -29,26 +40,32 @@ export function PrintStaffGate({ children }: { children: ReactNode }) {
         if (cancelled) {
           return;
         }
+        writeStaffSessionCache(staff);
         if (!staff.permissions.includes("inventory.write")) {
           router.replace("/access-denied");
           return;
         }
         setReady(true);
+        setError(null);
       } catch (requestError) {
         if (cancelled) {
           return;
         }
         if (requestError instanceof StaffApiError && requestError.status === 403) {
+          clearStaffSessionCache();
           await supabase.auth.signOut();
           router.replace("/access-denied");
           return;
         }
         if (requestError instanceof StaffApiError && requestError.status === 401) {
+          clearStaffSessionCache();
           await supabase.auth.signOut();
           router.replace("/login");
           return;
         }
-        setError("The staff session could not be verified. Try again.");
+        if (!readStaffSessionCache()?.permissions.includes("inventory.write")) {
+          setError("The staff session could not be verified. Try again.");
+        }
       }
     }
 
@@ -58,7 +75,7 @@ export function PrintStaffGate({ children }: { children: ReactNode }) {
     };
   }, [router]);
 
-  if (error) {
+  if (error && !ready) {
     return (
       <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-4 bg-white px-6 text-black">
         <p className="text-sm text-red-700">{error}</p>

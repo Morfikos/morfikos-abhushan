@@ -8,7 +8,8 @@ import type { StockCountCreate } from "@aabhushan/contracts";
 
 import { DatePicker } from "@/components/application/date-picker/date-picker";
 import { EmptyState } from "@/components/application/empty-state/empty-state";
-import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
+import { Skeleton, TableSkeleton } from "@/components/application/skeleton/skeleton";
+import { StaffBackLink } from "@/components/application/staff-back-link";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
@@ -91,14 +92,22 @@ export function StockCountForm() {
 
   return (
     <section className="flex flex-col gap-6">
-      <div>
+      <div className="flex flex-col gap-2">
+        <StaffBackLink href="/inventory" label="Inventory" />
         <h1 className="text-display-xs font-semibold text-primary">Physical stock count</h1>
         <p className="text-md text-tertiary">
           Reviewed counts only. Discrepancies create adjustment movements; they do not silently change sold or inspection pieces.
         </p>
       </div>
 
-      {articles.isLoading ? <LoadingIndicator size="md" label="Loading articles to count" /> : null}
+      {articles.isLoading ? (
+        <>
+          <TableSkeleton columns={3} rows={8} titleWidth="w-28" label="Loading articles to count" />
+          <div className="flex flex-wrap gap-3" aria-hidden="true">
+            <Skeleton className="h-10 w-44 rounded-lg" />
+          </div>
+        </>
+      ) : null}
 
       {!articles.isLoading && items.length === 0 ? (
         <EmptyState size="md">
@@ -182,9 +191,6 @@ export function StockCountForm() {
           <div className="flex flex-wrap gap-3">
             <Button type="submit" color="primary" size="md" isLoading={mutation.isPending}>
               Save reviewed count
-            </Button>
-            <Button color="secondary" size="md" href="/inventory">
-              Back to inventory
             </Button>
           </div>
         </form>

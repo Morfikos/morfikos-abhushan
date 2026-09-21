@@ -38,7 +38,7 @@ export {
   tagCanShowLogo,
   tagUsableHeightMm,
 } from "./article-barcode";
-export { SHOP_LOGO_MAX_BYTES, detectShopLogoContentType } from "./shop-logo";
+export { SHOP_LOGO_MAX_BYTES, GIRVI_COLLATERAL_MAX_BYTES, detectShopLogoContentType } from "./shop-logo";
 export type { ShopLogoContentType } from "./shop-logo";
 export {
   CUSTOMER_CONSENT_CHANNEL_WHATSAPP,
@@ -124,3 +124,39 @@ export type {
   TaxInput,
   WastageInput,
 } from "./invoice-quote";
+export {
+  GIRVI_AS_OF_BEFORE_LEDGER_CODE,
+  GIRVI_BACKDATED_EVENT_CODE,
+  GIRVI_CALCULATION_POLICY_STATUSES,
+  GIRVI_CALCULATION_UNSUPPORTED_CODE,
+  GIRVI_LEDGER_EVENT_TYPES,
+  GIRVI_OVERPAYMENT_CODE,
+  GIRVI_V1_POLICY_METHODS,
+  GirviAsOfBeforeLedgerError,
+  GirviBackdatedEventError,
+  GirviCalculationUnsupportedError,
+  GirviOverpaymentError,
+  allocateGirviRepayment,
+  buildGirviTermsSnapshot,
+  computeGirviStatement,
+  girviAccountIsOverdue,
+  girviBusinessDateOrdinal,
+  girviElapsedDays,
+  girviPolicyUnsupportedReason,
+  girviStatementIsCleared,
+  girviTermsAreApproved,
+  isGirviCalculationPolicyStatus,
+} from "./girvi";
+export type {
+  GirviAccrualSegment,
+  GirviApprovedInterestTerms,
+  GirviCalculationPolicy,
+  GirviCalculationPolicyStatus,
+  GirviInterestTerms,
+  GirviLedgerEvent,
+  GirviLedgerEventType,
+  GirviRepaymentAllocation,
+  GirviStatement,
+  GirviTermsSnapshot,
+  GirviUnsupportedInterestTerms,
+} from "./girvi";

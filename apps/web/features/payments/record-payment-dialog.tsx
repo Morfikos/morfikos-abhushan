@@ -13,8 +13,8 @@ import type {
 import { Copy01, Plus, Trash01 } from "@untitledui/icons";
 import { Heading } from "react-aria-components";
 
-import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
 import { Dialog, Modal, ModalOverlay } from "@/components/application/modals/modal";
+import { TableSkeleton } from "@/components/application/skeleton/skeleton";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
@@ -22,6 +22,7 @@ import { Input } from "@/components/base/input/input";
 import { MethodSelect } from "@/components/shared/method-select";
 import { MoneyInput } from "@/components/shared/money-input";
 import { useStaff } from "@/features/auth/staff-shell";
+import { useStaffToast } from "@/components/application/toast/staff-toast";
 import { CustomerCombobox } from "@/features/customers/customer-combobox";
 import { newPaymentIdempotencyKey, paymentAccessToken, paymentErrorMessage } from "@/features/payments/payment-shared";
 import {
@@ -119,6 +120,7 @@ export function RecordPaymentDialog({
   onClose: () => void;
 }) {
   const staff = useStaff();
+  const toast = useStaffToast();
   const queryClient = useQueryClient();
   const [customer, setCustomer] = useState<CustomerListItem | Customer | null>(initialCustomer);
   const [allocations, setAllocations] = useState<AllocationRow[]>([]);
@@ -214,6 +216,12 @@ export function RecordPaymentDialog({
       recordPaymentRequest(await paymentAccessToken(), input.body, input.key),
     onSuccess: async (result) => {
       setPosted(result);
+      const receipt =
+        result.payments
+          .map((payment) => payment.receipt_number)
+          .filter((value): value is string => Boolean(value))
+          .join(", ") || "recorded";
+      toast.success(`Payment recorded · ${receipt}`);
       // Await so "Record another" rebuilds from a refreshed statement, not a stale cache hit.
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: statementQueryKey }),
@@ -511,7 +519,14 @@ export function RecordPaymentDialog({
                         ) : null}
                       </div>
                     </div>
-                    {statement.isLoading ? <LoadingIndicator size="sm" label="Loading sales statement" /> : null}
+                    {statement.isLoading ? (
+                      <TableSkeleton
+                        columns={3}
+                        rows={4}
+                        showCard={false}
+                        label="Loading sales statement"
+                      />
+                    ) : null}
                     {statement.isError ? (
                       <p className="text-sm text-error-primary" role="alert">
                         {paymentErrorMessage(statement.error)}

@@ -1,5 +1,11 @@
-import { InventoryList } from "@/features/inventory/inventory-list";
+import { Suspense } from "react";
+
+import { InventoryDirectoryLoading, InventoryList } from "@/features/inventory/inventory-list";
 
 export default function InventoryPage() {
-  return <InventoryList />;
+  return (
+    <Suspense fallback={<InventoryDirectoryLoading />}>
+      <InventoryList />
+    </Suspense>
+  );
 }

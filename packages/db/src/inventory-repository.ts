@@ -269,7 +269,7 @@ export function createInventoryRepository(
       SELECT id, object_key, checksum_sha256, content_type, original_filename, byte_size
       FROM app.article_files
       WHERE organization_id = $1 AND article_id = $2
-      ORDER BY created_at
+      ORDER BY created_at DESC
       `,
       [organizationId, row.id],
     );

@@ -1,5 +1,6 @@
 "use client";
 
+import { isStaffNavActive } from "@/features/auth/navigation";
 import { cx } from "@/utils/cx";
 import type { NavItemDividerType, NavItemType } from "../config";
 import { NavButton } from "./nav-button";
@@ -16,8 +17,36 @@ interface NavListProps {
     collapsed?: boolean;
 }
 
+function collectHrefs(items: (NavItemType | NavItemDividerType)[]): string[] {
+    const hrefs: string[] = [];
+    for (const item of items) {
+        if ("divider" in item && item.divider) {
+            continue;
+        }
+        if (item.href) {
+            hrefs.push(item.href);
+        }
+        for (const child of item.items ?? []) {
+            if (child.href) {
+                hrefs.push(child.href);
+            }
+        }
+    }
+    return hrefs;
+}
+
 export const NavList = ({ activeUrl, items, className, collapsed = false }: NavListProps) => {
-    const activeItem = items.find((item) => item.href === activeUrl || item.items?.some((subItem) => subItem.href === activeUrl));
+    const allHrefs = collectHrefs(items);
+    const pathname = activeUrl ?? "";
+    const activeItem = items.find((item) => {
+        if ("divider" in item && item.divider) {
+            return false;
+        }
+        if (item.href && isStaffNavActive(pathname, item.href, allHrefs)) {
+            return true;
+        }
+        return item.items?.some((subItem) => subItem.href && isStaffNavActive(pathname, subItem.href, allHrefs));
+    });
 
     return (
         <ul className={cx("flex flex-col pt-5", collapsed ? "items-center px-2" : "px-4", className)}>
@@ -45,7 +74,9 @@ export const NavList = ({ activeUrl, items, className, collapsed = false }: NavL
                                                 href={childItem.href}
                                                 badge={childItem.badge}
                                                 type="collapsible-child"
-                                                current={activeUrl === childItem.href}
+                                                current={Boolean(
+                                                    childItem.href && isStaffNavActive(pathname, childItem.href, allHrefs),
+                                                )}
                                             >
                                                 {childItem.label}
                                             </NavItemBase>
@@ -57,6 +88,8 @@ export const NavList = ({ activeUrl, items, className, collapsed = false }: NavL
                     );
                 }
 
+                const current = Boolean(item.href && isStaffNavActive(pathname, item.href, allHrefs));
+
                 if (collapsed) {
                     return (
                         <li key={item.label} className="py-px">
@@ -64,7 +97,8 @@ export const NavList = ({ activeUrl, items, className, collapsed = false }: NavL
                                 label={item.label}
                                 icon={item.icon}
                                 href={item.href}
-                                current={activeUrl === item.href}
+                                current={current}
+                                badge={item.badge}
                                 tooltipPlacement="right"
                             />
                         </li>
@@ -73,7 +107,7 @@ export const NavList = ({ activeUrl, items, className, collapsed = false }: NavL
 
                 return (
                     <li key={item.label} className="py-px">
-                        <NavItemBase type="link" badge={item.badge} icon={item.icon} href={item.href} current={activeUrl === item.href}>
+                        <NavItemBase type="link" badge={item.badge} icon={item.icon} href={item.href} current={current}>
                             {item.label}
                         </NavItemBase>
                     </li>

@@ -99,6 +99,7 @@ export type InvoiceListFilters = {
   businessDateFrom?: string;
   businessDateTo?: string;
   q?: string;
+  hasDue?: boolean;
 };
 
 export type InvoiceRepository = {
@@ -1093,6 +1094,17 @@ export async function finalizeInvoice(
       eventType: "receipt.requested",
       payload: { payment_id: tender.paymentId, receipt_number: tender.receiptNumber, invoice_id: invoiceId },
     });
+    await repo.insertOutbox({
+      eventKey: `whatsapp.send.requested:transactional_receipt:${tender.paymentId}`,
+      eventType: "whatsapp.send.requested",
+      payload: {
+        purpose: "transactional_receipt",
+        customer_id: draft.customer_id,
+        related_type: "payment",
+        related_id: tender.paymentId,
+        dedupe_key: `transactional_receipt:${tender.paymentId}`,
+      },
+    });
   }
 
   await repo.writeAudit({
@@ -1112,6 +1124,17 @@ export async function finalizeInvoice(
     eventKey: `invoice.finalized:${invoiceId}`,
     eventType: "invoice.finalized",
     payload: { invoice_id: invoiceId, invoice_number: invoiceNumber },
+  });
+  await repo.insertOutbox({
+    eventKey: `whatsapp.send.requested:transactional_invoice:${invoiceId}`,
+    eventType: "whatsapp.send.requested",
+    payload: {
+      purpose: "transactional_invoice",
+      customer_id: draft.customer_id,
+      related_type: "invoice",
+      related_id: invoiceId,
+      dedupe_key: `transactional_invoice:${invoiceId}`,
+    },
   });
 
   const finalized = await repo.getInvoice(invoiceId);

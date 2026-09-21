@@ -89,6 +89,17 @@ export const metalRateListQuerySchema = z.object({
 });
 export const metalRateListSchema = paginatedResponseSchema(metalRateSchema, METAL_RATE_SORT_FIELDS);
 
+/** Whether any rate row exists for gold/silver on the given business date (exact date, not historical). */
+export const metalRatesCoverageQuerySchema = z.object({
+  business_date: businessDateSchema.optional(),
+});
+
+export const metalRatesCoverageSchema = z.object({
+  business_date: businessDateSchema,
+  gold: z.boolean(),
+  silver: z.boolean(),
+});
+
 export const documentSequenceSchema = z.object({
   document_type: documentTypeSchema,
   prefix: z.string().min(1).max(12),
@@ -148,6 +159,7 @@ export type ShopBrandingPublic = z.infer<typeof shopBrandingPublicSchema>;
 export type MetalRate = z.infer<typeof metalRateSchema>;
 export type MetalRateCreate = z.infer<typeof metalRateCreateSchema>;
 export type MetalRateList = z.infer<typeof metalRateListSchema>;
+export type MetalRatesCoverage = z.infer<typeof metalRatesCoverageSchema>;
 export type DocumentSequence = z.infer<typeof documentSequenceSchema>;
 export type DocumentSequences = z.infer<typeof documentSequencesSchema>;
 export type DocumentSequencesPatch = z.infer<typeof documentSequencesPatchSchema>;

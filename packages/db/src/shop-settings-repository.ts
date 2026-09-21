@@ -339,6 +339,24 @@ export function createShopSettingsRepository(client: PoolClient, organizationId:
       };
     },
 
+    async ratesCoverageForBusinessDate(businessDate: string): Promise<{ gold: boolean; silver: boolean }> {
+      const result = await client.query<{ metal: "gold" | "silver" }>(
+        `
+        SELECT DISTINCT metal
+        FROM app.metal_rates
+        WHERE organization_id = $1
+          AND effective_business_date = $2::date
+          AND metal IN ('gold', 'silver')
+        `,
+        [organizationId, businessDate],
+      );
+      const metals = new Set(result.rows.map((row) => row.metal));
+      return {
+        gold: metals.has("gold"),
+        silver: metals.has("silver"),
+      };
+    },
+
     async insertRate(input) {
       const result = await client.query<RateRow>(
         `

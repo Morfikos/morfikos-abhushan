@@ -11,9 +11,13 @@ import { sendHandlerError } from "./http/errors";
 import { loadCjs } from "./load-cjs";
 import { loggerOptionsFor } from "./logger";
 import { registerCustomerRoutes } from "./routes/customers";
+import { registerDocumentRoutes } from "./routes/documents";
 import { registerInventoryRoutes } from "./routes/inventory";
 import { registerInvoiceRoutes } from "./routes/invoices";
 import { registerPaymentRoutes } from "./routes/payments";
+import { registerGirviRoutes } from "./routes/girvi";
+import { registerNotificationRoutes, registerWhatsAppWebhookRoutes } from "./routes/notifications";
+import { registerReportRoutes } from "./routes/reports";
 import { registerShopRoutes } from "./routes/shop";
 import { registerStaffRoutes } from "./routes/staff";
 import { createShopAssetStorage } from "@aabhushan/integrations";
@@ -65,6 +69,11 @@ export function createApp(env: ServerEnv): Express {
     : null;
 
   app.disable("x-powered-by");
+
+  // WhatsApp webhooks need the raw body for HMAC verification — before JSON parsing.
+  app.use("/api/v1/webhooks/whatsapp", express.raw({ type: "*/*", limit: "1mb" }));
+  registerWhatsAppWebhookRoutes(app, pool);
+
   app.use(express.json({ limit: "32kb" }));
   app.use((req, res, next) => {
     const requestId = assignRequestId(req);
@@ -140,6 +149,10 @@ export function createApp(env: ServerEnv): Express {
   registerCustomerRoutes(app, pool, requireStaff);
   registerInvoiceRoutes(app, pool, requireStaff);
   registerPaymentRoutes(app, pool, requireStaff);
+  registerGirviRoutes(app, pool, requireStaff, shopStorage);
+  registerDocumentRoutes(app, pool, requireStaff, shopStorage);
+  registerNotificationRoutes(app, pool, requireStaff);
+  registerReportRoutes(app, pool, requireStaff, shopStorage);
 
   app.use((error: unknown, req: Request, res: Response, _next: NextFunction) => {
     if (sendHandlerError(req, res, error)) {

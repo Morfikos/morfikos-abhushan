@@ -1,0 +1,91 @@
+{
+  "id": "05-partial-repayment-then-settlement",
+  "policyVersion": "girvi.v1",
+  "description": "₹2,000 on 16 January pays ₹100 interest and ₹1,900 principal. The reduced ₹8,100 accrues from 16 January, and settlement on 31 January is ₹8,181. Total received is ₹10,181: ₹10,000 principal and ₹181 interest.",
+  "policy": {
+    "version": "girvi.v1",
+    "status": "approved",
+    "ratePeriod": "percent_per_30_days",
+    "interestMethod": "simple_on_outstanding_principal",
+    "dayCountConvention": "actual_days_over_30",
+    "minimumPeriod": "none",
+    "gracePeriod": "none",
+    "extraCharges": "none",
+    "allocationOrder": "interest_then_principal",
+    "principalReductionRule": "effective_on_repayment_business_date",
+    "roundingMode": "ROUND_HALF_UP",
+    "roundingScale": 2,
+    "backdatingPolicy": "disabled"
+  },
+  "terms": {
+    "principal_inr": "10000.00",
+    "start_business_date": "2026-01-01",
+    "maturity_business_date": "2026-07-01",
+    "interest": {
+      "status": "approved",
+      "policy_version": "girvi.v1",
+      "rate_percent_per_30_days": "2",
+      "method": "simple_on_outstanding_principal",
+      "day_count": "actual_days_over_30",
+      "allocation_order": "interest_then_principal",
+      "minimum_period": "none",
+      "grace_period": "none",
+      "extra_charges": "none",
+      "principal_reduction": "effective_on_repayment_business_date",
+      "backdating": "disabled",
+      "rounding_mode": "ROUND_HALF_UP",
+      "rounding_scale": 2
+    }
+  },
+  "events": [
+    {
+      "eventType": "disbursement",
+      "effectiveBusinessDate": "2026-01-01",
+      "principalDeltaInr": "10000.00",
+      "interestDeltaInr": "0.00",
+      "sequence": 1
+    },
+    {
+      "eventType": "repayment",
+      "effectiveBusinessDate": "2026-01-16",
+      "principalDeltaInr": "-1900.00",
+      "interestDeltaInr": "-100.00",
+      "sequence": 1
+    }
+  ],
+  "checks": [
+    {
+      "label": "Balance immediately after the ₹2,000 repayment",
+      "asOfBusinessDate": "2026-01-16",
+      "expected": {
+        "principalOutstandingInr": "8100.00",
+        "interestOutstandingInr": "0.00",
+        "payoffInr": "8100.00",
+        "principalRecoveredInr": "1900.00",
+        "interestReceivedInr": "100.00"
+      }
+    },
+    {
+      "label": "Settlement on 31 January accrues 15 days on ₹8,100",
+      "asOfBusinessDate": "2026-01-31",
+      "expected": {
+        "principalOutstandingInr": "8100.00",
+        "interestOutstandingInr": "81.00",
+        "payoffInr": "8181.00",
+        "principalRecoveredInr": "1900.00",
+        "interestReceivedInr": "100.00"
+      },
+      "repayment": {
+        "amountInr": "8181.00",
+        "expected": {
+          "interestPaidInr": "81.00",
+          "principalPaidInr": "8100.00",
+          "interestRemainingInr": "0.00",
+          "principalRemainingInr": "0.00",
+          "payoffAfterInr": "0.00",
+          "clearsAccount": true
+        }
+      }
+    }
+  ]
+}

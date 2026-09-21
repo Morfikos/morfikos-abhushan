@@ -1,0 +1,63 @@
+{
+  "id": "03-leap-year-boundary",
+  "policyVersion": "girvi.v1",
+  "description": "February 2028 has 29 days, so the same month-to-month period costs more than in 2026.",
+  "policy": {
+    "version": "girvi.v1",
+    "status": "approved",
+    "ratePeriod": "percent_per_30_days",
+    "interestMethod": "simple_on_outstanding_principal",
+    "dayCountConvention": "actual_days_over_30",
+    "minimumPeriod": "none",
+    "gracePeriod": "none",
+    "extraCharges": "none",
+    "allocationOrder": "interest_then_principal",
+    "principalReductionRule": "effective_on_repayment_business_date",
+    "roundingMode": "ROUND_HALF_UP",
+    "roundingScale": 2,
+    "backdatingPolicy": "disabled"
+  },
+  "terms": {
+    "principal_inr": "10000.00",
+    "start_business_date": "2028-02-01",
+    "maturity_business_date": "2028-08-01",
+    "interest": {
+      "status": "approved",
+      "policy_version": "girvi.v1",
+      "rate_percent_per_30_days": "2",
+      "method": "simple_on_outstanding_principal",
+      "day_count": "actual_days_over_30",
+      "allocation_order": "interest_then_principal",
+      "minimum_period": "none",
+      "grace_period": "none",
+      "extra_charges": "none",
+      "principal_reduction": "effective_on_repayment_business_date",
+      "backdating": "disabled",
+      "rounding_mode": "ROUND_HALF_UP",
+      "rounding_scale": 2
+    }
+  },
+  "events": [
+    {
+      "eventType": "disbursement",
+      "effectiveBusinessDate": "2028-02-01",
+      "principalDeltaInr": "10000.00",
+      "interestDeltaInr": "0.00",
+      "sequence": 1
+    }
+  ],
+  "checks": [
+    {
+      "label": "1 February to 1 March 2028 is 29 days",
+      "asOfBusinessDate": "2028-03-01",
+      "expectedDays": 29,
+      "expected": {
+        "principalOutstandingInr": "10000.00",
+        "interestOutstandingInr": "193.33",
+        "payoffInr": "10193.33",
+        "principalRecoveredInr": "0.00",
+        "interestReceivedInr": "0.00"
+      }
+    }
+  ]
+}

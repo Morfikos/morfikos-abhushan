@@ -1,9 +1,9 @@
 # 14 — Notifications, Outbox, and WhatsApp
 
-**Status:** Specification only — not implemented  
+**Status:** Implemented — provider account/templates still configuration  
 **Depends on:** `01` worker, `06` consent, financial outbox events from `08`/`09`/`12`  
 **Enables:** due reminders, failed-notification dashboard widgets  
-**Blocked by:** official WhatsApp provider choice, account readiness, templates, consent language, reminder timing, budget  
+**Blocked by:** official WhatsApp provider credentials, account readiness, approved templates, messaging budget (configuration checklist: `docs/whatsapp-provider-setup.md`) 
 
 ## Feature Overview & Objectives
 

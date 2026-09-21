@@ -7,7 +7,7 @@ import { SearchLg } from "@untitledui/icons";
 import { Heading } from "react-aria-components";
 
 import { Dialog, Modal, ModalOverlay } from "@/components/application/modals/modal";
-import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
+import { TableSkeleton } from "@/components/application/skeleton/skeleton";
 import { Button } from "@/components/base/buttons/button";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { Input } from "@/components/base/input/input";
@@ -198,9 +198,7 @@ export function PosBrowseArticlesDialog({
             className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-lg ring-1 ring-secondary"
           >
             {showInitialLoading ? (
-              <div className="flex justify-center py-10">
-                <LoadingIndicator label="Loading available stock" />
-              </div>
+              <TableSkeleton columns={3} rows={6} showCard={false} label="Loading available stock" />
             ) : null}
 
             {isError ? (

@@ -99,6 +99,12 @@ export const apiVersionDocument = {
       get: { summary: "Paginated metal rates" },
       post: { summary: "Insert a dated metal rate; never rewrite a previous row" },
     },
+    "/shop/rates/coverage": {
+      get: {
+        summary:
+          "Whether any gold and silver rate rows exist for the given Kolkata business date (defaults to today)",
+      },
+    },
     "/shop/sequences": {
       get: { summary: "Document sequence configuration" },
       patch: { summary: "Update prefixes, padding, and next values" },
@@ -108,8 +114,54 @@ export const apiVersionDocument = {
       patch: { summary: "Update device defaults" },
     },
     "/shop/reminders": {
-      get: { summary: "Reminder preference storage; nothing is sent" },
+      get: { summary: "Reminder preference storage; nothing is sent until worker evaluates" },
       patch: { summary: "Update reminder preferences" },
+    },
+    "/notifications": {
+      get: { summary: "Paginated WhatsApp notification history" },
+    },
+    "/notifications/attention": {
+      get: { summary: "Outstanding failed and unknown notification counts for nav badges" },
+    },
+    "/notifications/{id}/retry": {
+      post: { summary: "Safe retry for failed notifications only; unknown requires reconcile" },
+    },
+    "/webhooks/whatsapp": {
+      get: { summary: "WhatsApp Cloud verify challenge" },
+      post: { summary: "WhatsApp Cloud status webhooks (signature on raw body)" },
+    },
+    "/reports/dashboard": {
+      get: {
+        summary:
+          "Owner dashboard for a bounded business-date range; sales, collections, dues, inventory, Girvi, and operations stay separate; unauthorized sections are omitted from the JSON",
+      },
+    },
+    "/reports/sales": {
+      get: { summary: "Finalized invoice sales net of credit notes, grouped by business date" },
+    },
+    "/reports/collections": {
+      get: { summary: "Posted sales collections minus refunds and reversals, grouped by method; excludes Girvi" },
+    },
+    "/reports/inventory": {
+      get: { summary: "Available article counts and metal weights by category and purity" },
+    },
+    "/reports/girvi": {
+      get: {
+        summary:
+          "Girvi outstanding principal, unpaid interest, upcoming maturities, and disbursement/repayment/interest activity",
+      },
+    },
+    "/exports": {
+      post: {
+        summary:
+          "CSV export of inventory, sales, dues, or Girvi using the dashboard definitions; small exports stream inline, large ones queue a job",
+      },
+    },
+    "/exports/{id}": {
+      get: {
+        summary:
+          "Queued export job status; when ready, includes a short-lived authorized download URL (never a public bucket)",
+      },
     },
     "/staff": {
       get: { summary: "Paginated staff directory" },
@@ -251,6 +303,72 @@ export const apiVersionDocument = {
           "Collections received for a business date, inclusive from/to range, or all-time when dates omitted; grouped by method; separate from sales",
       },
     },
+    "/girvi/accounts": {
+      get: { summary: "Paginated Girvi accounts; filters: status, maturity, customer" },
+      post: { summary: "Create a Girvi account draft with collateral; requires girvi.write" },
+    },
+    "/girvi/accounts/{id}": {
+      get: { summary: "Girvi account detail with collateral, terms snapshot, custody and disbursement events" },
+      patch: { summary: "Update a draft Girvi account only; activated accounts reject collateral adds" },
+      delete: {
+        summary:
+          "Discard a draft Girvi account that was never activated. Requires girvi.write and matching row_version. Activated accounts return 422.",
+      },
+    },
+    "/girvi/accounts/{id}/activate": {
+      post: {
+        summary:
+          "Activate a draft: freeze terms, allocate account number, write disbursement and custody events, audit, outbox. Requires Idempotency-Key. Not a sale.",
+      },
+    },
+    "/girvi/accounts/{id}/statement": {
+      get: {
+        summary:
+          "Read-only girvi.v1 statement as of a business date: outstanding principal and interest labelled separately. Never posts interest. Unapproved terms return CALCULATION_RULE_UNSUPPORTED.",
+      },
+    },
+    "/girvi/accounts/{id}/repayments": {
+      post: {
+        summary:
+          "Record a repayment: lock the account, clear interest then principal, write the financial event, audit, outbox. Requires Idempotency-Key.",
+      },
+    },
+    "/girvi/accounts/{id}/settlement-quote": {
+      post: {
+        summary:
+          "Calculate the settlement payable for a business date. Recalculate if the date or ledger changes before posting.",
+      },
+    },
+    "/girvi/accounts/{id}/settle": {
+      post: {
+        summary:
+          "Settle the financial balance, optionally with an owner-authorized waiver. Status becomes settled; packets stay in custody. Requires Idempotency-Key.",
+      },
+    },
+    "/girvi/accounts/{id}/release": {
+      post: {
+        summary:
+          "Release collateral after settlement: verify packets, record staff and customer acknowledgment. Requires girvi.release and Idempotency-Key. Released collateral never becomes inventory.",
+      },
+    },
+    "/girvi/accounts/{id}/custody-moves": {
+      post: {
+        summary:
+          "Move a packet to a different custody location while it remains in custody. Writes a location_changed event. Requires girvi.write and Idempotency-Key. Not an inventory movement.",
+      },
+    },
+    "/girvi/accounts/{id}/collateral/{itemId}/files": {
+      post: {
+        summary:
+          "Upload a private collateral or packet photo to shop-assets (draft only). Requires girvi.write. Multipart field \"file\".",
+      },
+    },
+    "/girvi/accounts/{id}/collateral/{itemId}/files/{fileId}": {
+      get: {
+        summary:
+          "Short-lived signed URL for a private collateral photo. Requires girvi.write. Never a public storage policy.",
+      },
+    },
   },
 } as const;
 
@@ -300,6 +418,8 @@ export {
   metalRateListQuerySchema,
   metalRateListSchema,
   metalRateSchema,
+  metalRatesCoverageQuerySchema,
+  metalRatesCoverageSchema,
   metalSchema,
   reminderLanguageSchema,
   reminderSettingsPatchSchema,
@@ -321,6 +441,7 @@ export type {
   MetalRate,
   MetalRateCreate,
   MetalRateList,
+  MetalRatesCoverage,
   ReminderLanguage,
   ReminderSettings,
   ReminderSettingsPatch,
@@ -517,6 +638,89 @@ export type {
   PaymentRefundCreate,
   PaymentReversalCreate,
 } from "./returns";
+export {
+  GIRVI_ACCOUNT_SORT_FIELDS,
+  girviAccountActivateSchema,
+  girviAccountCreateSchema,
+  girviAccountListItemSchema,
+  girviAccountListQuerySchema,
+  girviAccountListSchema,
+  girviAccountPatchSchema,
+  girviAccountSchema,
+  girviAccountStatusSchema,
+  girviAccrualSegmentSchema,
+  girviApprovedInterestTermsSchema,
+  girviCollateralFileInputSchema,
+  girviCollateralFilePurposeSchema,
+  girviCollateralFileSchema,
+  girviCollateralFileUploadQuerySchema,
+  girviCollateralFileUploadResultSchema,
+  girviCollateralFileViewSchema,
+  girviCollateralItemInputSchema,
+  girviCollateralItemSchema,
+  girviCollateralStatusSchema,
+  girviCustodyEventSchema,
+  girviCustodyEventTypeSchema,
+  girviCustodyMoveCreateSchema,
+  girviCustodyMoveResultSchema,
+  girviDraftDeleteQuerySchema,
+  girviFinancialEventSchema,
+  girviFinancialEventTypeSchema,
+  girviInterestTermsSchema,
+  girviReleaseCreateSchema,
+  girviReleaseEventSchema,
+  girviReleaseResultSchema,
+  girviRepaymentAllocationSchema,
+  girviRepaymentCreateSchema,
+  girviRepaymentResultSchema,
+  girviSettlementCreateSchema,
+  girviSettlementQuoteRequestSchema,
+  girviSettlementQuoteSchema,
+  girviSettlementResultSchema,
+  girviStatementQuerySchema,
+  girviStatementSchema,
+  girviTermsSnapshotSchema,
+  girviUnsupportedInterestTermsSchema,
+} from "./girvi";
+export type {
+  GirviAccount,
+  GirviAccountActivate,
+  GirviAccountCreate,
+  GirviAccountList,
+  GirviAccountListItem,
+  GirviAccountListQuery,
+  GirviAccountPatch,
+  GirviAccountStatus,
+  GirviAccrualSegment,
+  GirviCollateralFile,
+  GirviCollateralFileInput,
+  GirviCollateralFilePurpose,
+  GirviCollateralFileUploadResult,
+  GirviCollateralFileView,
+  GirviCollateralItem,
+  GirviCollateralItemInput,
+  GirviCollateralStatus,
+  GirviCustodyEvent,
+  GirviCustodyEventType,
+  GirviCustodyMoveCreate,
+  GirviCustodyMoveResult,
+  GirviFinancialEvent,
+  GirviFinancialEventType,
+  GirviInterestTermsDto,
+  GirviReleaseCreate,
+  GirviReleaseEvent,
+  GirviReleaseResult,
+  GirviRepaymentAllocationDto,
+  GirviRepaymentCreate,
+  GirviRepaymentResult,
+  GirviSettlementCreate,
+  GirviSettlementQuote,
+  GirviSettlementQuoteRequest,
+  GirviSettlementResult,
+  GirviStatementDto,
+  GirviStatementQuery,
+  GirviTermsSnapshotDto,
+} from "./girvi";
 export type {
   CalculationPolicyDto,
   Invoice,
@@ -541,3 +745,119 @@ export type {
   MakingChargeDefaultUpsert,
   PaymentMethod,
 } from "./invoices";
+
+export {
+  INVOICE_PDF_TEMPLATE_VERSION,
+  RECEIPT_PDF_TEMPLATE_VERSION,
+  GIRVI_ACK_PDF_TEMPLATE_VERSION,
+  CREDIT_NOTE_PDF_TEMPLATE_VERSION,
+  REFUND_PDF_TEMPLATE_VERSION,
+  currentTemplateVersionFor,
+  documentListSchema,
+  documentSchema,
+  documentStatusSchema,
+  generatedDocumentTypeSchema,
+  fileAccessSchema,
+  fileAccessByKeyQuerySchema,
+  fileUploadConfirmSchema,
+  fileUploadGrantRequestSchema,
+  fileUploadGrantResponseSchema,
+  invoicePrintSchema,
+  ownerDocumentsQuerySchema,
+  receiptPrintSchema,
+  storedObjectOwnerTypeSchema,
+  storedObjectSchema,
+} from "./documents";
+export type {
+  Document,
+  DocumentList,
+  DocumentStatus,
+  GeneratedDocumentType,
+  FileAccess,
+  FileUploadConfirm,
+  FileUploadGrantRequest,
+  FileUploadGrantResponse,
+  InvoicePrint,
+  OwnerDocumentsQuery,
+  ReceiptPrint,
+  StoredObject,
+  StoredObjectOwnerType,
+} from "./documents";
+export { bilingualLabel, documentLabelPair } from "./document-labels";
+export type { DocumentLabelKey } from "./document-labels";
+export {
+  NOTIFICATION_STATUS_LABELS,
+  notificationAttentionSchema,
+  notificationChannelSchema,
+  notificationListQuerySchema,
+  notificationListResponseSchema,
+  notificationPurposeSchema,
+  notificationRelatedTypeSchema,
+  notificationRetryResponseSchema,
+  notificationSchema,
+  notificationStatusSchema,
+} from "./notifications";
+export type {
+  Notification,
+  NotificationAttention,
+  NotificationChannel,
+  NotificationListQuery,
+  NotificationListResponse,
+  NotificationPurpose,
+  NotificationRelatedType,
+  NotificationRetryResponse,
+  NotificationStatus,
+} from "./notifications";
+export {
+  MAX_INLINE_EXPORT_ROWS,
+  collectionMethodSchema,
+  collectionsByMethodRowSchema,
+  collectionsReportSchema,
+  dashboardReportSchema,
+  exportCreateSchema,
+  exportJobStatusSchema,
+  exportResultSchema,
+  exportTypeSchema,
+  girviActivitySchema,
+  girviInterestAvailabilitySchema,
+  girviMaturityRowSchema,
+  girviPositionSchema,
+  girviReportSchema,
+  inventoryAvailableRowSchema,
+  inventoryReportSchema,
+  operationsAttentionSchema,
+  reportMetricSectionSchema,
+  reportRangeQuerySchema,
+  reportRangeSchema,
+  salesByDateRowSchema,
+  salesDueRowSchema,
+  salesDuesSummarySchema,
+  salesReportSchema,
+  salesSummarySchema,
+} from "./reports";
+export type {
+  CollectionMethod,
+  CollectionsByMethodRow,
+  CollectionsReport,
+  DashboardReport,
+  ExportCreate,
+  ExportJobStatus,
+  ExportResult,
+  ExportType,
+  GirviActivity,
+  GirviInterestAvailability,
+  GirviMaturityRow,
+  GirviPosition,
+  GirviReport,
+  InventoryAvailableRow,
+  InventoryReport,
+  OperationsAttention,
+  ReportMetricSection,
+  ReportRange,
+  ReportRangeQuery,
+  SalesByDateRow,
+  SalesDueRow,
+  SalesDuesSummary,
+  SalesReport,
+  SalesSummary,
+} from "./reports";

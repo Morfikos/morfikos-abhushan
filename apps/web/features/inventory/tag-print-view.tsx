@@ -127,10 +127,30 @@ export function TagPrintView() {
   const heightMm = first?.tag_height_mm ?? "25";
   const barcodeMaxMm = first?.barcode_height_mm ?? "10";
   const tagCount = previews.length;
-  const pageTitle = tagCount === 1 ? "Print tag" : "Print tags";
-  const printLabel = tagCount === 1 ? "Print tag" : `Print tags (${tagCount})`;
+  const isReprint = kind === "reprint";
+  const pageTitle =
+    kind === "reprint"
+      ? tagCount === 1
+        ? "Reprint tag"
+        : "Reprint tags"
+      : kind === "batch" || tagCount > 1
+        ? "Print tags"
+        : "Print tag";
+  const printLabel =
+    kind === "reprint"
+      ? tagCount === 1
+        ? "Reprint tag"
+        : `Reprint tags (${tagCount})`
+      : tagCount === 1
+        ? "Print tag"
+        : `Print tags (${tagCount})`;
   const countLabel = tagCount === 1 ? "1 tag" : `${tagCount} tags`;
   const logoOmitted = previews.some((tag) => tag.logo_omitted_for_height);
+  const returnHref = ids.length === 1 ? `/inventory/${ids[0]}` : "/inventory";
+  const returnLabel = ids.length === 1 ? "Back to article" : "Back to inventory";
+  const successMessage = isReprint
+    ? "Reprint recorded. Same barcode."
+    : "Print recorded. Reprint uses the same barcode.";
 
   function openPrintDialog() {
     setPrintError(null);
@@ -262,9 +282,16 @@ export function TagPrintView() {
                     {widthMm} × {heightMm} mm
                   </span>
                 ) : null}
+                {isReprint && reason ? (
+                  <span className="rounded-md bg-secondary px-2 py-0.5 font-medium text-secondary ring-1 ring-secondary ring-inset">
+                    Reason: {reason}
+                  </span>
+                ) : null}
               </div>
               <p className="text-sm text-tertiary">
-                Printer not confirmed. A preview is not proof that the physical tag is readable.
+                {isReprint
+                  ? "Same barcode as before. Printer not confirmed — a preview is not proof that the physical tag is readable."
+                  : "Printer not confirmed. A preview is not proof that the physical tag is readable."}
               </p>
               {logoOmitted ? (
                 <p className="text-sm text-warning-primary">
@@ -276,15 +303,15 @@ export function TagPrintView() {
               <Button color="primary" size="md" isDisabled={loading || tagCount === 0} onPress={openPrintDialog}>
                 {printLabel}
               </Button>
-              <Button color="secondary" size="md" href="/inventory">
-                Back to inventory
+              <Button color="secondary" size="md" href={returnHref}>
+                {returnLabel}
               </Button>
             </div>
           </div>
 
           {loadError ? <p className="text-sm text-error-primary">{loadError}</p> : null}
           {printError ? <p className="text-sm text-error-primary">{printError}</p> : null}
-          {recorded ? <p className="text-sm text-success-primary">Print recorded. Reprint uses the same barcode.</p> : null}
+          {recorded ? <p className="text-sm text-success-primary">{successMessage}</p> : null}
 
           {awaitingPhysical && !recorded ? (
             <div className="flex flex-col gap-2 rounded-xl bg-secondary px-3 py-3 ring-1 ring-secondary">

@@ -3,15 +3,18 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Article, ArticleFile, InventoryMovement } from "@aabhushan/contracts";
+import { ARTICLE_PHOTO_MAX_BYTES, type Article, type ArticleFile, type InventoryMovement } from "@aabhushan/contracts";
 import { Image01 } from "@untitledui/icons";
 
-import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
+import { FileUpload, getReadableFileSize } from "@/components/application/file-upload/file-upload-base";
+import { PanelSkeleton, StaffDetailPageSkeleton } from "@/components/application/skeleton/skeleton";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { SectionCard } from "@/components/shared/section-card";
 import { SelectField } from "@/components/shared/select-field";
+import { StaffPageHeader } from "@/components/shared/staff-page-header";
 import { staffHasPermission, useStaff } from "@/features/auth/staff-shell";
 import {
   ageingDaysFromReceipt,
@@ -31,6 +34,7 @@ import {
   fetchStorageLocations,
   releaseArticleInspectionRequest,
 } from "@/lib/staff-api";
+import { fetchFileAccessByObjectKey, uploadStaffFile } from "@/lib/staff-file-upload";
 import { cx } from "@/utils/cx";
 
 export function ArticleDetail({ articleId }: { articleId: string }) {
@@ -117,7 +121,7 @@ export function ArticleDetail({ articleId }: { articleId: string }) {
   }
 
   if (articleQuery.isLoading) {
-    return <LoadingIndicator size="md" label="Loading article" />;
+    return <StaffDetailPageSkeleton layout="split3" withTabs={false} label="Loading article" />;
   }
 
   if (articleQuery.isError || !article) {
@@ -139,33 +143,42 @@ export function ArticleDetail({ articleId }: { articleId: string }) {
 
   return (
     <section className="flex w-full flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-sm text-tertiary">
-            <Button color="link-color" size="sm" href="/inventory">
-              Inventory
-            </Button>
-          </p>
-          <h1 className="font-mono text-display-xs font-semibold text-primary">{article.article_number}</h1>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
+      <StaffPageHeader
+        title={<span className="font-mono">{article.article_number}</span>}
+        description={secondaryLine}
+        back={{ href: "/inventory", label: "Inventory" }}
+        badge={
+          <>
             <Badge color={articleStatusColor(article.status)} size="sm">
               {articleStatusLabel(article.status)}
             </Badge>
             <Badge color="gray" size="sm" type="modern">
               {article.sellable ? "Sellable" : "Not sellable"}
             </Badge>
-          </div>
-          <p className="mt-2 text-sm text-tertiary">{secondaryLine}</p>
-        </div>
-      </div>
+          </>
+        }
+        actions={
+          canWrite && !sold ? (
+            <Button color="secondary" size="md" href={`/inventory/${article.id}/edit`}>
+              Edit article
+            </Button>
+          ) : null
+        }
+      />
 
       <div className="grid gap-4 xl:grid-cols-[minmax(16rem,20rem)_1fr_minmax(16rem,20rem)]">
         <PieceRail
+          articleId={article.id}
           files={article.files}
           barcode={article.barcode}
           canWrite={canWrite}
           onPrintTag={() => router.push(tagPrintHref({ ids: [article.id], kind: "initial" }))}
           onReprint={() => setShowReprint(true)}
+          onUploaded={() => {
+            void queryClient.invalidateQueries({
+              queryKey: ["inventory", "article", staff.membership.organization_id, articleId],
+            });
+          }}
         />
 
         <SpecificationGrid article={article} />
@@ -179,14 +192,16 @@ export function ArticleDetail({ articleId }: { articleId: string }) {
       </div>
 
       {canWrite && !sold ? (
-        <section className="rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-5">
-          <h2 className="text-md font-semibold text-primary">{underReview ? "Inspection release" : "Adjustment"}</h2>
-          <p className="mt-1 text-sm text-tertiary">
-            {underReview
+        <SectionCard
+          as="section"
+          title={underReview ? "Inspection release" : "Adjustment"}
+          description={
+            underReview
               ? "Release back to available stock or keep the piece unavailable. This is a stock movement, not a sale."
-              : "Adjustments require a reason and write an append-only movement plus audit row."}
-          </p>
-          <div className="mt-4 flex flex-col gap-4">
+              : "Adjustments require a reason and write an append-only movement plus audit row."
+          }
+        >
+          <div className="flex flex-col gap-4">
             <Input label="Reason" value={reason} isRequired={!underReview} onChange={setReason} />
             {underReview ? (
               <div className="grid gap-4 md:grid-cols-2">
@@ -235,7 +250,7 @@ export function ArticleDetail({ articleId }: { articleId: string }) {
               </Button>
             )}
           </div>
-        </section>
+        </SectionCard>
       ) : null}
 
       {sold ? (
@@ -273,33 +288,58 @@ export function ArticleDetail({ articleId }: { articleId: string }) {
   );
 }
 
-function CardShell({ title, children, className }: { title: string; children: ReactNode; className?: string }) {
-  return (
-    <section className={cx("rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-5", className)}>
-      <h2 className="text-md font-semibold text-primary">{title}</h2>
-      <div className="mt-4">{children}</div>
-    </section>
-  );
-}
-
 function PieceRail({
+  articleId,
   files,
   barcode,
   canWrite,
   onPrintTag,
   onReprint,
+  onUploaded,
 }: {
+  articleId: string;
   files: ArticleFile[];
   barcode: string | null;
   canWrite: boolean;
   onPrintTag: () => void;
   onReprint: () => void;
+  onUploaded: () => void;
 }) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const primary = files[0] ?? null;
+
+  useEffect(() => {
+    let cancelled = false;
+    setPreviewUrl(null);
+    if (!primary) {
+      return;
+    }
+    void (async () => {
+      try {
+        const access = await fetchFileAccessByObjectKey(await inventoryAccessToken(), primary.object_key);
+        if (!cancelled) {
+          setPreviewUrl(access.url);
+        }
+      } catch {
+        if (!cancelled) {
+          setPreviewUrl(null);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [primary?.object_key]);
+
   return (
-    <CardShell title="Photograph">
+    <SectionCard as="section" title="Photograph">
       <div className="flex flex-col gap-3">
         <div className="flex aspect-square flex-col items-center justify-center overflow-hidden rounded-lg bg-secondary ring-1 ring-secondary">
-          {files.length === 0 ? (
+          {previewUrl ? (
+            <img src={previewUrl} alt={primary?.original_filename ?? "Article photograph"} className="size-full object-cover" />
+          ) : files.length === 0 ? (
             <div className="flex flex-col items-center gap-2 px-4 text-center">
               <div className="flex size-10 items-center justify-center rounded-lg bg-primary ring-1 ring-secondary ring-inset">
                 <Image01 className="size-5 text-fg-quaternary" aria-hidden="true" />
@@ -319,7 +359,49 @@ function PieceRail({
             </ul>
           )}
         </div>
-        <p className="text-xs text-tertiary">Private object keys only. No public URL is issued in this unit.</p>
+        <p className="text-xs text-tertiary">Private signed URLs only. No public object URL is issued.</p>
+
+        {canWrite && files.length === 0 ? (
+          <>
+            <FileUpload.Root>
+              <FileUpload.DropZone
+                className="py-3"
+                accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                allowsMultiple={false}
+                maxSize={ARTICLE_PHOTO_MAX_BYTES}
+                hint={`JPEG, PNG, or WebP (max. ${getReadableFileSize(ARTICLE_PHOTO_MAX_BYTES)}).`}
+                onDropFiles={(dropped) => {
+                  const file = dropped[0];
+                  if (!file) {
+                    return;
+                  }
+                  setUploadError(null);
+                  setUploading(true);
+                  void (async () => {
+                    try {
+                      await uploadStaffFile({
+                        accessToken: await inventoryAccessToken(),
+                        ownerType: "article",
+                        ownerId: articleId,
+                        file,
+                        purpose: "photograph",
+                      });
+                      onUploaded();
+                    } catch (error) {
+                      setUploadError(inventoryErrorMessage(error));
+                    } finally {
+                      setUploading(false);
+                    }
+                  })();
+                }}
+                onDropUnacceptedFiles={() => setUploadError("Use JPEG, PNG, or WebP.")}
+                onSizeLimitExceed={() => setUploadError("Photograph is too large. Maximum size is 5 MB.")}
+              />
+            </FileUpload.Root>
+            {uploading ? <p className="text-sm text-tertiary">Uploading…</p> : null}
+            {uploadError ? <p className="text-sm text-error-primary">{uploadError}</p> : null}
+          </>
+        ) : null}
 
         <div className="border-t border-secondary pt-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-quaternary">Printed tag</p>
@@ -332,20 +414,21 @@ function PieceRail({
             <p className="text-xs text-tertiary">Printer not confirmed. A preview is not a physical tag.</p>
             {canWrite ? (
               <div className="flex flex-wrap gap-2">
-                <Button color="primary" size="sm" onPress={onPrintTag}>
-                  Print tag
-                </Button>
                 {barcode ? (
-                  <Button color="secondary" size="sm" onPress={onReprint}>
+                  <Button color="primary" size="sm" onPress={onReprint}>
                     Reprint tag
                   </Button>
-                ) : null}
+                ) : (
+                  <Button color="primary" size="sm" onPress={onPrintTag}>
+                    Print tag
+                  </Button>
+                )}
               </div>
             ) : null}
           </div>
         </div>
       </div>
-    </CardShell>
+    </SectionCard>
   );
 }
 
@@ -359,7 +442,7 @@ function SpecificationGrid({ article }: { article: Article }) {
   const ageDays = ageingDaysFromReceipt(article.receipt_business_date);
 
   return (
-    <CardShell title="Specification">
+    <SectionCard as="section" title="Specification">
       <div className="flex flex-col">
         <SpecSection title="Identity" first>
           <div className="grid gap-x-4 gap-y-2 sm:grid-cols-2">
@@ -404,7 +487,7 @@ function SpecificationGrid({ article }: { article: Article }) {
           />
         </SpecSection>
       </div>
-    </CardShell>
+    </SectionCard>
   );
 }
 
@@ -438,42 +521,44 @@ function MovementTimeline({
   error: unknown;
 }) {
   return (
-    <CardShell title="Movement history" className="h-fit">
-      {isLoading ? <LoadingIndicator size="sm" label="Loading history" /> : null}
+    <SectionCard as="section" title="Movement history" className="h-fit">
+      {isLoading ? <PanelSkeleton rows={4} showTitle={false} label="Loading history" /> : null}
       {isError ? <p className="text-sm text-error-primary">{inventoryErrorMessage(error)}</p> : null}
       {!isLoading && !isError && items.length === 0 ? (
         <p className="text-sm text-tertiary">No movements recorded yet.</p>
       ) : null}
       {!isLoading && items.length > 0 ? (
-        <ol className="relative flex max-h-112 flex-col gap-3 overflow-y-auto border-l border-secondary pl-4">
-          {items.map((item) => {
-            const statusChange =
-              item.from_status && item.to_status
-                ? `${articleStatusLabel(item.from_status)} → ${articleStatusLabel(item.to_status)}`
-                : item.to_status
-                  ? articleStatusLabel(item.to_status)
-                  : null;
-            return (
-              <li key={item.id} className="relative">
-                <span
-                  className={cx(
-                    "absolute top-1.5 -left-5.25 size-2.5 rounded-full ring-2 ring-primary",
-                    movementTypeDotClass(item.movement_type),
-                  )}
-                  aria-hidden="true"
-                />
-                <p className="text-sm font-semibold text-primary">{movementTypeLabel(item.movement_type)}</p>
-                {statusChange ? <p className="text-xs text-tertiary">{statusChange}</p> : null}
-                {item.reason ? <p className="mt-0.5 text-sm text-secondary">{item.reason}</p> : null}
-                <p className="mt-0.5 text-xs text-quaternary">
-                  {new Date(item.created_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}
-                </p>
-              </li>
-            );
-          })}
-        </ol>
+        <div className="max-h-112 overflow-y-auto">
+          <ol className="relative ml-2 flex flex-col gap-3 border-l border-secondary pl-4">
+            {items.map((item) => {
+              const statusChange =
+                item.from_status && item.to_status
+                  ? `${articleStatusLabel(item.from_status)} → ${articleStatusLabel(item.to_status)}`
+                  : item.to_status
+                    ? articleStatusLabel(item.to_status)
+                    : null;
+              return (
+                <li key={item.id} className="relative">
+                  <span
+                    className={cx(
+                      "absolute top-1.5 -left-5.25 size-2.5 rounded-full ring-2 ring-primary",
+                      movementTypeDotClass(item.movement_type),
+                    )}
+                    aria-hidden="true"
+                  />
+                  <p className="text-sm font-semibold text-primary">{movementTypeLabel(item.movement_type)}</p>
+                  {statusChange ? <p className="text-xs text-tertiary">{statusChange}</p> : null}
+                  {item.reason ? <p className="mt-0.5 text-sm text-secondary">{item.reason}</p> : null}
+                  <p className="mt-0.5 text-xs text-quaternary">
+                    {new Date(item.created_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}
+                  </p>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
       ) : null}
-    </CardShell>
+    </SectionCard>
   );
 }
 

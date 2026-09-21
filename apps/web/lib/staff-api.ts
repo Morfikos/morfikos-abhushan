@@ -5,9 +5,12 @@ import {
   documentSequencesSchema,
   metalRateListSchema,
   metalRateSchema,
+  metalRatesCoverageSchema,
   makingChargeDefaultListSchema,
   makingChargeDefaultSchema,
   reminderSettingsSchema,
+  dashboardReportSchema,
+  exportResultSchema,
   shopBrandingPublicSchema,
   shopProfileSchema,
   staffDirectoryItemSchema,
@@ -45,6 +48,7 @@ import {
   type MetalRate,
   type MetalRateCreate,
   type MetalRateList,
+  type MetalRatesCoverage,
   type MakingChargeDefault,
   type MakingChargeDefaultList,
   type MakingChargeDefaultUpsert,
@@ -107,6 +111,46 @@ import {
   type InvoiceList,
   type InvoiceQuoteRequest,
   type InvoiceQuoteResponse,
+  girviAccountActivateSchema,
+  girviAccountCreateSchema,
+  girviAccountListSchema,
+  girviAccountPatchSchema,
+  girviAccountSchema,
+  girviCustodyMoveCreateSchema,
+  girviCustodyMoveResultSchema,
+  girviReleaseCreateSchema,
+  girviReleaseResultSchema,
+  girviRepaymentCreateSchema,
+  girviRepaymentResultSchema,
+  girviSettlementCreateSchema,
+  girviSettlementQuoteSchema,
+  girviSettlementResultSchema,
+  girviStatementSchema,
+  documentListSchema,
+  documentSchema,
+  invoicePrintSchema,
+  receiptPrintSchema,
+  type GirviAccount,
+  type GirviAccountActivate,
+  type GirviAccountCreate,
+  type GirviAccountList,
+  type GirviAccountListQuery,
+  type GirviAccountPatch,
+  type GirviAccountStatus,
+  type GirviCustodyMoveCreate,
+  type GirviCustodyMoveResult,
+  type GirviReleaseCreate,
+  type GirviReleaseResult,
+  type GirviRepaymentCreate,
+  type GirviRepaymentResult,
+  type GirviSettlementCreate,
+  type GirviSettlementQuote,
+  type GirviSettlementResult,
+  type GirviStatementDto,
+  type Document,
+  type DocumentList,
+  type InvoicePrint,
+  type ReceiptPrint,
 } from "@aabhushan/contracts";
 
 import { publicEnv } from "@/lib/public-env";
@@ -137,7 +181,7 @@ function apiUrl(path: string): string {
   return `${publicEnv.NEXT_PUBLIC_API_URL}${path}`;
 }
 
-async function staffRequest<T>(
+export async function staffRequest<T>(
   accessToken: string,
   path: string,
   options: {
@@ -257,6 +301,20 @@ export async function fetchMetalRates(
     direction: "desc",
   });
   return staffRequest(accessToken, `/api/v1/shop/rates?${params.toString()}`, { schema: metalRateListSchema });
+}
+
+export async function fetchMetalRatesCoverage(
+  accessToken: string,
+  businessDate?: string,
+): Promise<MetalRatesCoverage> {
+  const params = new URLSearchParams();
+  if (businessDate) {
+    params.set("business_date", businessDate);
+  }
+  const suffix = params.size > 0 ? `?${params.toString()}` : "";
+  return staffRequest(accessToken, `/api/v1/shop/rates/coverage${suffix}`, {
+    schema: metalRatesCoverageSchema,
+  });
 }
 
 export async function createMetalRateRequest(accessToken: string, input: MetalRateCreate): Promise<MetalRate> {
@@ -703,6 +761,7 @@ export async function fetchInvoices(
     businessDateFrom?: string;
     businessDateTo?: string;
     q?: string;
+    hasDue?: boolean;
   },
 ): Promise<InvoiceList> {
   const params = new URLSearchParams({
@@ -725,6 +784,9 @@ export async function fetchInvoices(
   }
   if (query.q) {
     params.set("q", query.q);
+  }
+  if (query.hasDue) {
+    params.set("has_due", "1");
   }
   return staffRequest(accessToken, `/api/v1/invoices?${params.toString()}`, { schema: invoiceListSchema });
 }
@@ -891,5 +953,392 @@ export async function fetchDailyCollections(
   const query = params.toString();
   return staffRequest(accessToken, `/api/v1/collections/daily${query ? `?${query}` : ""}`, {
     schema: dailyCollectionsSchema,
+  });
+}
+
+export async function fetchGirviAccounts(
+  accessToken: string,
+  filters: {
+    page: number;
+    pageSize: number;
+    sort?: GirviAccountListQuery["sort"];
+    direction?: GirviAccountListQuery["direction"];
+    status?: GirviAccountStatus;
+    customerId?: string;
+    maturityFrom?: string;
+    maturityTo?: string;
+    isOverdue?: boolean;
+    q?: string;
+  },
+): Promise<GirviAccountList> {
+  const params = new URLSearchParams({
+    page: String(filters.page),
+    page_size: String(filters.pageSize),
+    sort: filters.sort ?? "created_at",
+    direction: filters.direction ?? "desc",
+  });
+  if (filters.status) {
+    params.set("status", filters.status);
+  }
+  if (filters.customerId) {
+    params.set("customer_id", filters.customerId);
+  }
+  if (filters.maturityFrom) {
+    params.set("maturity_from", filters.maturityFrom);
+  }
+  if (filters.maturityTo) {
+    params.set("maturity_to", filters.maturityTo);
+  }
+  if (filters.isOverdue === true) {
+    params.set("is_overdue", "true");
+  }
+  if (filters.q) {
+    params.set("q", filters.q);
+  }
+  return staffRequest(accessToken, `/api/v1/girvi/accounts?${params.toString()}`, {
+    schema: girviAccountListSchema,
+  });
+}
+
+export async function fetchGirviAccount(accessToken: string, accountId: string): Promise<GirviAccount> {
+  return staffRequest(accessToken, `/api/v1/girvi/accounts/${accountId}`, { schema: girviAccountSchema });
+}
+
+export async function createGirviAccount(
+  accessToken: string,
+  input: GirviAccountCreate,
+): Promise<GirviAccount> {
+  girviAccountCreateSchema.parse(input);
+  return staffRequest(accessToken, "/api/v1/girvi/accounts", {
+    method: "POST",
+    body: input,
+    schema: girviAccountSchema,
+  });
+}
+
+export async function patchGirviAccount(
+  accessToken: string,
+  accountId: string,
+  input: GirviAccountPatch,
+): Promise<GirviAccount> {
+  girviAccountPatchSchema.parse(input);
+  return staffRequest(accessToken, `/api/v1/girvi/accounts/${accountId}`, {
+    method: "PATCH",
+    body: input,
+    schema: girviAccountSchema,
+  });
+}
+
+export async function discardGirviDraftRequest(
+  accessToken: string,
+  accountId: string,
+  rowVersion: number,
+): Promise<void> {
+  const response = await fetch(
+    apiUrl(`/api/v1/girvi/accounts/${accountId}?row_version=${encodeURIComponent(String(rowVersion))}`),
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json",
+      },
+    },
+  );
+  if (response.status === 204) {
+    return;
+  }
+  let body: unknown = null;
+  try {
+    body = await response.json();
+  } catch {
+    body = null;
+  }
+  const parsed = body as { code?: string; message?: string; field_errors?: { field: string; message: string }[] } | null;
+  throw new StaffApiError(
+    response.status,
+    parsed?.code ?? "REQUEST_FAILED",
+    parsed?.message ?? "The request failed.",
+    parsed?.field_errors ?? [],
+  );
+}
+
+export async function activateGirviAccountRequest(
+  accessToken: string,
+  accountId: string,
+  input: GirviAccountActivate,
+  idempotencyKey: string,
+): Promise<GirviAccount> {
+  girviAccountActivateSchema.parse(input);
+  return staffRequest(accessToken, `/api/v1/girvi/accounts/${accountId}/activate`, {
+    method: "POST",
+    body: input,
+    schema: girviAccountSchema,
+    headers: { "Idempotency-Key": idempotencyKey },
+  });
+}
+
+/** Reading a statement never posts interest; it recalculates from frozen terms. */
+export async function fetchGirviStatement(
+  accessToken: string,
+  accountId: string,
+  asOf?: string,
+): Promise<GirviStatementDto> {
+  const query = asOf ? `?as_of=${encodeURIComponent(asOf)}` : "";
+  return staffRequest(accessToken, `/api/v1/girvi/accounts/${accountId}/statement${query}`, {
+    schema: girviStatementSchema,
+  });
+}
+
+export async function recordGirviRepaymentRequest(
+  accessToken: string,
+  accountId: string,
+  input: GirviRepaymentCreate,
+  idempotencyKey: string,
+): Promise<GirviRepaymentResult> {
+  girviRepaymentCreateSchema.parse(input);
+  return staffRequest(accessToken, `/api/v1/girvi/accounts/${accountId}/repayments`, {
+    method: "POST",
+    body: input,
+    schema: girviRepaymentResultSchema,
+    headers: { "Idempotency-Key": idempotencyKey },
+  });
+}
+
+export async function quoteGirviSettlementRequest(
+  accessToken: string,
+  accountId: string,
+  businessDate?: string,
+): Promise<GirviSettlementQuote> {
+  return staffRequest(accessToken, `/api/v1/girvi/accounts/${accountId}/settlement-quote`, {
+    method: "POST",
+    body: businessDate ? { business_date: businessDate } : {},
+    schema: girviSettlementQuoteSchema,
+  });
+}
+
+export async function settleGirviAccountRequest(
+  accessToken: string,
+  accountId: string,
+  input: GirviSettlementCreate,
+  idempotencyKey: string,
+): Promise<GirviSettlementResult> {
+  girviSettlementCreateSchema.parse(input);
+  return staffRequest(accessToken, `/api/v1/girvi/accounts/${accountId}/settle`, {
+    method: "POST",
+    body: input,
+    schema: girviSettlementResultSchema,
+    headers: { "Idempotency-Key": idempotencyKey },
+  });
+}
+
+export async function releaseGirviCollateralRequest(
+  accessToken: string,
+  accountId: string,
+  input: GirviReleaseCreate,
+  idempotencyKey: string,
+): Promise<GirviReleaseResult> {
+  girviReleaseCreateSchema.parse(input);
+  return staffRequest(accessToken, `/api/v1/girvi/accounts/${accountId}/release`, {
+    method: "POST",
+    body: input,
+    schema: girviReleaseResultSchema,
+    headers: { "Idempotency-Key": idempotencyKey },
+  });
+}
+
+export async function moveGirviCustodyRequest(
+  accessToken: string,
+  accountId: string,
+  input: GirviCustodyMoveCreate,
+  idempotencyKey: string,
+): Promise<GirviCustodyMoveResult> {
+  girviCustodyMoveCreateSchema.parse(input);
+  return staffRequest(accessToken, `/api/v1/girvi/accounts/${accountId}/custody-moves`, {
+    method: "POST",
+    body: input,
+    schema: girviCustodyMoveResultSchema,
+    headers: { "Idempotency-Key": idempotencyKey },
+  });
+}
+
+export async function uploadGirviCollateralFileRequest(
+  accessToken: string,
+  accountId: string,
+  itemId: string,
+  file: File,
+  purpose: "collateral_photo" | "packet_photo" = "collateral_photo",
+): Promise<import("@aabhushan/contracts").GirviCollateralFileUploadResult> {
+  const form = new FormData();
+  form.append("file", file);
+  const response = await fetch(
+    apiUrl(
+      `/api/v1/girvi/accounts/${accountId}/collateral/${itemId}/files?purpose=${encodeURIComponent(purpose)}`,
+    ),
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json",
+      },
+      body: form,
+    },
+  );
+  let body: unknown = null;
+  try {
+    body = await response.json();
+  } catch {
+    body = null;
+  }
+  if (!response.ok) {
+    const parsed = body as { code?: string; message?: string; field_errors?: { field: string; message: string }[] } | null;
+    throw new StaffApiError(
+      response.status,
+      parsed?.code ?? "REQUEST_FAILED",
+      parsed?.message ?? "The request failed.",
+      parsed?.field_errors ?? [],
+    );
+  }
+  return body as import("@aabhushan/contracts").GirviCollateralFileUploadResult;
+}
+
+export async function fetchGirviCollateralFileView(
+  accessToken: string,
+  accountId: string,
+  itemId: string,
+  fileId: string,
+): Promise<import("@aabhushan/contracts").GirviCollateralFileView> {
+  return staffRequest(
+    accessToken,
+    `/api/v1/girvi/accounts/${accountId}/collateral/${itemId}/files/${fileId}`,
+    {
+      schema: {
+        parse: (value) => value as import("@aabhushan/contracts").GirviCollateralFileView,
+      },
+    },
+  );
+}
+
+export async function fetchOwnerDocuments(
+  accessToken: string,
+  input: { ownerType: "invoice" | "receipt" | "girvi"; ownerId: string },
+): Promise<DocumentList> {
+  const params = new URLSearchParams({
+    owner_type: input.ownerType,
+    owner_id: input.ownerId,
+  });
+  return staffRequest(accessToken, `/api/v1/documents?${params.toString()}`, {
+    schema: documentListSchema,
+  });
+}
+
+export async function retryDocumentRequest(accessToken: string, documentId: string): Promise<Document> {
+  return staffRequest(accessToken, `/api/v1/documents/${documentId}/retry`, {
+    method: "POST",
+    schema: documentSchema,
+  });
+}
+
+export async function fetchInvoicePrint(accessToken: string, invoiceId: string): Promise<InvoicePrint> {
+  return staffRequest(accessToken, `/api/v1/invoices/${invoiceId}/print`, {
+    schema: invoicePrintSchema,
+  });
+}
+
+export async function fetchReceiptPrint(accessToken: string, paymentId: string): Promise<ReceiptPrint> {
+  return staffRequest(accessToken, `/api/v1/payments/${paymentId}/print`, {
+    schema: receiptPrintSchema,
+  });
+}
+
+export async function fetchNotifications(
+  accessToken: string,
+  input: {
+    page: number;
+    pageSize: number;
+    status?: import("@aabhushan/contracts").NotificationStatus;
+    purpose?: import("@aabhushan/contracts").NotificationPurpose;
+    customerId?: string;
+  },
+): Promise<import("@aabhushan/contracts").NotificationListResponse> {
+  const params = new URLSearchParams({
+    page: String(input.page),
+    page_size: String(input.pageSize),
+  });
+  if (input.status) {
+    params.set("status", input.status);
+  }
+  if (input.purpose) {
+    params.set("purpose", input.purpose);
+  }
+  if (input.customerId) {
+    params.set("customer_id", input.customerId);
+  }
+  return staffRequest(accessToken, `/api/v1/notifications?${params.toString()}`, {
+    schema: {
+      parse: (value) => value as import("@aabhushan/contracts").NotificationListResponse,
+    },
+  });
+}
+
+export async function fetchNotificationAttention(
+  accessToken: string,
+): Promise<import("@aabhushan/contracts").NotificationAttention> {
+  return staffRequest(accessToken, "/api/v1/notifications/attention", {
+    schema: {
+      parse: (value) => value as import("@aabhushan/contracts").NotificationAttention,
+    },
+  });
+}
+
+export async function retryNotificationRequest(
+  accessToken: string,
+  notificationId: string,
+): Promise<{ notification: import("@aabhushan/contracts").Notification }> {
+  return staffRequest(accessToken, `/api/v1/notifications/${notificationId}/retry`, {
+    method: "POST",
+    schema: {
+      parse: (value) => value as { notification: import("@aabhushan/contracts").Notification },
+    },
+  });
+}
+
+function reportRangeQuery(input: { from?: string; to?: string }): string {
+  const params = new URLSearchParams();
+  if (input.from) {
+    params.set("business_date_from", input.from);
+  }
+  if (input.to) {
+    params.set("business_date_to", input.to);
+  }
+  const qs = params.toString();
+  return qs ? `?${qs}` : "";
+}
+
+export async function fetchDashboardReport(
+  accessToken: string,
+  range: { from?: string; to?: string },
+): Promise<import("@aabhushan/contracts").DashboardReport> {
+  return staffRequest(accessToken, `/api/v1/reports/dashboard${reportRangeQuery(range)}`, {
+    schema: dashboardReportSchema,
+  });
+}
+
+export async function createExportRequest(
+  accessToken: string,
+  input: import("@aabhushan/contracts").ExportCreate,
+): Promise<import("@aabhushan/contracts").ExportResult> {
+  return staffRequest(accessToken, "/api/v1/exports", {
+    method: "POST",
+    body: input,
+    schema: exportResultSchema,
+  });
+}
+
+export async function fetchExportJob(
+  accessToken: string,
+  exportJobId: string,
+): Promise<import("@aabhushan/contracts").ExportResult> {
+  return staffRequest(accessToken, `/api/v1/exports/${exportJobId}`, {
+    schema: exportResultSchema,
   });
 }

@@ -10,23 +10,58 @@ import type { DateRange } from "react-aria-components";
 
 import { DatePicker } from "@/components/application/date-picker/date-picker";
 import { DateRangePicker } from "@/components/application/date-picker/date-range-picker";
-import { EmptyState } from "@/components/application/empty-state/empty-state";
-import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
+import { Skeleton, StaffDirectoryLoading } from "@/components/application/skeleton/skeleton";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { ButtonGroup, ButtonGroupItem } from "@/components/base/button-group/button-group";
+import { ActiveFiltersBar } from "@/components/shared/active-filters-bar";
+import {
+  DirectoryEmptyState,
+  DirectoryTableSkeleton,
+  FilteredEmptyState,
+} from "@/components/shared/directory-states";
 import { ListSearchToolbar } from "@/components/shared/list-search-toolbar";
 import { ListTableFooter } from "@/components/shared/list-table-footer";
 import { SelectField } from "@/components/shared/select-field";
+import { StaffPageHeader } from "@/components/shared/staff-page-header";
+import { type ListFilterCodec, useSyncedListFilters } from "@/lib/list-search-params";
 import { staffHasPermission, useStaff } from "@/features/auth/staff-shell";
 import { formatInr, invoiceAccessToken, invoiceErrorMessage } from "@/features/invoices/invoice-shared";
 import {
   boundsForPeriod,
+  customPeriodFromParams,
   kolkataTodayCalendar,
   type PeriodPreset,
 } from "@/lib/period-bounds";
 import { fetchInvoices } from "@/lib/staff-api";
+
+/** Live order: period ButtonGroup + date, then search + status. */
+export function InvoicesFilterSkeleton() {
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-2">
+        <Skeleton className="h-9 w-16 rounded-lg" />
+        <Skeleton className="h-9 w-16 rounded-lg" />
+        <Skeleton className="h-9 w-16 rounded-lg" />
+        <Skeleton className="h-9 w-20 rounded-lg" />
+        <Skeleton className="h-9 w-20 rounded-lg" />
+        <Skeleton className="h-10 w-40 rounded-lg" />
+      </div>
+      <div className="flex flex-wrap items-end gap-3">
+        <Skeleton className="h-10 min-w-0 max-w-md flex-1 rounded-lg" />
+        <Skeleton className="h-10 w-40 rounded-lg" />
+      </div>
+    </>
+  );
+}
+
+/** Route Suspense cold load (includes header shimmer). Feature keeps live StaffPageHeader. */
+export function InvoicesDirectoryLoading() {
+  return (
+    <StaffDirectoryLoading columns={7} label="Loading invoices" filterSkeleton={<InvoicesFilterSkeleton />} />
+  );
+}
 
 const PERIOD_PRESETS: { id: PeriodPreset; label: string }[] = [
   { id: "all", label: "All" },
@@ -43,19 +78,107 @@ function asCalendarDate(value: DateValue | null | undefined): CalendarDate | nul
   return parseDate(value.toString());
 }
 
+type InvoiceListFilters = {
+  status: "" | "draft" | "finalized";
+  dueOnly: boolean;
+  periodPreset: PeriodPreset;
+  dayDate: CalendarDate;
+  customStart: CalendarDate | null;
+  customEnd: CalendarDate | null;
+  appliedQ: string;
+};
+
+const invoiceListDefaults: InvoiceListFilters = {
+  status: "",
+  dueOnly: false,
+  periodPreset: "all",
+  dayDate: kolkataTodayCalendar(),
+  customStart: null,
+  customEnd: null,
+  appliedQ: "",
+};
+
+const invoiceListCodec: ListFilterCodec<InvoiceListFilters> = {
+  ownedKeys: ["status", "due", "from", "to", "q"],
+  defaults: invoiceListDefaults,
+  parse(params) {
+    const drilledPeriod = customPeriodFromParams(params.get("from"), params.get("to"));
+    const drilledStatus = params.get("status");
+    return {
+      status: drilledStatus === "draft" || drilledStatus === "finalized" ? drilledStatus : "",
+      dueOnly: params.get("due") === "1",
+      periodPreset: drilledPeriod?.preset ?? "all",
+      dayDate: kolkataTodayCalendar(),
+      customStart: drilledPeriod?.customStart ?? null,
+      customEnd: drilledPeriod?.customEnd ?? null,
+      appliedQ: params.get("q")?.trim() ?? "",
+    };
+  },
+  serialize(value) {
+    const period =
+      value.periodPreset === "all"
+        ? {}
+        : boundsForPeriod({
+            preset: value.periodPreset,
+            dayDate: value.dayDate,
+            customStart: value.customStart,
+            customEnd: value.customEnd,
+          });
+    return {
+      status: value.status || undefined,
+      due: value.dueOnly ? "1" : undefined,
+      from: period.from,
+      to: period.to,
+      q: value.appliedQ || undefined,
+    };
+  },
+  chips(value) {
+    const chips = [];
+    if (value.status === "draft") {
+      chips.push({ id: "status", label: "Status: Draft" });
+    } else if (value.status === "finalized") {
+      chips.push({ id: "status", label: "Status: Finalized" });
+    }
+    if (value.dueOnly) {
+      chips.push({ id: "due", label: "Due only" });
+    }
+    if (value.periodPreset !== "all") {
+      const bounds = boundsForPeriod({
+        preset: value.periodPreset,
+        dayDate: value.dayDate,
+        customStart: value.customStart,
+        customEnd: value.customEnd,
+      });
+      if (bounds.from && bounds.to) {
+        chips.push({
+          id: "period",
+          label: bounds.from === bounds.to ? `Period: ${bounds.from}` : `Period: ${bounds.from}–${bounds.to}`,
+        });
+      }
+    }
+    if (value.appliedQ) {
+      chips.push({ id: "q", label: `Search: ${value.appliedQ}` });
+    }
+    return chips;
+  },
+};
+
 export function InvoiceList() {
   const staff = useStaff();
   const router = useRouter();
   const allowed = staffHasPermission(staff, "billing.write");
+  const { filters, setFilters, chips } = useSyncedListFilters(
+    "/invoices",
+    invoiceListCodec,
+  );
+  const { status: statusFilter, dueOnly, periodPreset, dayDate, customStart, customEnd, appliedQ } = filters;
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [search, setSearch] = useState("");
-  const [appliedQ, setAppliedQ] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"" | "draft" | "finalized">("");
-  const [periodPreset, setPeriodPreset] = useState<PeriodPreset>("all");
-  const [dayDate, setDayDate] = useState(() => kolkataTodayCalendar());
-  const [customStart, setCustomStart] = useState<CalendarDate | null>(null);
-  const [customEnd, setCustomEnd] = useState<CalendarDate | null>(null);
+  const [search, setSearch] = useState(appliedQ);
+
+  useEffect(() => {
+    setSearch(appliedQ);
+  }, [appliedQ]);
 
   const periodBounds = useMemo(
     () =>
@@ -84,6 +207,7 @@ export function InvoiceList() {
       pageSize,
       appliedQ,
       statusFilter,
+      dueOnly,
       periodBounds.from ?? "",
       periodBounds.to ?? "",
       listSort,
@@ -96,6 +220,7 @@ export function InvoiceList() {
         direction: "desc",
         ...(appliedQ ? { q: appliedQ } : {}),
         ...(statusFilter ? { status: statusFilter } : {}),
+        ...(dueOnly ? { hasDue: true } : {}),
         ...(periodBounds.from ? { businessDateFrom: periodBounds.from } : {}),
         ...(periodBounds.to ? { businessDateTo: periodBounds.to } : {}),
       }),
@@ -111,7 +236,7 @@ export function InvoiceList() {
   const total = query.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const periodActive = periodPreset !== "all";
-  const filtersActive = Boolean(appliedQ) || Boolean(statusFilter) || periodActive;
+  const filtersActive = Boolean(appliedQ) || Boolean(statusFilter) || dueOnly || periodActive;
   const directoryEmpty = !query.isLoading && total === 0 && !filtersActive;
   const filteredEmpty = !query.isLoading && items.length === 0 && filtersActive;
   const showInitialLoading = query.isLoading && !query.data;
@@ -121,46 +246,51 @@ export function InvoiceList() {
 
   function applySearch() {
     setPage(1);
-    setAppliedQ(search.trim());
+    setFilters((current) => ({ ...current, appliedQ: search.trim() }));
   }
 
   function clearFilters() {
     setSearch("");
-    setAppliedQ("");
-    setStatusFilter("");
-    setPeriodPreset("all");
-    setDayDate(kolkataTodayCalendar());
-    setCustomStart(null);
-    setCustomEnd(null);
+    setFilters({ ...invoiceListDefaults, dayDate: kolkataTodayCalendar() });
     setPage(1);
   }
 
   function selectPeriod(next: PeriodPreset) {
-    setPeriodPreset(next);
     setPage(1);
-    if (next === "today") {
-      setDayDate(kolkataTodayCalendar());
-    }
-    if (next === "custom" && (!customStart || !customEnd)) {
-      const today = kolkataTodayCalendar();
-      setCustomStart(today);
-      setCustomEnd(today);
-    }
+    setFilters((current) => {
+      const updated: InvoiceListFilters = { ...current, periodPreset: next };
+      if (next === "today" || next === "week" || next === "month") {
+        updated.dayDate = kolkataTodayCalendar();
+      }
+      if (next === "custom" && (!current.customStart || !current.customEnd)) {
+        const today = kolkataTodayCalendar();
+        updated.customStart = today;
+        updated.customEnd = today;
+      }
+      return updated;
+    });
   }
 
   return (
     <section className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-display-xs font-semibold text-primary">Invoices</h1>
-          <p className="text-md text-tertiary">Staff POS drafts and finalized sales. Totals come from the server quote only.</p>
-        </div>
-        <Button color="primary" size="md" href="/invoices/new">
-          New invoice
-        </Button>
-      </div>
+      <StaffPageHeader
+        title="Invoices"
+        description="Staff POS drafts and finalized sales. Totals come from the server quote only."
+        actions={
+          <Button color="primary" size="md" href="/invoices/new">
+            New invoice
+          </Button>
+        }
+      />
 
-      {showInitialLoading ? <LoadingIndicator size="md" label="Loading invoices" /> : null}
+      {showInitialLoading ? (
+        <DirectoryTableSkeleton
+          title="Invoices"
+          columns={7}
+          label="Loading invoices"
+          filterSkeleton={<InvoicesFilterSkeleton />}
+        />
+      ) : null}
 
       {query.isError ? (
         <p className="text-sm text-error-primary" role="alert">
@@ -169,24 +299,16 @@ export function InvoiceList() {
       ) : null}
 
       {directoryEmpty ? (
-        <EmptyState size="md" className="mx-auto py-10">
-          <EmptyState.Header pattern="none">
-            <div className="mb-3 flex size-12 items-center justify-center rounded-lg bg-secondary ring-1 ring-secondary ring-inset">
-              <Receipt className="size-6 text-fg-quaternary" aria-hidden="true" />
-            </div>
-            <EmptyState.Content>
-              <p className="text-lg font-semibold text-primary">No invoices yet</p>
-              <EmptyState.Description>
-                Start a POS draft, scan available articles, then finalize when calculations are approved.
-              </EmptyState.Description>
-            </EmptyState.Content>
-          </EmptyState.Header>
-          <EmptyState.Footer>
+        <DirectoryEmptyState
+          icon={Receipt}
+          title="No invoices yet"
+          description="Start a POS draft, scan available articles, then finalize when calculations are approved."
+          action={
             <Button color="primary" size="md" href="/invoices/new">
               New invoice
             </Button>
-          </EmptyState.Footer>
-        </EmptyState>
+          }
+        />
       ) : null}
 
       {showDirectoryCard ? (
@@ -211,15 +333,15 @@ export function InvoiceList() {
                   </ButtonGroupItem>
                 ))}
               </ButtonGroup>
-              {periodPreset === "today" ? (
+              {periodPreset === "today" || periodPreset === "week" || periodPreset === "month" ? (
                 <DatePicker
                   aria-label="Business date"
                   value={dayDate}
                   onChange={(value) => {
                     const next = asCalendarDate(value);
                     if (next) {
-                      setDayDate(next);
                       setPage(1);
+                      setFilters((current) => ({ ...current, dayDate: next }));
                     }
                   }}
                 />
@@ -231,13 +353,15 @@ export function InvoiceList() {
                   onChange={(value) => {
                     const start = asCalendarDate(value?.start ?? null);
                     const end = asCalendarDate(value?.end ?? null);
-                    setCustomStart(start);
-                    setCustomEnd(end);
                     setPage(1);
+                    setFilters((current) => ({ ...current, customStart: start, customEnd: end }));
                   }}
                 />
               ) : null}
             </div>
+            {dueOnly ? (
+              <p className="text-sm text-tertiary">Showing finalized invoices that still have a balance.</p>
+            ) : null}
             <div className="flex flex-wrap items-end gap-3">
               <div className="min-w-0 flex-1">
                 <ListSearchToolbar
@@ -254,8 +378,11 @@ export function InvoiceList() {
                   label="Status"
                   value={statusFilter}
                   onChange={(value) => {
-                    setStatusFilter(value === "draft" || value === "finalized" ? value : "");
                     setPage(1);
+                    setFilters((current) => ({
+                      ...current,
+                      status: value === "draft" || value === "finalized" ? value : "",
+                    }));
                   }}
                   options={[
                     { label: "All statuses", value: "" },
@@ -265,24 +392,15 @@ export function InvoiceList() {
                 />
               </div>
             </div>
+            <ActiveFiltersBar chips={chips} onClear={clearFilters} />
           </div>
 
           {filteredEmpty ? (
-            <EmptyState size="md" className="mx-auto py-10">
-              <EmptyState.Header pattern="none">
-                <EmptyState.Content>
-                  <p className="text-lg font-semibold text-primary">No matching invoices</p>
-                  <EmptyState.Description>
-                    Try another customer, invoice number, status, or period.
-                  </EmptyState.Description>
-                </EmptyState.Content>
-              </EmptyState.Header>
-              <EmptyState.Footer>
-                <Button color="secondary" size="md" onPress={clearFilters}>
-                  Clear filters
-                </Button>
-              </EmptyState.Footer>
-            </EmptyState>
+            <FilteredEmptyState
+              title="No matching invoices"
+              description="Try another customer, invoice number, status, or period."
+              onClear={clearFilters}
+            />
           ) : null}
 
           {items.length > 0 ? (

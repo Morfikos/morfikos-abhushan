@@ -11,19 +11,28 @@ import type { DateRange } from "react-aria-components";
 
 import { DatePicker } from "@/components/application/date-picker/date-picker";
 import { DateRangePicker } from "@/components/application/date-picker/date-range-picker";
-import { EmptyState } from "@/components/application/empty-state/empty-state";
-import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
+import { MetricTilesSkeleton, Skeleton } from "@/components/application/skeleton/skeleton";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { ButtonGroup, ButtonGroupItem } from "@/components/base/button-group/button-group";
+import { ActiveFiltersBar } from "@/components/shared/active-filters-bar";
+import {
+  DirectoryEmptyState,
+  DirectoryTableSkeleton,
+  FilteredEmptyState,
+} from "@/components/shared/directory-states";
 import { ListSearchToolbar } from "@/components/shared/list-search-toolbar";
 import { ListTableFooter } from "@/components/shared/list-table-footer";
+import { SectionCard } from "@/components/shared/section-card";
 import { SelectField } from "@/components/shared/select-field";
+import { StaffPageHeader } from "@/components/shared/staff-page-header";
+import { type ListFilterCodec, useSyncedListFilters } from "@/lib/list-search-params";
 import { staffHasPermission, useStaff } from "@/features/auth/staff-shell";
 import { PaymentDetailDialog } from "@/features/payments/payment-detail-dialog";
 import {
   boundsForPeriod,
+  customPeriodFromParams,
   kolkataTodayCalendar,
   periodCaption,
   type PeriodPreset,
@@ -33,6 +42,58 @@ import { RecordPaymentDialog } from "@/features/payments/record-payment-dialog";
 import { formatInr } from "@/lib/money";
 import { paymentMethodLabel, paymentMethodOptions } from "@/lib/payment-methods";
 import { fetchCustomer, fetchDailyCollections, fetchInvoice, fetchPayments } from "@/lib/staff-api";
+
+/** Live Collections filters: search + method select. */
+export function PaymentsFilterSkeleton() {
+  return (
+    <div className="flex flex-wrap items-end gap-3">
+      <Skeleton className="h-10 min-w-0 max-w-md flex-1 rounded-lg" />
+      <Skeleton className="h-10 w-40 rounded-lg" />
+    </div>
+  );
+}
+
+/**
+ * Route Suspense cold load: header + collections metrics card + table.
+ * Feature keeps live header / period controls and only skeletons metrics + table.
+ */
+export function PaymentsWorkspaceLoading() {
+  return (
+    <div className="flex flex-col gap-6" aria-busy="true" aria-live="polite">
+      <span className="sr-only">Loading payments</span>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-7 w-40" />
+          <Skeleton className="h-4 w-72 max-w-full" />
+        </div>
+        <Skeleton className="h-10 w-36 rounded-lg" />
+      </div>
+      <SectionCard>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-5 w-48" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Skeleton className="h-9 w-16 rounded-lg" />
+            <Skeleton className="h-9 w-16 rounded-lg" />
+            <Skeleton className="h-9 w-16 rounded-lg" />
+            <Skeleton className="h-9 w-20 rounded-lg" />
+            <Skeleton className="h-9 w-20 rounded-lg" />
+            <Skeleton className="h-10 w-40 rounded-lg" />
+          </div>
+        </div>
+        <MetricTilesSkeleton count={5} tone="secondary" label="Loading collections" />
+      </SectionCard>
+      <DirectoryTableSkeleton
+        title="Collections"
+        columns={8}
+        label="Loading payments"
+        filterSkeleton={<PaymentsFilterSkeleton />}
+      />
+    </div>
+  );
+}
 
 const PERIOD_PRESETS: { id: PeriodPreset; label: string }[] = [
   { id: "all", label: "All" },
@@ -62,6 +123,67 @@ function asCalendarDate(value: DateValue | null | undefined): CalendarDate | nul
   return parseDate(value.toString());
 }
 
+type PaymentPeriodFilters = {
+  periodPreset: PeriodPreset;
+  dayDate: CalendarDate;
+  customStart: CalendarDate | null;
+  customEnd: CalendarDate | null;
+};
+
+const paymentPeriodDefaults: PaymentPeriodFilters = {
+  periodPreset: "all",
+  dayDate: kolkataTodayCalendar(),
+  customStart: null,
+  customEnd: null,
+};
+
+const paymentPeriodCodec: ListFilterCodec<PaymentPeriodFilters> = {
+  ownedKeys: ["from", "to"],
+  defaults: paymentPeriodDefaults,
+  parse(params) {
+    const drilledPeriod = customPeriodFromParams(params.get("from"), params.get("to"));
+    return {
+      periodPreset: drilledPeriod?.preset ?? "all",
+      dayDate: kolkataTodayCalendar(),
+      customStart: drilledPeriod?.customStart ?? null,
+      customEnd: drilledPeriod?.customEnd ?? null,
+    };
+  },
+  serialize(value) {
+    if (value.periodPreset === "all") {
+      return { from: undefined, to: undefined };
+    }
+    const bounds = boundsForPeriod({
+      preset: value.periodPreset,
+      dayDate: value.dayDate,
+      customStart: value.customStart,
+      customEnd: value.customEnd,
+    });
+    return { from: bounds.from, to: bounds.to };
+  },
+  chips(value) {
+    if (value.periodPreset === "all") {
+      return [];
+    }
+    const bounds = boundsForPeriod({
+      preset: value.periodPreset,
+      dayDate: value.dayDate,
+      customStart: value.customStart,
+      customEnd: value.customEnd,
+    });
+    if (!bounds.from || !bounds.to) {
+      return [];
+    }
+    return [
+      {
+        id: "period",
+        label:
+          bounds.from === bounds.to ? `Period: ${bounds.from}` : `Period: ${bounds.from}–${bounds.to}`,
+      },
+    ];
+  },
+};
+
 export function PaymentsWorkspace() {
   const staff = useStaff();
   const router = useRouter();
@@ -69,16 +191,17 @@ export function PaymentsWorkspace() {
   const allowed = staffHasPermission(staff, "payments.write");
   const prefillCustomerId = searchParams.get("customer");
   const prefillInvoiceId = searchParams.get("invoice");
+  const { filters: periodFilters, setFilters: setPeriodFilters, chips } = useSyncedListFilters(
+    "/payments",
+    paymentPeriodCodec,
+  );
+  const { periodPreset, dayDate, customStart, customEnd } = periodFilters;
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [search, setSearch] = useState("");
   const [appliedQ, setAppliedQ] = useState("");
   const [methodFilter, setMethodFilter] = useState("");
-  const [periodPreset, setPeriodPreset] = useState<PeriodPreset>("all");
-  const [dayDate, setDayDate] = useState<CalendarDate>(() => kolkataTodayCalendar());
-  const [customStart, setCustomStart] = useState<CalendarDate | null>(null);
-  const [customEnd, setCustomEnd] = useState<CalendarDate | null>(null);
   const [recordOpen, setRecordOpen] = useState(false);
   const [detailPaymentId, setDetailPaymentId] = useState<string | null>(null);
 
@@ -191,24 +314,24 @@ export function PaymentsWorkspace() {
     setSearch("");
     setAppliedQ("");
     setMethodFilter("");
-    setPeriodPreset("all");
-    setDayDate(kolkataTodayCalendar());
-    setCustomStart(null);
-    setCustomEnd(null);
+    setPeriodFilters({ ...paymentPeriodDefaults, dayDate: kolkataTodayCalendar() });
     setPage(1);
   }
 
   function selectPeriod(next: PeriodPreset) {
-    setPeriodPreset(next);
     setPage(1);
-    if (next === "today") {
-      setDayDate(kolkataTodayCalendar());
-    }
-    if (next === "custom" && (!customStart || !customEnd)) {
-      const today = kolkataTodayCalendar();
-      setCustomStart(today);
-      setCustomEnd(today);
-    }
+    setPeriodFilters((current) => {
+      const updated: PaymentPeriodFilters = { ...current, periodPreset: next };
+      if (next === "today" || next === "week" || next === "month") {
+        updated.dayDate = kolkataTodayCalendar();
+      }
+      if (next === "custom" && (!current.customStart || !current.customEnd)) {
+        const today = kolkataTodayCalendar();
+        updated.customStart = today;
+        updated.customEnd = today;
+      }
+      return updated;
+    });
   }
 
   function closeRecordDialog() {
@@ -220,19 +343,17 @@ export function PaymentsWorkspace() {
 
   return (
     <section className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-display-xs font-semibold text-primary">Payments</h1>
-          <p className="text-md text-tertiary">
-            Manually verified collections against sales invoices. Girvi principal and interest are settled separately.
-          </p>
-        </div>
-        <Button color="primary" size="md" onPress={() => setRecordOpen(true)}>
-          Record payment
-        </Button>
-      </div>
+      <StaffPageHeader
+        title="Payments"
+        description="Manually verified collections against sales invoices. Girvi principal and interest are settled separately."
+        actions={
+          <Button color="primary" size="md" onPress={() => setRecordOpen(true)}>
+            Record payment
+          </Button>
+        }
+      />
 
-      <div className="flex flex-col gap-4 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-5">
+      <SectionCard>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-primary">Collections received</h2>
@@ -256,15 +377,15 @@ export function PaymentsWorkspace() {
                 </ButtonGroupItem>
               ))}
             </ButtonGroup>
-            {periodPreset === "today" ? (
+            {periodPreset === "today" || periodPreset === "week" || periodPreset === "month" ? (
               <DatePicker
                 aria-label="Business date"
                 value={dayDate}
                 onChange={(value) => {
                   const next = asCalendarDate(value);
                   if (next) {
-                    setDayDate(next);
                     setPage(1);
+                    setPeriodFilters((current) => ({ ...current, dayDate: next }));
                   }
                 }}
               />
@@ -276,9 +397,8 @@ export function PaymentsWorkspace() {
                 onChange={(value) => {
                   const start = asCalendarDate(value?.start ?? null);
                   const end = asCalendarDate(value?.end ?? null);
-                  setCustomStart(start);
-                  setCustomEnd(end);
                   setPage(1);
+                  setPeriodFilters((current) => ({ ...current, customStart: start, customEnd: end }));
                 }}
               />
             ) : null}
@@ -291,29 +411,40 @@ export function PaymentsWorkspace() {
           </p>
         ) : null}
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          {methodRows.map((row) => (
-            <div key={row.method} className="rounded-lg bg-secondary px-3 py-3 ring-1 ring-secondary">
-              <p className="text-sm text-tertiary">{paymentMethodLabel(row.method)}</p>
-              <p className="text-lg font-semibold tabular-nums text-primary">{formatInr(row.amount_inr)}</p>
-              <p className="text-xs text-tertiary">
-                {row.payment_count} {row.payment_count === 1 ? "receipt" : "receipts"}
+        {collections.isLoading && !collections.data ? (
+          <MetricTilesSkeleton count={5} tone="secondary" label="Loading collections" />
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {methodRows.map((row) => (
+              <div key={row.method} className="rounded-lg bg-secondary px-3 py-3 ring-1 ring-secondary">
+                <p className="text-sm text-tertiary">{paymentMethodLabel(row.method)}</p>
+                <p className="text-lg font-semibold tabular-nums text-primary">{formatInr(row.amount_inr)}</p>
+                <p className="text-xs text-tertiary">
+                  {row.payment_count} {row.payment_count === 1 ? "receipt" : "receipts"}
+                </p>
+              </div>
+            ))}
+            <div className="rounded-lg bg-brand-primary px-3 py-3">
+              <p className="text-sm font-medium text-brand-secondary">Total collected</p>
+              <p className="text-lg font-semibold tabular-nums text-brand-primary">
+                {formatInr(collections.data?.total_inr ?? "0.00")}
+              </p>
+              <p className="text-xs text-brand-secondary">
+                {collections.data?.payment_count ?? 0} posted
               </p>
             </div>
-          ))}
-          <div className="rounded-lg bg-brand-primary px-3 py-3">
-            <p className="text-sm font-medium text-brand-secondary">Total collected</p>
-            <p className="text-lg font-semibold tabular-nums text-brand-primary">
-              {formatInr(collections.data?.total_inr ?? "0.00")}
-            </p>
-            <p className="text-xs text-brand-secondary">
-              {collections.data?.payment_count ?? 0} posted
-            </p>
           </div>
-        </div>
-      </div>
+        )}
+      </SectionCard>
 
-      {showInitialLoading ? <LoadingIndicator size="md" label="Loading payments" /> : null}
+      {showInitialLoading ? (
+        <DirectoryTableSkeleton
+          title="Collections"
+          columns={8}
+          label="Loading payments"
+          filterSkeleton={<PaymentsFilterSkeleton />}
+        />
+      ) : null}
 
       {payments.isError ? (
         <p className="text-sm text-error-primary" role="alert">
@@ -322,69 +453,57 @@ export function PaymentsWorkspace() {
       ) : null}
 
       {ledgerEmpty && !showInitialLoading ? (
-        <EmptyState size="md" className="mx-auto py-10">
-          <EmptyState.Header pattern="none">
-            <div className="mb-3 flex size-12 items-center justify-center rounded-lg bg-secondary ring-1 ring-secondary ring-inset">
-              <CoinsHand className="size-6 text-fg-quaternary" aria-hidden="true" />
-            </div>
-            <EmptyState.Content>
-              <p className="text-lg font-semibold text-primary">No collections yet</p>
-              <EmptyState.Description>
-                Record a collection against a finalized invoice. Counter tenders taken at finalization appear here too.
-              </EmptyState.Description>
-            </EmptyState.Content>
-          </EmptyState.Header>
-          <EmptyState.Footer>
+        <DirectoryEmptyState
+          icon={CoinsHand}
+          title="No collections yet"
+          description="Record a collection against a finalized invoice. Counter tenders taken at finalization appear here too."
+          action={
             <Button color="primary" size="md" onPress={() => setRecordOpen(true)}>
               Record payment
             </Button>
-          </EmptyState.Footer>
-        </EmptyState>
+          }
+        />
       ) : null}
 
       {!ledgerEmpty && !showInitialLoading ? (
         <TableCard.Root>
           <TableCard.Header title="Collections" badge={String(total)} />
-          <div className="flex flex-wrap items-end gap-3 border-b border-secondary px-4 py-4 md:px-6">
-            <div className="flex-1">
-              <ListSearchToolbar
-                value={search}
-                onChange={setSearch}
-                onSearch={applySearch}
-                onClear={clearFilters}
-                filtersActive={filtersActive}
-                placeholder="Receipt, customer, invoice, or reference"
-              />
+          <div className="flex flex-col gap-3 border-b border-secondary px-4 py-4 md:px-6">
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="flex-1">
+                <ListSearchToolbar
+                  value={search}
+                  onChange={setSearch}
+                  onSearch={applySearch}
+                  onClear={clearFilters}
+                  filtersActive={filtersActive}
+                  placeholder="Receipt, customer, invoice, or reference"
+                />
+              </div>
+              <div className="w-40">
+                <SelectField
+                  label="Method"
+                  value={methodFilter}
+                  onChange={(value) => {
+                    setMethodFilter(value);
+                    setPage(1);
+                  }}
+                  options={[{ label: "All methods", value: "" }, ...paymentMethodOptions()]}
+                />
+              </div>
             </div>
-            <div className="w-40">
-              <SelectField
-                label="Method"
-                value={methodFilter}
-                onChange={(value) => {
-                  setMethodFilter(value);
-                  setPage(1);
-                }}
-                options={[{ label: "All methods", value: "" }, ...paymentMethodOptions()]}
-              />
-            </div>
+            <ActiveFiltersBar
+              chips={chips}
+              onClear={() => setPeriodFilters({ ...paymentPeriodDefaults, dayDate: kolkataTodayCalendar() })}
+            />
           </div>
 
           {filteredEmpty ? (
-            <EmptyState size="md" className="mx-auto py-10">
-              <EmptyState.Header pattern="none">
-                <EmptyState.Content>
-                  <p className="text-lg font-semibold text-primary">No matching collections</p>
-                  <EmptyState.Description>
-                    Try another receipt number, customer, method, or period.
-                  </EmptyState.Description>
-                </EmptyState.Content>
-              </EmptyState.Header>
-              <EmptyState.Footer>
-                <Button color="secondary" size="md" onPress={clearFilters}>
-                  Clear filters
-                </Button>
-              </EmptyState.Footer>
-            </EmptyState>
+            <FilteredEmptyState
+              title="No matching collections"
+              description="Try another receipt number, customer, method, or period."
+              onClear={clearFilters}
+            />
           ) : null}
 
           {items.length > 0 ? (

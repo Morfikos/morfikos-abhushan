@@ -4,39 +4,31 @@ import { CalendarDate, parseDate } from "@internationalized/date";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { ARTICLE_PHOTO_MAX_BYTES, type ArticlePhotographInput, type Metal } from "@aabhushan/contracts";
+import { ARTICLE_PHOTO_MAX_BYTES, type Metal } from "@aabhushan/contracts";
 import { kolkataBusinessDate, netMetalWeightGrams, netMetalWeightIsPositive } from "@aabhushan/domain";
 import { ChevronDown } from "@untitledui/icons";
 
 import { FileUpload, getReadableFileSize } from "@/components/application/file-upload/file-upload-base";
-import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
+import { FormSkeleton } from "@/components/application/skeleton/skeleton";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
 import { InputDate } from "@/components/base/input/input-date";
+import { SectionCard } from "@/components/shared/section-card";
 import { SelectField } from "@/components/shared/select-field";
+import { StaffPageHeader } from "@/components/shared/staff-page-header";
+import { StickyFormActions } from "@/components/shared/sticky-form-actions";
 import { staffHasPermission, useStaff } from "@/features/auth/staff-shell";
+import { useStaffToast } from "@/components/application/toast/staff-toast";
 import {
   fieldError,
   inventoryAccessToken,
   inventoryErrorMessage,
-  sha256Hex,
 } from "@/features/inventory/inventory-shared";
 import { fetchCatalogueCategories, fetchStorageLocations, receiveArticleRequest, StaffApiError } from "@/lib/staff-api";
+import { uploadStaffFile } from "@/lib/staff-file-upload";
 import { cx } from "@/utils/cx";
 
 const WEIGHT_PATTERN = /^\d+(\.\d{1,4})?$/;
-
-function FormCard({ title, description, children, className }: { title: string; description: string; children: ReactNode; className?: string }) {
-  return (
-    <div className={cx("flex flex-col gap-4 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-5", className)}>
-      <div>
-        <h2 className="text-lg font-semibold text-primary">{title}</h2>
-        <p className="text-sm text-tertiary">{description}</p>
-      </div>
-      {children}
-    </div>
-  );
-}
 
 function OptionalSection({ title, children, defaultOpen = false }: { title: string; children: ReactNode; defaultOpen?: boolean }) {
   return (
@@ -63,6 +55,7 @@ function OptionalSection({ title, children, defaultOpen = false }: { title: stri
 
 export function ReceiveArticleForm() {
   const staff = useStaff();
+  const toast = useStaffToast();
   const router = useRouter();
   const allowed = staffHasPermission(staff, "inventory.write");
   const [categoryId, setCategoryId] = useState("");
@@ -79,8 +72,7 @@ export function ReceiveArticleForm() {
   const [stoneDescription, setStoneDescription] = useState("");
   const [stoneWeight, setStoneWeight] = useState("");
   const [receiptDate, setReceiptDate] = useState<CalendarDate>(() => parseDate(kolkataBusinessDate()));
-  const [photo, setPhoto] = useState<ArticlePhotographInput | null>(null);
-  const [photoName, setPhotoName] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [clientError, setClientError] = useState<string | null>(null);
 
@@ -135,7 +127,8 @@ export function ReceiveArticleForm() {
           },
         ]);
       }
-      return receiveArticleRequest(await inventoryAccessToken(), {
+      const token = await inventoryAccessToken();
+      const article = await receiveArticleRequest(token, {
         category_id: categoryId,
         metal,
         purity,
@@ -158,10 +151,20 @@ export function ReceiveArticleForm() {
               ],
             }
           : {}),
-        ...(photo ? { photograph: photo } : {}),
       });
+      if (photoFile) {
+        await uploadStaffFile({
+          accessToken: token,
+          ownerType: "article",
+          ownerId: article.id,
+          file: photoFile,
+          purpose: "photograph",
+        });
+      }
+      return article;
     },
     onSuccess: (article) => {
+      toast.success(`Article ${article.article_number} received`);
       router.push(`/inventory/${article.id}`);
     },
   });
@@ -179,7 +182,16 @@ export function ReceiveArticleForm() {
   }
 
   if (categories.isLoading || locations.isLoading) {
-    return <LoadingIndicator size="md" label="Loading receive form" />;
+    return (
+      <section className="mx-auto flex w-full max-w-3xl flex-col gap-5">
+        <StaffPageHeader
+          title="Receive article"
+          description="Creates a unique article number and a receipt movement."
+          back={{ href: "/inventory", label: "Inventory" }}
+        />
+        <FormSkeleton sections={3} fieldsPerSection={4} showStickyActions label="Loading receive form" />
+      </section>
+    );
   }
 
   const mutationError = mutation.error;
@@ -207,15 +219,11 @@ export function ReceiveArticleForm() {
 
   return (
     <section className="mx-auto flex w-full max-w-3xl flex-col gap-5">
-      <div>
-        <p className="text-sm text-tertiary">
-          <Button color="link-color" size="sm" href="/inventory">
-            Inventory
-          </Button>
-        </p>
-        <h1 className="text-display-xs font-semibold text-primary">Receive article</h1>
-        <p className="text-md text-tertiary">Creates a unique article number and a receipt movement.</p>
-      </div>
+      <StaffPageHeader
+        title="Receive article"
+        description="Creates a unique article number and a receipt movement."
+        back={{ href: "/inventory", label: "Inventory" }}
+      />
 
       <form
         className="flex flex-col gap-5"
@@ -240,7 +248,7 @@ export function ReceiveArticleForm() {
           </p>
         ) : null}
 
-        <FormCard title="Identification" description="Category, metal, purity, and optional HUID.">
+        <SectionCard title="Identification" description="Category, metal, purity, and optional HUID.">
           <div className="grid gap-4 md:grid-cols-2">
             <SelectField
               label="Category"
@@ -284,9 +292,9 @@ export function ReceiveArticleForm() {
               onChange={setHuid}
             />
           </div>
-        </FormCard>
+        </SectionCard>
 
-        <FormCard
+        <SectionCard
           title="Weights"
           description="Net metal is gross minus non-metal. The server rejects a mismatch."
         >
@@ -328,7 +336,7 @@ export function ReceiveArticleForm() {
               onChange={() => undefined}
             />
           </div>
-        </FormCard>
+        </SectionCard>
 
         <div className="flex flex-col gap-3">
           <OptionalSection title="Source and location">
@@ -390,48 +398,37 @@ export function ReceiveArticleForm() {
                   accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
                   allowsMultiple={false}
                   maxSize={ARTICLE_PHOTO_MAX_BYTES}
-                  hint="JPEG, PNG, or WebP (max. 5 MB). Stores filename and checksum only — image bytes come later."
+                  hint="JPEG, PNG, or WebP (max. 5 MB). Uploaded privately after the article is created."
                   onDropFiles={(files) => {
                     const file = files[0];
                     if (!file) {
                       return;
                     }
                     setPhotoError(null);
-                    void sha256Hex(file).then((checksum) => {
-                      const contentType =
-                        file.type === "image/png" || file.type === "image/webp" || file.type === "image/jpeg"
-                          ? file.type
-                          : null;
-                      if (!contentType) {
-                        setPhoto(null);
-                        setPhotoName(null);
-                        setPhotoError("Use JPEG, PNG, or WebP.");
-                        return;
-                      }
-                      setPhotoName(file.name);
-                      setPhoto({
-                        original_filename: file.name,
-                        content_type: contentType,
-                        byte_size: file.size,
-                        checksum_sha256: checksum,
-                      });
-                    });
+                    const contentType =
+                      file.type === "image/png" || file.type === "image/webp" || file.type === "image/jpeg"
+                        ? file.type
+                        : null;
+                    if (!contentType) {
+                      setPhotoFile(null);
+                      setPhotoError("Use JPEG, PNG, or WebP.");
+                      return;
+                    }
+                    setPhotoFile(file);
                   }}
                   onDropUnacceptedFiles={() => {
-                    setPhoto(null);
-                    setPhotoName(null);
+                    setPhotoFile(null);
                     setPhotoError("Use JPEG, PNG, or WebP.");
                   }}
                   onSizeLimitExceed={() => {
-                    setPhoto(null);
-                    setPhotoName(null);
+                    setPhotoFile(null);
                     setPhotoError("Photograph is too large. Maximum size is 5 MB.");
                   }}
                 />
               </FileUpload.Root>
-              {photoName && photo ? (
+              {photoFile ? (
                 <p className="mt-2 text-sm text-tertiary">
-                  Attached {photoName} ({getReadableFileSize(photo.byte_size)}). No public URL is stored.
+                  Attached {photoFile.name} ({getReadableFileSize(photoFile.size)}).
                 </p>
               ) : null}
               {photoError ? <p className="mt-2 text-sm text-error-primary">{photoError}</p> : null}
@@ -441,14 +438,14 @@ export function ReceiveArticleForm() {
 
         {formLevelError ? <p className="text-sm text-error-primary">{formLevelError}</p> : null}
 
-        <div className="sticky bottom-0 z-10 flex flex-wrap gap-3 rounded-xl border border-secondary bg-primary px-4 py-4 shadow-xs md:px-5">
+        <StickyFormActions variant="bar">
           <Button type="submit" color="primary" size="md" isLoading={mutation.isPending} isDisabled={!hasCategories}>
             Receive article
           </Button>
           <Button color="secondary" size="md" href="/inventory">
             Cancel
           </Button>
-        </div>
+        </StickyFormActions>
       </form>
     </section>
   );

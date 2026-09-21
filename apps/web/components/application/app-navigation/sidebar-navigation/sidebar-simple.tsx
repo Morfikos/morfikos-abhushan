@@ -1,11 +1,11 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { ChevronLeft, ChevronRight, SearchLg } from "@untitledui/icons";
+import { ChevronLeft, ChevronRight } from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
-import { Input } from "@/components/base/input/input";
 import { Tooltip } from "@/components/base/tooltip/tooltip";
 import { ShopMark } from "@/components/shared/shop-mark";
+import { isStaffNavActive } from "@/features/auth/navigation";
 import { cx } from "@/utils/cx";
 import { MobileNavigationHeader } from "../base-components/mobile-header";
 import { NavAccountCard } from "../base-components/nav-account-card";
@@ -15,6 +15,21 @@ import type { NavItemType } from "../config";
 
 const EXPANDED_SIDEBAR_WIDTH = 280;
 const COLLAPSED_SIDEBAR_WIDTH = 72;
+
+function collectNavHrefs(items: NavItemType[]): string[] {
+    const hrefs: string[] = [];
+    for (const item of items) {
+        if (item.href) {
+            hrefs.push(item.href);
+        }
+        for (const child of item.items ?? []) {
+            if (child.href) {
+                hrefs.push(child.href);
+            }
+        }
+    }
+    return hrefs;
+}
 
 interface SidebarNavigationProps {
     /** URL of the currently active item. */
@@ -57,6 +72,7 @@ export const SidebarNavigationSimple = ({
     onCollapsedChange,
 }: SidebarNavigationProps) => {
     const desktopWidth = collapsed ? COLLAPSED_SIDEBAR_WIDTH : EXPANDED_SIDEBAR_WIDTH;
+    const allHrefs = [...collectNavHrefs(items), ...collectNavHrefs(footerItems)];
 
     const renderContent = (isCollapsed: boolean) => (
         <aside
@@ -93,13 +109,6 @@ export const SidebarNavigationSimple = ({
                         />
                     ) : null}
                 </div>
-
-                {!isCollapsed ? (
-                    <>
-                        <Input size="md" aria-label="Search" placeholder="Search" icon={SearchLg} className="md:hidden" />
-                        <Input shortcut size="sm" aria-label="Search" placeholder="Search" icon={SearchLg} className="max-md:hidden" />
-                    </>
-                ) : null}
             </div>
 
             <NavList activeUrl={activeUrl} items={items} collapsed={isCollapsed} />
@@ -109,7 +118,15 @@ export const SidebarNavigationSimple = ({
                     <ul className="flex flex-col">
                         {footerItems.map((item) => (
                             <li key={item.label} className="py-px">
-                                <NavItemBase badge={item.badge} icon={item.icon} href={item.href} type="link" current={item.href === activeUrl}>
+                                <NavItemBase
+                                    badge={item.badge}
+                                    icon={item.icon}
+                                    href={item.href}
+                                    type="link"
+                                    current={Boolean(
+                                        activeUrl && item.href && isStaffNavActive(activeUrl, item.href, allHrefs),
+                                    )}
+                                >
                                     {item.label}
                                 </NavItemBase>
                             </li>

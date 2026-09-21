@@ -4,11 +4,32 @@ Update this file after every meaningful implementation change. Record completed 
 
 ## Current Phase
 
-Spec 10 (returns, refunds, and reversals) is implemented and verified on top of specs 07–09. Live sales still need daily metal rates. Specs 01–09 remain implemented; spec 05 hardware drill remains incomplete.
+Spec 15 (dashboard, reports, and exports) is implemented: `0021` reconstructs sales dues as of the range end, collections ignore non-posted outflows, and dashboard drill-through carries the selected range. Spec 14 notifications remain implemented in code; official WhatsApp credentials/templates stay configuration. Specs 01–13 remain implemented; spec 05 hardware drill remains incomplete. Staff screens use structure-matched skeleton loaders for data fetch (mutations keep Button isLoading). Counter-facing UX polish is in place: success toasts, daily metal-rates shell banner, two-way list URL filters with chips, notification nav attention badges, dirty leave guards, dashboard role/as-of copy, and staff-shell remount survival (session staff cache + QueryClient singleton + shell skeleton + `next/link` soft nav).
 
-**Last updated:** 21 September 2026 (Customer list directory filters).
+**Last updated:** 21 September 2026 (staff sidebar polish — blue theme).
 
-SQL `0001`–`0014` are applied on project `nhfmcosxqogxqvhdhzfz`. First owner `shikhar.nitsri@gmail.com` has an active membership.
+SQL `0001`–`0021` are the current migration set (`0021` applied on the project database). Approved `girvi.v1` is seeded on `nhfmcosxqogxqvhdhzfz`. First owner `shikhar.nitsri@gmail.com` has an active membership.
+
+## Owner-approved Girvi calculation policy — `girvi.v1`
+
+Approved 21 September 2026 by the shop owner. This replaces the earlier "blocked on Girvi examples" state for calculation rules only; operational inputs (opening balances, identity records, WhatsApp) remain separate work.
+
+| Decision | Approved rule |
+| --- | --- |
+| Rate period | Percentage **per 30 days**, labelled per 30 days on screens and the agreement. "Monthly" is not used. |
+| Method | Simple interest on outstanding principal. Unpaid interest never becomes principal and never earns interest. |
+| Day convention | Actual calendar days ÷ 30. Count the start date; exclude the repayment/settlement date from the preceding balance. |
+| Minimum period | None. Same-day open and settle accrues ₹0. |
+| Grace period | None for calculation. Reminder delays do not change the amount owed. |
+| Extra charges | None in MVP. No late fee, penalty, storage charge, or overdue rate increase. |
+| Allocation order | Outstanding interest first, remainder to principal. |
+| Principal reduction | Effective on the repayment's business date; the reduced principal accrues from that date onward. |
+| Rounding | Payable interest HALF_UP to ₹0.01. Settlement stays in paise; no automatic whole-rupee rounding. |
+| Corrections | Posted financial events are immutable; corrections need an audited reversal/replacement workflow (deferred). |
+| Backdating | Ordinary backdated and future-dated posting is disabled. Historical positions use the spec 16 opening-balance workflow. |
+| Rate changes | The approved rate and policy version are frozen per account. Legacy accounts are not converted; their payoff APIs stay blocked until their terms are approved. |
+
+Consequence the owner accepted explicitly: a 31-day period costs more than a 30-day period, and February costs less. Calendar months are not equal-cost.
 
 ## Current Goal
 
@@ -19,9 +40,39 @@ SQL `0001`–`0014` are applied on project `nhfmcosxqogxqvhdhzfz`. First owner `
 ## In Progress
 
 - Spec 05 hardware drill: confirm scanner model, suffix, tag printer, and label size against physical tags.
+- Spec 14 WhatsApp provider setup: credentials + local webhook registered. New Utility templates `aabhushan_*_v2` are PENDING (old Marketing names left stuck). Need approval, long-lived token, consent, and a pilot send (`docs/whatsapp-provider-setup.md`).
+
+## Spec 15 assumptions (open questions — not owner-confirmed)
+
+| Question | Implementation assumption until confirmed |
+| --- | --- |
+| Which staff roles see which tiles | `reports.read` is limited: owner/admin all tiles; billing sales+collections+dues+operations; inventory inventory+operations; girvi girvi+operations. Unauthorized sections are omitted from JSON. |
+| Preferred export file layout | One CSV per type (sales by date, dues invoices, inventory availability, Girvi activity + accounts). |
+| Opening balances on dashboard | Not a separate line. Disbursed is `disbursement` events only. |
+
+## Spec 13 print decisions (owner-confirmed)
+
+| Topic | Decision |
+| --- | --- |
+| Invoice/receipt paper size | From Settings `device_settings.invoice_paper_size` (`A4` / `A5` / `80mm`); separate from tag mm. Seeded default **A5**. |
+| Bilingual printed output | Always **English + Hindi** labels; Noto Sans Devanagari embedded in PDFKit; HTML print uses Noto Sans Devanagari. |
+| Identity documents at launch | Upload supported; **not required** to create/activate customers or Girvi |
+
+Document PDF templates are `*.pdf.v2`. Ready docs with an older `template_version` show **Regenerate**. HTML print always uses the live paper setting.
 
 ## Completed
 
+- Staff sidebar polish (blue theme): removed dead Search; `--color-bg-sidebar` tracks `bg-secondary`; brand-subtle selected nav; `isStaffNavActive` longest-prefix matching; collapsed Notifications badge + `next/link` on icon rail; collapse preference in `localStorage` (`aabhushan.staff.sidebarCollapsed`). `pnpm --filter @aabhushan/web typecheck` passed.
+- Skeleton / shimmer structure alignment: Phase 0 shared recipes (`FormSkeleton` SectionCard tokens + sticky actions, `StaffDetailPageSkeleton` tabs/panels/`split3`, `StaffDirectoryLoading`, `StaffShellSkeleton` 280px/`lg`, `MetricTilesSkeleton` tone, `SettingsPageSkeleton`, `PrintDocumentSkeleton`); directory Suspense and features share `*FilterSkeleton` / `*DirectoryLoading` (customers, inventory, invoices, Girvi, payments metrics+list, notifications `StaffPageHeader`); forms/details/settings/stock-count/POS/dashboard/print aligned. Settings Suspense no longer `null`. `pnpm --filter @aabhushan/web typecheck` passed. Manual signed-in structure checklist still needs a staff session.
+- Staff auth-gate navigation UX: `sessionStorage` staff snapshot + browser QueryClient singleton so layout remounts keep chrome; cold load uses `StaffShellSkeleton` instead of centered “Checking staff access…”; background `/api/v1/me` revalidate; same-origin `next/link` on sidebar nav and `Button` hrefs; print gate reuses the session cache when `inventory.write` is present. `pnpm --filter @aabhushan/web typecheck` passed.
+- Extracted shared staff page recipes under `apps/web/components/shared/` (`StaffPageHeader`, `SectionCard`, `StickyFormActions` bar/inset, `DirectoryEmptyState` / `FilteredEmptyState` / `DirectoryTableSkeleton`) and documented them in `ui-context.md` Layout Patterns. Extended status helpers (`girviStatusBadgeColor`, `whatsappConsentBadgeColor`, `membershipStatusLabel`/`Color`). Migrated Customers/Invoices/Girvi/Inventory/Payments lists and receive/edit/detail article, customer create/profile, Girvi create/detail, and settings onto the recipes (Inventory scan toolbar and Payments metrics card kept as allowed divergences). Deleted local FormCard/SettingsCard/CardShell/StickySave; Girvi create left viewport-fixed sticky for in-flow `bar`. `pnpm --filter @aabhushan/web typecheck` and eslint on migrated files passed. POS/dashboard/documents unchanged.
+- Staff UX counter polish: local `StaffToastProvider` on money/stock outcomes; `GET /api/v1/shop/rates/coverage` + dismissible shell banner; `useSyncedListFilters` + Active filters chips on invoices/payments/Girvi/inventory/notifications; `GET /api/v1/notifications/attention` sidebar badge; dirty leave guards on article edit, POS, and settings tabs; dashboard role-subset and as-of dues copy; tablet chart scroll / POS totals density. Deferred: hardware drill, Hindi UI, command palette, dark mode, WhatsApp template config. `pnpm --filter @aabhushan/{contracts,application,db,api,web} typecheck` passed.
+- Added local structure-matched skeleton foundation (`apps/web/components/application/skeleton/skeleton.tsx`) and replaced fetch-time circular `LoadingIndicator`s across inventory, customers, invoices/POS, payments, Girvi, dashboard, settings, and notifications. Suspense list fallbacks use `StaffListPageSkeleton`. Dashboard uses `keepPreviousData` so period changes keep prior tiles. Mutations still use `Button isLoading`. `pnpm --filter @aabhushan/web typecheck` passed. Auth and print mutation paths unchanged beyond print-block skeletons.
+- Replaced invoice/POS fetch `LoadingIndicator`s with structure-matched skeletons from `@/components/application/skeleton/skeleton` (list, detail, corrections, collections, POS draft shell, browse dialog, print). Button `isLoading` left unchanged. Page Suspense uses `StaffListPageSkeleton` columns=7.
+- Tightened spec 15 reporting: `0021_sales_dues_as_of.sql` reconstructs open dues from invoices, credits, and allocations as of the range end; collections subtract only posted refunds and reversals. Dashboard drill-through passes the selected range and status into invoices, payments, Girvi, inventory, and notifications. Week and month center on the chosen day. `pnpm verify:reports` passed (range dues 300.00 while the same invoice’s cached due is 150.00; collections stayed 550.00 with a reversed refund excluded). Signed-in dashboard click-through still needs a staff session.
+- Implemented spec 15 dashboard, reports, and exports: `0020` reporting views + `export_jobs`, role-limited tiles, Kolkata-range sales/collections/dues/Girvi/operations, small CSV inline / large queued export, and `pnpm verify:reports` (passed). Profit and statutory reporting remain out of scope.
+- Added shared `StaffBackLink` (`link-gray` + `ArrowLeft`) and wired it above titles on article, customer, invoice, Girvi detail, POS, and matching create/edit forms; removed competing action-row “Back to list/directory” buttons. Error-state secondary recovery buttons kept. IDE browser signed-in visual pass still needs a staff session.
+- Fixed article detail **Movement history** half-clipped timeline dots: `overflow-y-auto` moved off the bordered `<ol>` onto a wrapper with `ml-2` so full circles remain visible. CSS fixture verified before=`fullVisible:false` / after=`fullVisible:true`. Signed-in `/inventory/[id]` visual pass still needs a staff session in the IDE browser.
 - Defined the MVP modules: inventory and per-article tagging, barcode invoicing, payments, customers, dashboard/reports, and Girvi with interest calculations and WhatsApp reminders.
 - Created `aabhushan-mvp-architecture.md` covering system boundaries, module behavior, conceptual entities, API design, transactions, background jobs, deployment, recovery, and implementation sequence.
 - Created `project-overview.md` using the supplied template, including goals, flows, scope, and success criteria.
@@ -67,6 +118,8 @@ SQL `0001`–`0014` are applied on project `nhfmcosxqogxqvhdhzfz`. First owner `
 - Invoice list period + status filters: same All/Today/Week/Month/Custom on `business_date`, Draft/Finalized status, shared `period-bounds` + contracts `business-date-range` helpers.
 - Inventory list metal filter: optional Gold/Silver on `GET /articles` and primary toolbar SelectField (All / Gold / Silver).
 - Customer list directory filters: Active (default Active) / Type (All / Named / Walk-in) / WhatsApp (All / Granted / Revoked / None); `is_active` optional for All; `whatsapp_consent` list query; `is_walk_in=false` for named customers; POS/combobox pass `isActive: true` explicitly.
+- Girvi list directory filters: Status default Active, Overdue (All / Overdue), Maturity period (All/Today/Week/Month/Custom with future week/month ends); `is_overdue` list query; existing `maturity_from`/`maturity_to`. Settled option labelled **Settled · awaiting release**.
+- Girvi shop-floor polish: customer Girvi tab (`CustomerGirviPanel`, `girvi.write`-gated); draft edit (`PATCH` + `/girvi/:id/edit`) and discard (`DELETE` draft-only); packet **Move packet** → `POST /custody-moves` (`location_changed`); collateral photos via private `shop-assets` (`POST/GET …/collateral/:itemId/files`); activate requires ≥1 photo per item **and** a positive interest rate (% per 30 days); create requires the rate; bucket docs raised to 5 MB (logo still 1 MB).
 - Implemented spec 07 invoice calculation engine with owner-approved `invoice.v1`: decimal helpers, `calculation_policies` migration `0008`, pure `quoteInvoice` (metal → making → wastage → stones → discounts → 3% GST → ₹1 round-off), fixtures under `packages/domain/fixtures/invoice-examples/`, `POST /api/v1/invoices/quote`, and `pnpm seed:calculation-policy`.
 - Added desktop staff sidebar expand/collapse: session-only React state, icons-only 72px rail with tooltips, ChevronLeft/Right toggle; mobile drawer stays full labels.
 - Staff sidebar rail uses `#fafafa` (`bg-sidebar`); active nav item uses `bg-quaternary` with darker hover so it stays visible on the rail.
@@ -90,6 +143,15 @@ SQL `0001`–`0014` are applied on project `nhfmcosxqogxqvhdhzfz`. First owner `
 - POS making value polish: method switch resets value + unit labels; client validate (percent 0–100); Apply/Save gated; `percentSchema`/`assertPercent` capped at 100; Select/table debug ingest removed.
 - Implemented spec 09 payments and outstanding balances: `0013` `app.receipts` (unique receipt number and one receipt per payment per org) plus collection/allocation indexes, RLS, and grants; `POST /api/v1/payments` with required Idempotency-Key, invoice locks in id order, overpayment rejection, split tender spread across allocations, receipt numbering from `document_sequences`, audit, and post-commit outbox `receipt.requested`; `invoices.amount_paid_inr` / `amount_due_inr` rewritten from the allocation sum in the same transaction; payment read/list, invoice payments, customer sales statement, and daily collections by method; POS finalize tenders now issue receipts through the same tables. Staff UI: Payments workspace (daily collections tiles + filtered list), Record payment dialog, payment detail, invoice **Collections** card, customer **Sales** tab. Overpayments and advances stay rejected; due dates are not modelled.
 - Implemented spec 10 returns, refunds, and reversals: `0014` `invoice_returns` and `credit_notes` plus `payments.kind` / `reverses_payment_id`, CN and RFD sequences, and inspection-gated `return_in` restock. Accept-return, refund, and reversal require Idempotency-Key; finalized invoice amounts and line snapshots stay unchanged; credit reduces due; refunds and reversals are new compensating payments (`refunds.approve`); POS cannot sell `return_inspection` stock. Staff UI: invoice **Return article** + **Corrections**, payment **Refund** / **Reverse**, customer Sales credits vs refunds.
+- Implemented spec 11 Girvi accounts and collateral: `0015` `girvi_accounts`, `girvi_collateral_items` / `_files`, `girvi_custody_events`, `girvi_financial_events` (disbursement only); draft create/patch; idempotent activate with GRV numbering, frozen terms snapshot, custody received events, audit, and outbox; unique in-custody packet numbers; overdue is presentation-only (never shop stock); `quoteGirviInterest` fails closed until spec 12; staff Girvi list/new/detail with Collateral/Terms/Statement/Payments/History tabs. Collateral is never an `articles` row.
+- Implemented spec 12 Girvi interest, settlement, and release on owner-approved `girvi.v1`: `0016` `girvi_calculation_policies`, `repayment` / `settlement` / `waiver` / `opening_balance` event types with `method` / `notes` / `posting_sequence`, rebuildable `principal_outstanding_inr` and `interest_outstanding_inr` projections, and `girvi_release_events`; pure `computeGirviStatement` / `allocateGirviRepayment` using integer calendar-day counting (never `ms / 86400000`) with seven approved fixtures in `packages/domain/fixtures/girvi-examples/`; `GET /statement`, `POST /repayments`, `POST /settlement-quote`, `POST /settle`, `POST /release` with locks and required Idempotency-Key on the three posting routes; fail-closed `CALCULATION_RULE_UNSUPPORTED` without an approved policy; backdating, future dating, overpayment, and stale splits rejected; waivers limited to owner/admin with a recorded reason; release needs `girvi.release`, a cleared balance, a matching packet check, and both acknowledgements; staff Statement tab with an as-of date, Payments tab splitting interest from principal, and Record repayment / Settle account / Release collateral dialogs; `pnpm seed:girvi-calculation-policy` plus `pnpm verify:girvi-settlement`. Settlement and release stay two rows, and released collateral never becomes inventory.
+- Implemented spec 13 documents, storage, and print: `0017` `stored_objects` / `documents`; reuse private `shop-assets` adapter with signed upload grants and short-lived access URLs; PDFKit invoice/receipt generation on the worker from outbox `invoice.finalized` / `receipt.requested` (sale survives PDF failure); abandoned-upload cleanup; `GET /invoices/:id/print` + chrome-less `/print/invoices/:id`; invoice document status badges with Retry; `pnpm verify:documents`.
+- Spec 13 paper + bilingual follow-on: Settings `invoice_paper_size` drives PDF + HTML (A4/A5/80mm thermal layout); EN+HI labels; Noto Sans Devanagari in PDFKit (`packages/integrations/assets/fonts`) and print layout; templates `*.pdf.v2`; Regenerate for failed or outdated ready docs.
+- Spec 13 improvements: shared `DocumentStatusCard`; receipt print DTO + `/print/receipts/:paymentId`; grant→PUT→confirm for article / identity / Girvi collateral (`0018` credit_note_pdf / refund_pdf); worker consumes `girvi.released` / `credit_note.requested` / `refund.requested`; signed-URL log redaction; extended `verify:documents`.
+- Article edit, photo replace, and re-tag: `/inventory/:id/edit` dedicated form (`PATCH` identity/weights/source/location + optional `uploadStaffFile`); sold pieces have no Edit control and identity/weight patches stay rejected; `insertArticleFileLink` replaces (does not append) `article_files`; detail **Edit article** for unsold write staff; after stamp-field save offer Print tag / Reprint tag (same barcode). `pnpm verify:inventory` covers available PATCH, sold identity reject, and one-file photo replace.
+- Article photograph UX: detail shows dropzone only when no photo; edit uses **Replace photograph** / **Cancel replace** to gate the dropzone; upload still commits on Save.
+- Tag print / reprint UX: detail shows **Print tag** or **Reprint tag** (not both) gated on barcode; post-edit print prompt only when metal/purity/weights change; list Print vs Reprint by homogeneous selection with shared reprint reason; `/print/tags` titles and return path follow `kind`.
+- Implemented spec 14 notifications and WhatsApp: `0019` `notifications` / `notification_webhook_events` + `pgboss` schema grants; finance writes companion `whatsapp.send.requested` outbox rows; worker pg-boss dispatches sends and evaluates reminders inside the Settings send window with consent/balance rechecks; Meta Cloud adapter never fakes delivery; `GET/POST` notifications + signed WhatsApp webhook; staff `/notifications` table with visibility polling and safe retry; `docs/whatsapp-provider-setup.md`; `pnpm verify:notifications`.
 
 ## Feature Specifications
 
@@ -100,21 +162,160 @@ Specs are listed in intended implementation order. Feed them one by one; do not 
 | 01 | `context/feature-specs/01-workspace-foundation.md` | Implemented and verified |
 | 02 | `context/feature-specs/02-staff-authentication-and-access.md` | Implemented and verified; live SMTP still configuration |
 | 03 | `context/feature-specs/03-shop-settings-and-organization.md` | Implemented and verified; SMTP still configuration |
-| 04 | `context/feature-specs/04-inventory-and-article-receiving.md` | Implemented and verified; saleable articles only |
+| 04 | `context/feature-specs/04-inventory-and-article-receiving.md` | Implemented and verified; edit page + photo replace |
 | 05 | `context/feature-specs/05-barcode-tagging-and-hardware.md` | Implemented; hardware drill still required |
 | 06 | `context/feature-specs/06-customers-and-consent.md` | Implemented and verified; no customer Auth |
 | 07 | `context/feature-specs/07-invoice-calculation-engine.md` | Implemented; owner-approved `invoice.v1` fixtures |
 | 08 | `context/feature-specs/08-pos-billing-and-finalization.md` | Implemented; POS quick receive & add + prior UX wins |
 | 09 | `context/feature-specs/09-payments-and-outstanding-balances.md` | Implemented and verified; overpayment rejected, no advances |
 | 10 | `context/feature-specs/10-returns-refunds-and-reversals.md` | Implemented and verified; inspection before restock |
-| 11 | `context/feature-specs/11-girvi-accounts-and-collateral.md` | Separate from inventory |
-| 12 | `context/feature-specs/12-girvi-interest-settlement-and-release.md` | Blocked on Girvi examples |
-| 13 | `context/feature-specs/13-documents-storage-and-print.md` | Private files and PDFs |
-| 14 | `context/feature-specs/14-notifications-and-whatsapp.md` | Official provider required |
-| 15 | `context/feature-specs/15-dashboard-reports-and-exports.md` | Reconciled measures only |
+| 11 | `context/feature-specs/11-girvi-accounts-and-collateral.md` | Implemented and verified; interest stub only |
+| 12 | `context/feature-specs/12-girvi-interest-settlement-and-release.md` | Implemented and verified on owner-approved `girvi.v1` |
+| 13 | `context/feature-specs/13-documents-storage-and-print.md` | Implemented; paper size from Settings + bilingual EN+HI |
+| 14 | `context/feature-specs/14-notifications-and-whatsapp.md` | Implemented; provider/templates still configuration |
+| 15 | `context/feature-specs/15-dashboard-reports-and-exports.md` | Implemented and verified; no profit/statutory reporting |
 | 16 | `context/feature-specs/16-opening-imports-and-pilot-readiness.md` | Imports, backups, launch |
 
 Customer cart/checkout and offline synchronization were not specified as product features: they are out of MVP scope. Connectivity failures are retryable/unresolved online states only.
+
+## Verification — Spec 15 dues as-of and drill-through
+
+Recorded 21 September 2026.
+
+- Migration: `packages/db/sql/0021_sales_dues_as_of.sql` applied on project `nhfmcosxqogxqvhdhzfz`.
+- Dues tile and dues CSV use `app.sales_dues_as_of`. A payment or credit after the range end does not change that range’s due. As of Kolkata today, reconstructed dues matched cached open dues.
+- Collections view counts refunds and reversals only when `status = 'posted'`.
+- Dashboard links pass `from`/`to`, invoice `due=1`, Girvi `status`/`overdue`, notification status, and inventory `status=available`.
+- `pnpm verify:reports` — passed: sales net 850.00, collections 550.00 (reversed refund excluded), dues 300.00 as of 1999-03-05 versus cached 150.00 after the later payment and credit.
+- `pnpm --filter @aabhushan/{contracts,application,db,api,web} typecheck` — passed.
+- Signed-in `/dashboard` click-through still needs a staff session in the IDE browser.
+
+## Verification — Spec 15 dashboard, reports, and exports
+
+Recorded 21 September 2026.
+
+- Migration: `packages/db/sql/0020_reporting_views_and_exports.sql` applied on project `nhfmcosxqogxqvhdhzfz` (views, indexes, `export` owner type, `export_jobs`).
+- API: `GET /api/v1/reports/dashboard` (and sales/collections/inventory/girvi/exports). Dashboard omits unauthorized sections. `Cache-Control: private, no-store`.
+- UI: `/dashboard` period Today/Week/Month/Custom, role-limited tiles, drill-through, CSV export. Interest tile is Unavailable (not ₹0) when any active account policy is unapproved.
+- Worker: polls pending `export_jobs` and writes a private CSV with a short-lived signed URL.
+- `pnpm verify:reports` — passed (rolled back 1999-03 fixtures): sales net 850.00, collections 550.00, dues 400.00, Girvi disbursed 5000.00 / recovered 1000.00 / interest received 200.00. Billing omits girvi+inventory JSON.
+- Signed-in `/dashboard` visual pass still needs a staff session in the IDE browser.
+
+## Verification — Spec 13 documents, storage, and print
+
+Recorded 21 September 2026.
+
+- `0017_documents_storage_and_print.sql` applied on project `nhfmcosxqogxqvhdhzfz`.
+- Reuses private `shop-assets` adapter; upload grants + confirm + signed access; worker polls outbox for invoice/receipt PDFs; abandoned unconfirmed uploads cleaned after 1h.
+- Invoice detail shows Pending/Ready/Failed document badges with Print / Download / Retry; `/print/invoices/:id` is chrome-less A4.
+- `pnpm verify:documents` — passed: finalized invoice stays finalized when document is `failed`; retry is idempotent on `source_event_key`.
+- `pnpm --filter @aabhushan/{contracts,application,db,integrations,api,worker,web} typecheck` — passed.
+- `pnpm --filter @aabhushan/{web,api,worker} lint` — passed.
+
+Open product questions remain: identity-required-at-launch; physical printer drill for invoice/receipt paper stock.
+
+## Verification — Spec 13 improvements
+
+Recorded 21 September 2026.
+
+- `0018_credit_note_and_refund_document_types.sql` applied (credit_note_pdf, refund_pdf).
+- Receipt print: `GET /payments/:id/print`, `/print/receipts/:paymentId`, `ReceiptDocumentsCard` on payment detail.
+- Grant uploads: `staff-file-upload.ts` for article / customer identity / Girvi collateral; confirm links `girvi_collateral_files`.
+- Worker PDFs: `girvi.released` → girvi_ack_pdf; `credit_note.requested` / `refund.requested` → credit_note_pdf / refund_pdf; thin status cards on Girvi released / invoice credit notes / refund payments.
+- Ops: API + worker redact `upload_url` / `download_url` / `signed_url`; `verify:documents` covers receipt retry + girvi.released pending insert.
+- Typecheck packages passed after implementation.
+
+Remaining open product questions unchanged (identity-required-at-launch; physical paper drill).
+
+## Verification — Spec 13 paper size + bilingual print
+
+Recorded 21 September 2026.
+
+- PDFKit and HTML print read `device_settings.invoice_paper_size` (A4 / A5 / 80mm thermal layout); tags still use tag mm only.
+- Bilingual EN+HI labels via `packages/contracts/src/document-labels.ts`; Noto Sans Devanagari OFL fonts under `packages/integrations/assets/fonts`; print layout uses `next/font` Noto Sans Devanagari.
+- Templates bumped to `*.pdf.v2`; upsert conflict updates `template_version`; Regenerate allowed for failed or outdated ready docs.
+- Settings Devices copy clarifies invoice paper vs tags.
+- `pnpm --filter @aabhushan/{contracts,integrations,application,db,api,worker,web} typecheck` — passed.
+- `pnpm --filter @aabhushan/db verify:documents` — passed.
+- PDF smoke: bilingual A5 render produced valid `%PDF` with Noto fonts.
+
+## Verification — Spec 14 local Meta webhook (21 Sep 2026)
+
+- Root `.env` holds Cloud API token, phone number ID, app secret, verify token, app id, WABA id (gitignored).
+- Local GET challenge verified; Cloudflare quick tunnel + Graph `/{app-id}/subscriptions` + `/{waba}/subscribed_apps` registered with `messages` field.
+- Helper: `scripts/whatsapp-dev-tunnel.sh` (re-points webhook when the trycloudflare hostname changes).
+- Templates `transactional_*` / `*_reminder` still PENDING as Marketing; sandbox test number `+1 555-175-8154`. Temporary user token expiry is short — replace before pilot.
+
+## Verification — Spec 14 notifications and WhatsApp
+
+Recorded 21 September 2026.
+
+- Migration: `packages/db/sql/0019_notifications_outbox_and_whatsapp.sql` (apply with `psql "$DATABASE_URL" -f …` before verify).
+- Adapter: Meta Cloud API behind `packages/integrations/src/whatsapp.ts`; missing env → `WHATSAPP_NOT_CONFIGURED` / failed + retry_safe — never simulated delivered.
+- Worker: pg-boss queues `notification.outbox.dispatch`, `notification.send`, `notification.reminders.evaluate` (Asia/Kolkata schedules).
+- API: `GET /api/v1/notifications`, `POST /api/v1/notifications/:id/retry`, `GET|POST /api/v1/webhooks/whatsapp` (raw body signature).
+- UI: `/notifications` polls while visible; status labels distinguish Accepted by provider vs Delivered; Unknown shows Reconcile.
+- Provider checklist: `docs/whatsapp-provider-setup.md` (separate from app code).
+- `pnpm --filter @aabhushan/{contracts,integrations,application,db,api,worker,web} typecheck` — passed.
+- `pnpm verify:notifications` — run after applying `0019` on the project database.
+
+## Verification — Article edit, photo replace, and re-tag
+
+Recorded 21 September 2026.
+
+- Backend: `insertArticleFileLink` deletes prior `article_files` for the article then inserts; article file list orders by `created_at DESC` so the current photo is first.
+- UI: `/inventory/:id/edit` (`EditArticleForm`); detail **Edit article** for `inventory.write` unsold; post-save Print/Reprint only when metal/purity/weights change; sold redirects away from edit.
+- Tag print UX: detail Print vs Reprint gated on barcode; list homogeneous Print/Reprint; `/print/tags` kind-aware copy and single-article return.
+- `pnpm verify:inventory` — passed: available PATCH updates weights, sold identity PATCH rejected, second photo link leaves one `article_files` row.
+- `pnpm --filter @aabhushan/{web,db,application} typecheck` — passed.
+- `pnpm --filter @aabhushan/web lint` — passed.
+- Signed-in Cursor browser pass blocked (no staff session; `/inventory/.../edit` redirects to `/login`). Confirm locally while signed in: Edit → change purity/weight → save → reprint → same barcode; untagged Print tag; photo re-upload shows new image once.
+
+## Verification — Girvi shop-floor polish
+
+Recorded 21 September 2026.
+
+- Customer Girvi tab: `girvi.write` shows account table; without it shows restricted copy and does not call the list API.
+- Draft edit/discard: `PATCH` preserves collateral file rows on replace; `DELETE` draft-only with `row_version`; activated discard is 422.
+- Custody moves: `POST /custody-moves` writes one `location_changed` and updates location; move after release is 422.
+- Collateral photos: private `shop-assets` upload/view; activate without a file per item is 422.
+- Interest rate: create requires `interest_rate_percent_per_30_days`; activate without a positive rate is 422; draft detail disables Activate until a rate is set. Already-active accounts without a rate stay unsupported (no silent rewrite).
+- `pnpm verify:girvi` — passed: photo gate, rate gate, draft PATCH then activate with patched principal, discard draft, discard-active 422, overdue/settled list filters, location_changed, move-after-release 422, plus prior activation/RLS/idempotency invariants.
+- `pnpm --filter @aabhushan/{domain,contracts,application,db,api,web} typecheck` — passed.
+- `pnpm --filter @aabhushan/{domain,contracts,application,db,api,web} lint` — passed.
+
+Not included: pledge/repayment PDFs (spec 13), opening-balance import (spec 16), assessed-value worksheet, interest reversals, top-up, renewal, partial release, WhatsApp.
+
+## Verification — Girvi list directory filters
+
+Recorded 21 September 2026.
+
+- Status default Active; Overdue SelectField; Maturity period with `clampEndToToday: false` for Week/Month.
+- List API `is_overdue=true` matches active + maturity before Kolkata today; maturity_from/to reused.
+- `pnpm --filter @aabhushan/contracts --filter @aabhushan/application --filter @aabhushan/db --filter @aabhushan/api --filter @aabhushan/web typecheck` — passed.
+- `pnpm --filter @aabhushan/web --filter @aabhushan/api lint` — passed.
+
+## Verification — Spec 12 Girvi interest, settlement, and release
+
+Recorded 21 September 2026.
+
+- `0016_girvi_interest_settlement_and_release.sql` applied on project `nhfmcosxqogxqvhdhzfz`.
+- `pnpm seed:girvi-calculation-policy` — approved `girvi.v1` recorded against the first owner. Accounts activated before the approval keep `unsupported` terms and are not converted.
+- `pnpm --filter @aabhushan/db verify:girvi-fixtures` — passed: 7 fixtures, 18 checks, day counting and fail-closed behaviour. Covers same-day ₹0, 1 day ₹6.67, 30 days ₹200, 31 days ₹206.67, February 28 days ₹186.67, leap-year 29 days ₹193.33, interest-only ₹100, insufficient ₹60 leaving ₹40 with no compounding, partial repayment to ₹8,181 payable, same-date posting order, and the opening-balance cutover to ₹10,700.
+- `pnpm verify:girvi-settlement` — passed against live PostgreSQL: statements and quotes posted no interest events; repayment cleared interest before principal and reduced principal from its own business date; retried repayment, settlement, and release keys each posted once; backdated posting, overpayment, and stale splits/quotes were refused (`GIRVI_BACKDATED_EVENT`, `GIRVI_OVERPAYMENT`, `STALE_GIRVI_QUOTE`); two concurrent repayments allocated the same interest only once under the account lock; release was blocked while money was due, required `girvi.release` and a matching packet (`PACKET_MISMATCH` on a wrong packet); settlement and release wrote two separate rows with packets staying `in_custody` in between; released collateral never appeared as an article barcode; a waiver was refused for the girvi role and accepted for owner with a recorded reason.
+- `pnpm verify:girvi` — still passed: unapproved terms fail closed, activation and custody behaviour from spec 11 unchanged.
+- `pnpm -r typecheck` and `pnpm -r lint` — passed.
+
+Not included: interest corrections/reversals, top-ups, renewals, partial collateral release, auction, and WhatsApp reminders. Reminder jobs have no Girvi code yet; when added they must read statements only.
+
+## Verification — Spec 11 Girvi accounts and collateral
+
+Recorded 21 September 2026.
+
+- `0015_girvi_accounts_and_collateral.sql` applied on project `nhfmcosxqogxqvhdhzfz`.
+- `pnpm verify:girvi` — passed: interest stub fails closed; RLS denied without org context; draft/activate wrote disbursement and custody received events; duplicate in-custody packet rejected (409); activation without collateral rejected (422); billing role denied (403); idempotent activate held; post-activation collateral add rejected; terms snapshot stayed frozen after simulated default-term change; POS article lookup never returned collateral packets; Girvi tables have no FK to `articles`.
+- `pnpm --filter @aabhushan/{domain,contracts,application,db,api,web} typecheck` — passed.
+- `pnpm --filter @aabhushan/{domain,contracts,application,db,api,web} lint` — passed.
 
 ## Verification — Customer list directory filters
 
@@ -843,26 +1044,25 @@ Limitations still true: no Supabase project, no SMTP, no live DB schema applied,
 - **Shop rates for live POS:** enter daily metal rates so drafts quote and finalize successfully (`pnpm seed:calculation-policy` already seeds `invoice.v1`).
 - **Hardware drill — spec 05:** confirm barcode reader model, scan suffix, tag printer, and label millimetres; print a real tag and scan it back. Do not mark hardware validated from a preview.
 - **Configuration — Auth/SMTP:** disable public signup, set site/redirect URLs, and configure custom SMTP. First Auth user and owner membership are already in place.
-- **Girvi examples:** obtain representative loan terms before implementing interest settlement (spec 12).
+- **Girvi opening balances:** import owner-verified principal and pre-cutover unpaid interest for legacy accounts (spec 16). `girvi.v1` calculation is approved; legacy accounts stay blocked until their own terms are approved.
 - **Billing follow-ons:** receipt/invoice/credit-note/refund document print (spec 13) consumes the `receipt.requested`, `credit_note.requested`, and `refund.requested` outbox events that specs 09–10 already queue.
 - **Foundation — workspace:** done in spec 01. Use `pnpm install` and the root scripts; copy `.env.example` before starting API/worker.
 - **Foundation — data and identity:** `0001`–`0014` and the first owner membership are applied on the live project.
 - **Inventory and tagging:** specs 04–05 done except physical scanner/printer drill.
-- **Customers and payments:** customer records and consent are done in spec 06; collections, allocations, receipts, dues, linked returns, credit notes, refunds, and reversals are done in specs 09–10. Remaining: Girvi.
-- **Girvi:** implement confirmed loan terms after owner examples.
-- **Documents and automation:** private files, PDFs, outbox, WhatsApp (specs 13–14).
-- **Dashboard and imports:** reconciled reports and opening imports (specs 15–16).
-- **Pilot readiness:** authorization/concurrency, hardware checks, backups, restore drill, staff training, supervised launch.
+- **Customers and payments:** customer records and consent are done in spec 06; collections, allocations, receipts, dues, linked returns, credit notes, refunds, and reversals are done in specs 09–10.
+- **Girvi:** accounts, collateral custody, and disbursement are done in spec 11. Interest, repayment, settlement, and physical release are done in spec 12 on approved `girvi.v1`. Shop-floor polish (customer tab, draft edit/discard, packet location moves, collateral photos) is done. Corrections, top-ups, renewals, partial release, auction, print PDFs (spec 13), and opening-balance import (spec 16) remain out of scope.
+- **Documents and automation:** private files catalog, pledge/repayment PDFs, outbox, WhatsApp (specs 13–14). Collateral photos already reuse private `shop-assets`.
+- **Dashboard and imports:** reconciled reports and opening imports (specs 15–16), including assessed-value worksheet if approved.- **Pilot readiness:** authorization/concurrency, hardware checks, backups, restore drill, staff training, supervised launch.
 
 ## Open Questions
 
 - **Shop operation:** confirm that launch is one branch, how many staff/counters will use it, and which people can override prices, adjust stock, refund money, or release collateral. One branch is the documented working assumption, not a confirmed staffing survey.
 - **Invoice rules:** owner-approved for `invoice.v1` (20 September 2026): separate purity rates ₹/g net metal, making fixed/per-gram/% metal, wastage % net×rate (default none), fixed stone charges, line then invoice discounts, tax-exclusive 3% GST (intra default), HALF_UP paise then ₹1 payable round-off. Accountant should confirm GST registration / place-of-supply before live inter-state invoices.
-- **Girvi terms:** confirm rate period, simple/compound method, day/month convention, minimum period, grace/extra charges if any, allocation order, principal-reduction effective date, settlement rounding, and correction/backdating policy. The proposed simple-interest method is not yet owner-approved.
+- **Girvi terms:** owner-approved for `girvi.v1` (21 September 2026): percentage per 30 days, simple interest on outstanding principal, actual days ÷ 30 counting the start date and excluding the settlement date, no minimum period, no grace, no extra charges, interest before principal, principal reduction effective on the repayment business date, HALF_UP to ₹0.01, immutable events, backdating disabled, rate frozen per account. Still open operationally: assessed-value inputs per account, opening balances for legacy accounts (spec 16), and treatment of accounts whose existing terms differ from `girvi.v1`.
 - **Credit policy:** confirm due dates, permitted credit sales, payment corrections, and whether customer advances/overpayments are essential. The current MVP default rejects overpayments unless a separate credit workflow is implemented.
 - **Returns:** inspection checklist, restock pricing after return, whether credit notes can remain unrefunded store credit (MVP: credit reduces invoice due only), and who besides owner/admin may approve refunds. Returned pieces already move to `return_inspection` and are not sellable until spec 04 inspection release.
 - **Opening records:** identify existing stock, sales dues, active Girvi accounts, collateral packets, opening interest balances, and accrual dates. Confirm import format and who reviews totals.
-- **Hardware:** confirm barcode reader model, scan suffix, tag printer, label dimensions, invoice paper size, and any required bilingual output.
+- **Hardware:** confirm barcode reader model, scan suffix, tag printer, and label dimensions (invoice paper size and bilingual print are owner-confirmed).
 - **WhatsApp:** choose the official provider, confirm account ownership/readiness, permitted Girvi messaging, templates, consent records, language, reminder timing, and messaging budget. Automated delivery has not been configured.
 - **Infrastructure:** choose the always-on application host, deployment region, domain/subdomain, SMTP provider, independent backup destination, and monitoring/alert destination. Supabase Free does not settle these choices or their costs.
 - **Recovery:** confirm acceptable downtime and data loss. The proposed pilot recovery targets in the architecture require business acceptance and a successful restore drill.

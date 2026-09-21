@@ -8,6 +8,7 @@ import type {
   MakingCharge,
   MakingChargeDefault,
   MakingChargeDefaultUpsert,
+  MetalRatesCoverage,
   ReminderSettings,
   ReminderSettingsPatch,
   ShopBrandingPublic,
@@ -52,9 +53,23 @@ export type ShopAssetStorage = {
     contentType: ShopLogoContentType;
     previousObjectKey: string | null;
   }): Promise<{ objectKey: string; checksumSha256: string; byteSize: number; contentType: ShopLogoContentType }>;
+  /**
+   * Private object under shop-assets. Used for Girvi collateral, article photos,
+   * identity files, and generated PDFs. Callers own the object-key path prefix.
+   */
+  uploadPrivateObject(input: {
+    objectKey: string;
+    bytes: Buffer;
+    contentType: string;
+    upsert?: boolean;
+  }): Promise<{ objectKey: string; checksumSha256: string; byteSize: number; contentType: string }>;
+  createSignedUploadUrl(
+    objectKey: string,
+    expiresInSeconds?: number,
+  ): Promise<{ signedUrl: string; token: string; path: string; expiresInSeconds: number }>;
   removeObject(objectKey: string): Promise<void>;
   createSignedUrl(objectKey: string, expiresInSeconds?: number): Promise<string>;
-  downloadAsDataUri(objectKey: string, contentType: ShopLogoContentType): Promise<string | null>;
+  downloadAsDataUri(objectKey: string, contentType: string): Promise<string | null>;
 };
 
 /** Persistence shape; object keys never leave the server on client DTOs. */
@@ -89,6 +104,7 @@ export type ShopSettingsRepository = {
   }): Promise<ShopProfileRecord>;
   clearLogo(): Promise<ShopProfileRecord>;
   listRates(input: PaginationInput): Promise<PaginatedRows<MetalRate>>;
+  ratesCoverageForBusinessDate(businessDate: string): Promise<{ gold: boolean; silver: boolean }>;
   insertRate(input: {
     metal: MetalRateCreate["metal"];
     purity: string;
@@ -271,6 +287,22 @@ export async function listMetalRates(
 ): Promise<PaginatedRows<MetalRate>> {
   assertPermission(access, "rates.read");
   return repository.listRates(input);
+}
+
+export async function getMetalRatesCoverage(
+  repository: ShopSettingsRepository,
+  access: ResolvedStaffAccess,
+  businessDate?: string,
+  now: Date = new Date(),
+): Promise<MetalRatesCoverage> {
+  assertAnyPermission(access, ["rates.read", "rates.write", "billing.write"]);
+  const date = businessDate ?? kolkataBusinessDate(now);
+  const coverage = await repository.ratesCoverageForBusinessDate(date);
+  return {
+    business_date: date,
+    gold: coverage.gold,
+    silver: coverage.silver,
+  };
 }
 
 export async function createMetalRate(

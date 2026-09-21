@@ -330,7 +330,7 @@
 
     /* BACKGROUND COLORS */
     --color-bg-primary: var(--color-white);
-    --color-bg-sidebar: #fafafa;
+    --color-bg-sidebar: var(--color-bg-secondary);
     --color-bg-tertiary: var(--color-neutral-100);
     --color-bg-brand-primary: var(--color-brand-50);
     --color-bg-error-secondary: var(--color-red-100);

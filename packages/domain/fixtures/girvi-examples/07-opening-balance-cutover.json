@@ -1,0 +1,73 @@
+{
+  "id": "07-opening-balance-cutover",
+  "policyVersion": "girvi.v1",
+  "description": "Imported opening position at the 1 April 2026 cutover: ₹10,000 principal plus ₹600 of historical unpaid interest. New interest starts at the cutover, and the historical interest is never capitalized. Written only by the spec 16 import workflow.",
+  "policy": {
+    "version": "girvi.v1",
+    "status": "approved",
+    "ratePeriod": "percent_per_30_days",
+    "interestMethod": "simple_on_outstanding_principal",
+    "dayCountConvention": "actual_days_over_30",
+    "minimumPeriod": "none",
+    "gracePeriod": "none",
+    "extraCharges": "none",
+    "allocationOrder": "interest_then_principal",
+    "principalReductionRule": "effective_on_repayment_business_date",
+    "roundingMode": "ROUND_HALF_UP",
+    "roundingScale": 2,
+    "backdatingPolicy": "disabled"
+  },
+  "terms": {
+    "principal_inr": "10000.00",
+    "start_business_date": "2026-04-01",
+    "maturity_business_date": "2026-10-01",
+    "interest": {
+      "status": "approved",
+      "policy_version": "girvi.v1",
+      "rate_percent_per_30_days": "2",
+      "method": "simple_on_outstanding_principal",
+      "day_count": "actual_days_over_30",
+      "allocation_order": "interest_then_principal",
+      "minimum_period": "none",
+      "grace_period": "none",
+      "extra_charges": "none",
+      "principal_reduction": "effective_on_repayment_business_date",
+      "backdating": "disabled",
+      "rounding_mode": "ROUND_HALF_UP",
+      "rounding_scale": 2
+    }
+  },
+  "events": [
+    {
+      "eventType": "opening_balance",
+      "effectiveBusinessDate": "2026-04-01",
+      "principalDeltaInr": "10000.00",
+      "interestDeltaInr": "600.00",
+      "sequence": 1
+    }
+  ],
+  "checks": [
+    {
+      "label": "Cutover day carries the historical interest and no new interest",
+      "asOfBusinessDate": "2026-04-01",
+      "expected": {
+        "principalOutstandingInr": "10000.00",
+        "interestOutstandingInr": "600.00",
+        "payoffInr": "10600.00",
+        "principalRecoveredInr": "0.00",
+        "interestReceivedInr": "0.00"
+      }
+    },
+    {
+      "label": "Settlement on 16 April adds 15 days of new interest only",
+      "asOfBusinessDate": "2026-04-16",
+      "expected": {
+        "principalOutstandingInr": "10000.00",
+        "interestOutstandingInr": "700.00",
+        "payoffInr": "10700.00",
+        "principalRecoveredInr": "0.00",
+        "interestReceivedInr": "0.00"
+      }
+    }
+  ]
+}

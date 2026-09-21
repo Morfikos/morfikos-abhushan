@@ -1,0 +1,155 @@
+{
+  "id": "01-date-boundaries-and-allocation",
+  "policyVersion": "girvi.v1",
+  "description": "Owner-approved date boundaries on an untouched loan, plus repayment allocation previews taken on 16 January.",
+  "policy": {
+    "version": "girvi.v1",
+    "status": "approved",
+    "ratePeriod": "percent_per_30_days",
+    "interestMethod": "simple_on_outstanding_principal",
+    "dayCountConvention": "actual_days_over_30",
+    "minimumPeriod": "none",
+    "gracePeriod": "none",
+    "extraCharges": "none",
+    "allocationOrder": "interest_then_principal",
+    "principalReductionRule": "effective_on_repayment_business_date",
+    "roundingMode": "ROUND_HALF_UP",
+    "roundingScale": 2,
+    "backdatingPolicy": "disabled"
+  },
+  "terms": {
+    "principal_inr": "10000.00",
+    "start_business_date": "2026-01-01",
+    "maturity_business_date": "2026-07-01",
+    "interest": {
+      "status": "approved",
+      "policy_version": "girvi.v1",
+      "rate_percent_per_30_days": "2",
+      "method": "simple_on_outstanding_principal",
+      "day_count": "actual_days_over_30",
+      "allocation_order": "interest_then_principal",
+      "minimum_period": "none",
+      "grace_period": "none",
+      "extra_charges": "none",
+      "principal_reduction": "effective_on_repayment_business_date",
+      "backdating": "disabled",
+      "rounding_mode": "ROUND_HALF_UP",
+      "rounding_scale": 2
+    }
+  },
+  "events": [
+    {
+      "eventType": "disbursement",
+      "effectiveBusinessDate": "2026-01-01",
+      "principalDeltaInr": "10000.00",
+      "interestDeltaInr": "0.00",
+      "sequence": 1
+    }
+  ],
+  "checks": [
+    {
+      "label": "Same-day settlement accrues nothing",
+      "asOfBusinessDate": "2026-01-01",
+      "expected": {
+        "principalOutstandingInr": "10000.00",
+        "interestOutstandingInr": "0.00",
+        "payoffInr": "10000.00",
+        "principalRecoveredInr": "0.00",
+        "interestReceivedInr": "0.00"
+      }
+    },
+    {
+      "label": "One day",
+      "asOfBusinessDate": "2026-01-02",
+      "expected": {
+        "principalOutstandingInr": "10000.00",
+        "interestOutstandingInr": "6.67",
+        "payoffInr": "10006.67",
+        "principalRecoveredInr": "0.00",
+        "interestReceivedInr": "0.00"
+      }
+    },
+    {
+      "label": "Thirty days equals one rate period",
+      "asOfBusinessDate": "2026-01-31",
+      "expected": {
+        "principalOutstandingInr": "10000.00",
+        "interestOutstandingInr": "200.00",
+        "payoffInr": "10200.00",
+        "principalRecoveredInr": "0.00",
+        "interestReceivedInr": "0.00"
+      }
+    },
+    {
+      "label": "Thirty-one days costs more than thirty",
+      "asOfBusinessDate": "2026-02-01",
+      "expected": {
+        "principalOutstandingInr": "10000.00",
+        "interestOutstandingInr": "206.67",
+        "payoffInr": "10206.67",
+        "principalRecoveredInr": "0.00",
+        "interestReceivedInr": "0.00"
+      }
+    },
+    {
+      "label": "Interest-only payment clears interest and leaves principal",
+      "asOfBusinessDate": "2026-01-16",
+      "expected": {
+        "principalOutstandingInr": "10000.00",
+        "interestOutstandingInr": "100.00",
+        "payoffInr": "10100.00",
+        "principalRecoveredInr": "0.00",
+        "interestReceivedInr": "0.00"
+      },
+      "repayment": {
+        "amountInr": "100.00",
+        "expected": {
+          "interestPaidInr": "100.00",
+          "principalPaidInr": "0.00",
+          "interestRemainingInr": "0.00",
+          "principalRemainingInr": "10000.00",
+          "payoffAfterInr": "10000.00",
+          "clearsAccount": false
+        }
+      }
+    },
+    {
+      "label": "Insufficient interest payment leaves interest, not principal",
+      "asOfBusinessDate": "2026-01-16",
+      "repayment": {
+        "amountInr": "60.00",
+        "expected": {
+          "interestPaidInr": "60.00",
+          "principalPaidInr": "0.00",
+          "interestRemainingInr": "40.00",
+          "principalRemainingInr": "10000.00",
+          "payoffAfterInr": "10040.00",
+          "clearsAccount": false
+        }
+      }
+    },
+    {
+      "label": "Partial repayment clears interest first, then reduces principal",
+      "asOfBusinessDate": "2026-01-16",
+      "repayment": {
+        "amountInr": "2000.00",
+        "expected": {
+          "interestPaidInr": "100.00",
+          "principalPaidInr": "1900.00",
+          "interestRemainingInr": "0.00",
+          "principalRemainingInr": "8100.00",
+          "payoffAfterInr": "8100.00",
+          "clearsAccount": false
+        }
+      }
+    },
+    {
+      "label": "Amount above payoff is rejected; there is no customer credit",
+      "asOfBusinessDate": "2026-01-16",
+      "repayment": {
+        "amountInr": "10200.00",
+        "expectedErrorCode": "GIRVI_OVERPAYMENT"
+      }
+    }
+  ]
+}

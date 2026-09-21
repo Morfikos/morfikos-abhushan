@@ -298,6 +298,10 @@ export const invoiceListQuerySchema = z
     business_date_from: businessDateSchema.optional(),
     business_date_to: businessDateSchema.optional(),
     q: z.string().trim().max(120).optional(),
+    has_due: z
+      .enum(["1", "0", "true", "false"])
+      .optional()
+      .transform((value) => (value === undefined ? undefined : value === "1" || value === "true")),
   })
   .superRefine((value, ctx) => {
     refineBusinessDateBounds(

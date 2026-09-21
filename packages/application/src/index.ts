@@ -15,6 +15,7 @@ export {
   deleteMakingChargeDefault,
   getDeviceSettings,
   getDocumentSequences,
+  getMetalRatesCoverage,
   getPublicShopBranding,
   getReminderSettings,
   getShopProfile,
@@ -141,5 +142,79 @@ export type {
   PaymentCorrectionRepository,
   ReturnsRepository,
 } from "./returns";
+
+export {
+  activateGirviAccount,
+  createGirviDraft,
+  deleteGirviDraft,
+  getGirviAccount,
+  getGirviCollateralFileView,
+  hashGirviActivatePayload,
+  hashGirviCustodyMovePayload,
+  girviRateFromTermsSnapshot,
+  listGirviAccounts,
+  moveGirviCustodyLocation,
+  patchGirviDraft,
+  presentGirviOverdue,
+  uploadGirviCollateralFile,
+} from "./girvi";
+export type { GirviListFilters, GirviPostingLock, GirviRepository } from "./girvi";
+export {
+  getGirviStatement,
+  quoteGirviSettlement,
+  recordGirviRepayment,
+  releaseGirviCollateral,
+  settleGirviAccount,
+} from "./girvi-settlement";
+
+export {
+  ABANDONED_UPLOAD_TTL_MS,
+  buildDocumentObjectKey,
+  buildStoredObjectKey,
+  confirmFileUpload,
+  createFileUploadGrant,
+  DOCUMENT_SIGNED_URL_SECONDS,
+  getDocument,
+  getFileAccess,
+  getFileAccessByObjectKey,
+  getInvoicePrintDto,
+  getReceiptPrintDto,
+  INVOICE_PDF_TEMPLATE_VERSION,
+  listDocumentsForOwner,
+  RECEIPT_PDF_TEMPLATE_VERSION,
+  GIRVI_ACK_PDF_TEMPLATE_VERSION,
+  CREDIT_NOTE_PDF_TEMPLATE_VERSION,
+  REFUND_PDF_TEMPLATE_VERSION,
+  currentTemplateVersionFor,
+  retryDocument,
+  SHOP_ASSETS_BUCKET,
+  UPLOAD_GRANT_TTL_SECONDS,
+} from "./documents";
+export type { DocumentsRepository } from "./documents";
+
+export {
+  buildExportCsv,
+  createExport,
+  dashboardSectionsForRole,
+  getCollectionsReport,
+  getDashboardReport,
+  getExportJob,
+  getGirviReport,
+  getInventoryReport,
+  getSalesReport,
+  processQueuedExport,
+} from "./reports";
+export type { ReportRangeInput, ReportsRepository } from "./reports";
+
+export {
+  dispatchWhatsAppOutbox,
+  evaluateReminders,
+  getNotificationAttention,
+  isWithinSendWindow,
+  listNotifications,
+  processNotificationSend,
+  retryNotification,
+} from "./notifications";
+export type { NotificationJobEnqueue, NotificationsRepository, WhatsAppSendAdapter } from "./notifications";
 
 export type { FieldError };

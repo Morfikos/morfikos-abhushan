@@ -1,14 +1,17 @@
 "use client";
 
 import type { FC, HTMLAttributes, MouseEventHandler, ReactNode } from "react";
+import NextLink from "next/link";
 import { ChevronDown, Share04 } from "@untitledui/icons";
 import { Link as AriaLink } from "react-aria-components";
+
 import { Badge } from "@/components/base/badges/badges";
+import { isSameOriginAppPath } from "@/lib/client-navigation";
 import { cx, sortCx } from "@/utils/cx";
 
 const styles = sortCx({
     root: "group relative flex max-h-9 w-full cursor-pointer items-center rounded-md bg-transparent outline-focus-ring transition duration-100 ease-linear select-none hover:bg-tertiary focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2",
-    rootSelected: "bg-quaternary hover:bg-neutral-300",
+    rootSelected: "bg-brand-primary hover:bg-brand-secondary",
 });
 
 interface NavItemBaseProps {
@@ -40,7 +43,7 @@ export const NavItemBase = ({ current, type, badge, href, icon: Icon, children, 
             aria-hidden="true"
             className={cx(
                 "mr-2 size-5 shrink-0 text-fg-quaternary transition-inherit-all group-hover/item:text-fg-quaternary_hover",
-                current && "text-fg-quaternary_hover",
+                current && "text-fg-brand-primary",
             )}
         />
     );
@@ -59,14 +62,15 @@ export const NavItemBase = ({ current, type, badge, href, icon: Icon, children, 
             className={cx(
                 "flex-1 text-sm font-semibold text-secondary transition-inherit-all group-hover/item:text-secondary_hover",
                 truncate && "truncate",
-                current && "text-secondary_hover",
+                current && "text-brand-secondary",
             )}
         >
             {children}
         </span>
     );
 
-    const isExternal = href && href.startsWith("http");
+    const isExternal = Boolean(href && href.startsWith("http"));
+    const useAppLink = Boolean(href && !isExternal && isSameOriginAppPath(href));
     const externalIcon = isExternal && <Share04 className="size-4 stroke-[2.5px] text-fg-quaternary" />;
 
     if (type === "collapsible") {
@@ -84,12 +88,26 @@ export const NavItemBase = ({ current, type, badge, href, icon: Icon, children, 
     }
 
     if (type === "collapsible-child") {
+        const childClassName = cx("py-2 pr-3 pl-10", styles.root, current && styles.rootSelected);
+        if (useAppLink && href) {
+            return (
+                <NextLink
+                    href={href}
+                    className={childClassName}
+                    onClick={onClick}
+                    aria-current={current ? "page" : undefined}
+                >
+                    {labelElement}
+                    {badgeElement}
+                </NextLink>
+            );
+        }
         return (
             <AriaLink
                 href={href!}
-                target={isExternal ? "_blank" : "_self"}
-                rel="noopener noreferrer"
-                className={cx("py-2 pr-3 pl-10", styles.root, current && styles.rootSelected)}
+                target={isExternal ? "_blank" : undefined}
+                rel={isExternal ? "noopener noreferrer" : undefined}
+                className={childClassName}
                 onClick={onClick}
                 aria-current={current ? "page" : undefined}
             >
@@ -100,12 +118,23 @@ export const NavItemBase = ({ current, type, badge, href, icon: Icon, children, 
         );
     }
 
+    const linkClassName = cx("group/item p-2", styles.root, current && styles.rootSelected);
+    if (useAppLink && href) {
+        return (
+            <NextLink href={href} className={linkClassName} onClick={onClick} aria-current={current ? "page" : undefined}>
+                {iconElement}
+                {labelElement}
+                {badgeElement}
+            </NextLink>
+        );
+    }
+
     return (
         <AriaLink
             href={href!}
-            target={isExternal ? "_blank" : "_self"}
-            rel="noopener noreferrer"
-            className={cx("group/item p-2", styles.root, current && styles.rootSelected)}
+            target={isExternal ? "_blank" : undefined}
+            rel={isExternal ? "noopener noreferrer" : undefined}
+            className={linkClassName}
             onClick={onClick}
             aria-current={current ? "page" : undefined}
         >

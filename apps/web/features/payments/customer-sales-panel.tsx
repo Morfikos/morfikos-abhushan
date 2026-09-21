@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ShoppingBag03 } from "@untitledui/icons";
 
 import { EmptyState } from "@/components/application/empty-state/empty-state";
-import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
+import { MetricTilesSkeleton, TableSkeleton } from "@/components/application/skeleton/skeleton";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
@@ -28,7 +28,12 @@ export function CustomerSalesPanel({ customerId }: { customerId: string }) {
   });
 
   if (query.isLoading) {
-    return <LoadingIndicator size="sm" label="Loading sales statement" />;
+    return (
+      <div className="flex flex-col gap-4">
+        <MetricTilesSkeleton count={1} label="Loading sales statement" />
+        <TableSkeleton columns={5} rows={4} titleWidth="w-36" label="Loading sales statement" />
+      </div>
+    );
   }
 
   if (query.isError) {

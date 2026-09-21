@@ -7,19 +7,25 @@ import type { CustomerWhatsAppConsentFilter } from "@aabhushan/contracts";
 import { customerInitials } from "@aabhushan/domain";
 import { ChevronRight, Users01 } from "@untitledui/icons";
 
-import { EmptyState } from "@/components/application/empty-state/empty-state";
-import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
+import { Skeleton, StaffDirectoryLoading } from "@/components/application/skeleton/skeleton";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
+import {
+  DirectoryEmptyState,
+  DirectoryTableSkeleton,
+  FilteredEmptyState,
+} from "@/components/shared/directory-states";
 import { ListSearchToolbar } from "@/components/shared/list-search-toolbar";
 import { ListTableFooter } from "@/components/shared/list-table-footer";
 import { SelectField } from "@/components/shared/select-field";
+import { StaffPageHeader } from "@/components/shared/staff-page-header";
 import { staffHasPermission, useStaff } from "@/features/auth/staff-shell";
 import {
   customerAccessToken,
   customerErrorMessage,
+  whatsappConsentBadgeColor,
   whatsappConsentShortLabel,
 } from "@/features/customers/customer-shared";
 import { fetchCustomers } from "@/lib/staff-api";
@@ -30,6 +36,25 @@ type TypeFilter = "all" | "named" | "walk_in";
 const DEFAULT_ACTIVE: ActiveFilter = "active";
 const DEFAULT_TYPE: TypeFilter = "all";
 const DEFAULT_WHATSAPP = "" as const;
+
+/** One-row search + Active / Type / WhatsApp selects — shared by Suspense and initial load. */
+export function CustomersFilterSkeleton() {
+  return (
+    <div className="flex flex-wrap items-end gap-3">
+      <Skeleton className="h-10 min-w-0 flex-1 max-w-md rounded-lg" />
+      <Skeleton className="h-10 w-36 rounded-lg" />
+      <Skeleton className="h-10 w-44 rounded-lg" />
+      <Skeleton className="h-10 w-40 rounded-lg" />
+    </div>
+  );
+}
+
+/** Route Suspense cold load (includes header shimmer). Feature keeps live StaffPageHeader. */
+export function CustomersDirectoryLoading() {
+  return (
+    <StaffDirectoryLoading columns={5} label="Loading customers" filterSkeleton={<CustomersFilterSkeleton />} />
+  );
+}
 
 export function CustomerList() {
   const staff = useStaff();
@@ -117,44 +142,41 @@ export function CustomerList() {
 
   return (
     <section className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-display-xs font-semibold text-primary">Customers</h1>
-          <p className="text-md text-tertiary">
-            Staff directory for sales and Girvi. Customers do not have login accounts.
-          </p>
-        </div>
-        {canWrite ? (
-          <Button color="primary" size="md" href="/customers/new">
-            New customer
-          </Button>
-        ) : null}
-      </div>
+      <StaffPageHeader
+        title="Customers"
+        description="Staff directory for sales and Girvi. Customers do not have login accounts."
+        actions={
+          canWrite ? (
+            <Button color="primary" size="md" href="/customers/new">
+              New customer
+            </Button>
+          ) : null
+        }
+      />
 
-      {showInitialLoading ? <LoadingIndicator size="md" label="Loading customers" /> : null}
+      {showInitialLoading ? (
+        <DirectoryTableSkeleton
+          title="Directory"
+          columns={5}
+          label="Loading customers"
+          filterSkeleton={<CustomersFilterSkeleton />}
+        />
+      ) : null}
       {query.isError ? <p className="text-sm text-error-primary">{customerErrorMessage(query.error)}</p> : null}
 
       {directoryEmpty ? (
-        <EmptyState size="md" className="mx-auto py-10">
-          <EmptyState.Header pattern="none">
-            <div className="mb-3 flex size-12 items-center justify-center rounded-lg bg-secondary ring-1 ring-secondary ring-inset">
-              <Users01 className="size-6 text-fg-quaternary" aria-hidden="true" />
-            </div>
-            <EmptyState.Content>
-              <p className="text-lg font-semibold text-primary">No customers yet</p>
-              <EmptyState.Description>
-                Create a customer record for billing and Girvi. This is not a public sign-up.
-              </EmptyState.Description>
-            </EmptyState.Content>
-          </EmptyState.Header>
-          {canWrite ? (
-            <EmptyState.Footer>
+        <DirectoryEmptyState
+          icon={Users01}
+          title="No customers yet"
+          description="Create a customer record for billing and Girvi. This is not a public sign-up."
+          action={
+            canWrite ? (
               <Button color="primary" size="md" href="/customers/new">
                 New customer
               </Button>
-            </EmptyState.Footer>
-          ) : null}
-        </EmptyState>
+            ) : null
+          }
+        />
       ) : null}
 
       {showDirectoryCard ? (
@@ -228,21 +250,11 @@ export function CustomerList() {
           </div>
 
           {filteredEmpty ? (
-            <EmptyState size="md" className="mx-auto py-10">
-              <EmptyState.Header pattern="none">
-                <EmptyState.Content>
-                  <p className="text-lg font-semibold text-primary">No matching customers</p>
-                  <EmptyState.Description>
-                    Try another name, phone, or filter.
-                  </EmptyState.Description>
-                </EmptyState.Content>
-              </EmptyState.Header>
-              <EmptyState.Footer>
-                <Button color="secondary" size="md" onPress={clearFilters}>
-                  Clear filters
-                </Button>
-              </EmptyState.Footer>
-            </EmptyState>
+            <FilteredEmptyState
+              title="No matching customers"
+              description="Try another name, phone, or filter."
+              onClear={clearFilters}
+            />
           ) : null}
 
           {items.length > 0 ? (
@@ -279,7 +291,7 @@ export function CustomerList() {
                         )}
                       </Table.Cell>
                       <Table.Cell>
-                        <Badge color={item.whatsapp_consent === "granted" ? "success" : "gray"} size="sm">
+                        <Badge color={whatsappConsentBadgeColor(item.whatsapp_consent)} size="sm">
                           {whatsappConsentShortLabel(item.whatsapp_consent)}
                         </Badge>
                       </Table.Cell>

@@ -1,5 +1,11 @@
-import { CustomerList } from "@/features/customers/customer-list";
+import { Suspense } from "react";
+
+import { CustomerList, CustomersDirectoryLoading } from "@/features/customers/customer-list";
 
 export default function CustomersPage() {
-  return <CustomerList />;
+  return (
+    <Suspense fallback={<CustomersDirectoryLoading />}>
+      <CustomerList />
+    </Suspense>
+  );
 }

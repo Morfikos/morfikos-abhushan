@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
+import { PanelSkeleton } from "@/components/application/skeleton/skeleton";
 import { Badge } from "@/components/base/badges/badges";
 import { useStaff } from "@/features/auth/staff-shell";
 import { paymentAccessToken, paymentErrorMessage, paymentKindLabel } from "@/features/payments/payment-shared";
@@ -32,7 +32,7 @@ export function InvoicePaymentsPanel({ invoiceId }: { invoiceId: string }) {
         ) : null}
       </div>
 
-      {query.isLoading ? <LoadingIndicator size="sm" label="Loading collections" /> : null}
+      {query.isLoading ? <PanelSkeleton rows={3} showTitle={false} label="Loading collections" /> : null}
       {query.isError ? (
         <p className="text-sm text-error-primary" role="alert">
           {paymentErrorMessage(query.error)}

@@ -1,9 +1,9 @@
 # 11 — Girvi Accounts and Collateral
 
-**Status:** Specification only — not implemented  
+**Status:** Implemented and verified  
 **Depends on:** `06-customers-and-consent`, `03-shop-settings-and-organization`  
 **Enables:** `12-girvi-interest-settlement-and-release`  
-**Blocked by:** owner-approved Girvi examples for terms; opening packets list for migration  
+**Blocked by:** owner-approved Girvi examples for interest (spec 12); opening packets list for migration (spec 16)  
 
 ## Feature Overview & Objectives
 

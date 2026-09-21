@@ -7,8 +7,9 @@ import type { CustomerConsentPurpose, CustomerConsentStatus } from "@aabhushan/c
 import { customerInitials, normalizeShopPhone } from "@aabhushan/domain";
 import { File06, NotificationBox, Scale01 } from "@untitledui/icons";
 
+import { FileUpload, getReadableFileSize } from "@/components/application/file-upload/file-upload-base";
 import { EmptyState } from "@/components/application/empty-state/empty-state";
-import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
+import { PanelSkeleton, StaffDetailPageSkeleton } from "@/components/application/skeleton/skeleton";
 import { Tabs } from "@/components/application/tabs/tabs";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { Badge } from "@/components/base/badges/badges";
@@ -16,6 +17,9 @@ import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
 import { TextArea } from "@/components/base/textarea/textarea";
 import { Toggle } from "@/components/base/toggle/toggle";
+import { SectionCard } from "@/components/shared/section-card";
+import { StaffPageHeader } from "@/components/shared/staff-page-header";
+import { StickyFormActions } from "@/components/shared/sticky-form-actions";
 import { staffHasPermission, useStaff } from "@/features/auth/staff-shell";
 import {
   consentPurposeLabel,
@@ -23,15 +27,18 @@ import {
   customerErrorMessage,
   fieldError,
   WHATSAPP_PURPOSES,
+  whatsappConsentBadgeColor,
   whatsappConsentShortLabel,
 } from "@/features/customers/customer-shared";
 import { CustomerSalesPanel } from "@/features/payments/customer-sales-panel";
+import { CustomerGirviPanel } from "@/features/girvi/customer-girvi-panel";
 import {
   fetchCustomer,
   fetchCustomerIdentityFiles,
   patchCustomerRequest,
   putCustomerConsentsRequest,
 } from "@/lib/staff-api";
+import { fetchFileAccessByObjectKey, uploadStaffFile } from "@/lib/staff-file-upload";
 
 function ActivityEmpty({
   icon: Icon,
@@ -90,6 +97,8 @@ export function CustomerProfile({ customerId }: { customerId: string }) {
   const [addressLine, setAddressLine] = useState("");
   const [notes, setNotes] = useState("");
   const [hydrated, setHydrated] = useState(false);
+  const [identityUploadError, setIdentityUploadError] = useState<string | null>(null);
+  const [identityUploading, setIdentityUploading] = useState(false);
 
   useEffect(() => {
     if (!allowed) {
@@ -174,7 +183,7 @@ export function CustomerProfile({ customerId }: { customerId: string }) {
   }
 
   if (query.isLoading) {
-    return <LoadingIndicator size="md" label="Loading customer" />;
+    return <StaffDetailPageSkeleton withAvatar sections={2} label="Loading customer" />;
   }
 
   if (query.isError) {
@@ -195,28 +204,23 @@ export function CustomerProfile({ customerId }: { customerId: string }) {
 
   return (
     <section className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-start gap-3">
-          <Avatar size="lg" initials={customerInitials(customer.display_name)} alt="" />
-          <div>
-            <p className="text-sm text-tertiary">
-              <Button color="link-color" size="sm" href="/customers">
-                Customers
-              </Button>
-            </p>
-            <h1 className="text-display-xs font-semibold text-primary">{customer.display_name}</h1>
-            <p className="font-mono text-sm tabular-nums text-tertiary">
-              {customer.phone_display ?? "No phone"}
-            </p>
-            <Badge color={customer.whatsapp_consent === "granted" ? "success" : "gray"} size="sm" className="mt-2">
-              {whatsappConsentShortLabel(customer.whatsapp_consent)}
-            </Badge>
-          </div>
-        </div>
-        <Button color="secondary" size="md" href="/customers">
-          Back to directory
-        </Button>
-      </div>
+      <StaffPageHeader
+        back={{ label: "Customers", href: "/customers" }}
+        title={
+          <span className="inline-flex items-center gap-3">
+            <Avatar size="lg" initials={customerInitials(customer.display_name)} alt="" />
+            {customer.display_name}
+          </span>
+        }
+        badge={
+          <Badge color={whatsappConsentBadgeColor(customer.whatsapp_consent)} size="sm">
+            {whatsappConsentShortLabel(customer.whatsapp_consent)}
+          </Badge>
+        }
+        description={
+          <span className="font-mono text-sm tabular-nums">{customer.phone_display ?? "No phone"}</span>
+        }
+      />
 
       <Tabs defaultSelectedKey="profile" className="gap-6">
         <Tabs.List type="underline" size="md">
@@ -228,11 +232,10 @@ export function CustomerProfile({ customerId }: { customerId: string }) {
 
         <Tabs.Panel id="profile" className="pt-2">
           <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
-            <div className="flex flex-col gap-4 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-5">
-              <div>
-                <h2 className="text-lg font-semibold text-primary">Contact</h2>
-                <p className="text-sm text-tertiary">Staff-only record. Customers do not have an account or portal.</p>
-              </div>
+            <SectionCard
+              title="Contact"
+              description="Staff-only record. Customers do not have an account or portal."
+            >
               <div className="grid gap-4 md:grid-cols-2">
                 <Input
                   label="Name"
@@ -253,13 +256,9 @@ export function CustomerProfile({ customerId }: { customerId: string }) {
                   hint={phoneField.hint}
                 />
               </div>
-            </div>
+            </SectionCard>
 
-            <div className="flex flex-col gap-4 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-5">
-              <div>
-                <h2 className="text-lg font-semibold text-primary">Details</h2>
-                <p className="text-sm text-tertiary">Optional email, address, and staff notes.</p>
-              </div>
+            <SectionCard title="Details" description="Optional email, address, and staff notes.">
               <div className="grid gap-4 md:grid-cols-2">
                 <Input
                   label="Email"
@@ -285,7 +284,7 @@ export function CustomerProfile({ customerId }: { customerId: string }) {
                 <p className="text-sm text-error-primary">{customerErrorMessage(saveMutation.error)}</p>
               ) : null}
               {canWrite ? (
-                <div className="sticky bottom-0 z-10 -mx-4 border-t border-secondary bg-primary px-4 py-4 md:-mx-5 md:px-5">
+                <StickyFormActions variant="inset">
                   <Button
                     color="primary"
                     size="md"
@@ -295,17 +294,14 @@ export function CustomerProfile({ customerId }: { customerId: string }) {
                   >
                     Save profile
                   </Button>
-                </div>
+                </StickyFormActions>
               ) : null}
-            </div>
+            </SectionCard>
 
-            <div className="flex flex-col gap-4 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-5">
-              <div>
-                <h2 className="text-lg font-semibold text-primary">WhatsApp consent</h2>
-                <p className="text-sm text-tertiary">
-                  Phone required to grant. Revoking applies to future sends. Nothing is sent from this screen.
-                </p>
-              </div>
+            <SectionCard
+              title="WhatsApp consent"
+              description="Phone required to grant. Revoking applies to future sends. Nothing is sent from this screen."
+            >
               <div className="grid gap-3 md:grid-cols-2">
                 {WHATSAPP_PURPOSES.map((purpose) => {
                   const status = consentsByPurpose.get(purpose) ?? null;
@@ -328,15 +324,15 @@ export function CustomerProfile({ customerId }: { customerId: string }) {
               {consentMutation.error ? (
                 <p className="text-sm text-error-primary">{customerErrorMessage(consentMutation.error)}</p>
               ) : null}
-            </div>
+            </SectionCard>
 
             {canReadIdentity ? (
-              <div className="flex flex-col gap-3 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-5">
-                <div>
-                  <h2 className="text-lg font-semibold text-primary">Identity documents</h2>
-                  <p className="text-sm text-tertiary">Metadata only in this unit. File bytes come in a later documents spec.</p>
-                </div>
-                {identityQuery.isLoading ? <LoadingIndicator size="sm" label="Loading identity files" /> : null}
+              <SectionCard
+                title="Identity documents"
+                description="Private files via signed upload. View uses a short-lived access URL."
+                className="gap-3"
+              >
+                {identityQuery.isLoading ? <PanelSkeleton rows={3} showTitle={false} label="Loading identity files" /> : null}
                 {identityQuery.isError ? (
                   <p className="text-sm text-error-primary">{customerErrorMessage(identityQuery.error)}</p>
                 ) : null}
@@ -353,16 +349,82 @@ export function CustomerProfile({ customerId }: { customerId: string }) {
                 ) : (
                   <ul className="flex flex-col gap-2">
                     {(identityQuery.data?.items ?? []).map((file) => (
-                      <li key={file.id} className="rounded-lg bg-secondary px-3 py-2 ring-1 ring-secondary">
-                        <p className="text-sm font-medium text-primary">{file.purpose}</p>
-                        <p className="font-mono text-xs text-tertiary">
-                          checksum {file.checksum_sha256.slice(0, 12)}…
-                        </p>
+                      <li
+                        key={file.id}
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-secondary px-3 py-2 ring-1 ring-secondary"
+                      >
+                        <div>
+                          <p className="text-sm font-medium text-primary">{file.purpose}</p>
+                          <p className="font-mono text-xs text-tertiary">
+                            checksum {file.checksum_sha256.slice(0, 12)}…
+                          </p>
+                        </div>
+                        <Button
+                          color="link-color"
+                          size="sm"
+                          className="px-0"
+                          onPress={() => {
+                            void (async () => {
+                              try {
+                                const access = await fetchFileAccessByObjectKey(
+                                  await customerAccessToken(),
+                                  file.object_key,
+                                );
+                                window.open(access.url, "_blank", "noopener,noreferrer");
+                              } catch (error) {
+                                setIdentityUploadError(customerErrorMessage(error));
+                              }
+                            })();
+                          }}
+                        >
+                          View
+                        </Button>
                       </li>
                     ))}
                   </ul>
                 )}
-              </div>
+                {canWrite ? (
+                  <FileUpload.Root>
+                    <FileUpload.DropZone
+                      className="py-3"
+                      accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                      allowsMultiple={false}
+                      maxSize={5_242_880}
+                      hint={`JPEG, PNG, or WebP (max. ${getReadableFileSize(5_242_880)}).`}
+                      onDropFiles={(files) => {
+                        const file = files[0];
+                        if (!file) {
+                          return;
+                        }
+                        setIdentityUploadError(null);
+                        setIdentityUploading(true);
+                        void (async () => {
+                          try {
+                            await uploadStaffFile({
+                              accessToken: await customerAccessToken(),
+                              ownerType: "customer",
+                              ownerId: customerId,
+                              file,
+                              purpose: "identity",
+                            });
+                            await queryClient.invalidateQueries({
+                              queryKey: ["customers", "identity", staff.membership.organization_id, customerId],
+                            });
+                          } catch (error) {
+                            setIdentityUploadError(customerErrorMessage(error));
+                          } finally {
+                            setIdentityUploading(false);
+                          }
+                        })();
+                      }}
+                      onDropUnacceptedFiles={() => setIdentityUploadError("Use JPEG, PNG, or WebP.")}
+                      onSizeLimitExceed={() => setIdentityUploadError("File is too large. Maximum size is 5 MB.")}
+                    />
+                  </FileUpload.Root>
+                ) : null}
+                {identityUploading ? <p className="text-sm text-tertiary">Uploading…</p> : null}
+                {identityUploadError ? <p className="text-sm text-error-primary">{identityUploadError}</p> : null}
+              </SectionCard>
             ) : (
               <p className="text-sm text-tertiary">Identity documents are restricted to authorized staff.</p>
             )}
@@ -374,11 +436,7 @@ export function CustomerProfile({ customerId }: { customerId: string }) {
         </Tabs.Panel>
 
         <Tabs.Panel id="girvi" className="pt-2">
-          <ActivityEmpty
-            icon={Scale01}
-            title="No Girvi accounts yet"
-            description="Girvi loans and collateral stay on this tab, separate from sales dues, even when there are zero records."
-          />
+          <CustomerGirviPanel customerId={customerId} />
         </Tabs.Panel>
 
         <Tabs.Panel id="notifications" className="pt-2">

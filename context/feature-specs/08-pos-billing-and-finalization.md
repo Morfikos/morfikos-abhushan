@@ -186,7 +186,7 @@ Desktop POS workspace from free inputs, table, buttons, modal, and a sticky tota
 
 - Whether credit sales with due dates are permitted at launch
 - Due-date default if partial payment is allowed
-- Invoice paper size and bilingual invoice text (spec 13)
+- Document print: paper size from Settings; bilingual EN+HI (spec 13)
 
 ## Step-by-Step Implementation Sub-tasks
 

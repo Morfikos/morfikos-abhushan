@@ -1,9 +1,9 @@
 # 13 — Documents, Storage, and Print
 
-**Status:** Specification only — not implemented  
+**Status:** Implemented and verified (paper size from Settings; bilingual EN+HI on document PDF/HTML)  
 **Depends on:** `08-pos-billing-and-finalization`, `09-payments-and-outstanding-balances`, `05-barcode-tagging-and-hardware`  
 **Enables:** WhatsApp attachments, authorized reprints, backup of object bytes  
-**Blocked by:** invoice/receipt paper size and bilingual output confirmation  
+**Blocked by:** — (identity-required-at-launch remains a product question)  
 
 ## Feature Overview & Objectives
 
@@ -13,6 +13,12 @@ Staff need documents without public links. PDF or print failure must not undo a 
 
 **Early landing:** shop logo upload already uses a private `shop-assets` bucket, checksum metadata on `shop_profiles`, and signed URLs / print data URIs (`docs/shop-logo-storage.md`, `packages/integrations` storage adapter). Spec 13 should **reuse** that adapter and expand to a general `stored_objects` catalog rather than inventing a second upload path.
 
+## Owner-confirmed print decisions
+
+- **Paper size:** `device_settings.invoice_paper_size` (`A4` | `A5` | `80mm`) drives invoice/receipt HTML print and all document PDFs. Tag millimetres remain separate.
+- **Language:** Printed labels are always bilingual English + Hindi. Embed Devanagari-capable fonts in PDFKit; HTML print uses Noto Sans Devanagari. Reminder language does not gate documents.
+- **80mm:** Thermal-narrow layout (stacked rows, tight margins), not a sheet size swap alone.
+- **Templates:** `*.pdf.v2`. Staff may Regenerate failed docs or ready docs whose `template_version` is outdated.
 ## Scope
 
 ### In this unit
@@ -127,13 +133,13 @@ CORS is not authorization. Signed URLs are short-lived.
 - Staff downloads after permission loss: `403`
 - Object backup missing: database restore alone is insufficient (called out in spec 16)
 - Huge files: reject at grant time
-- Hindi/₹ missing in PDF font: treat as a document defect; embed fonts when bilingual output is required
+- Hindi/₹ missing in PDF font: treat as a document defect; Devanagari fonts are embedded for bilingual output
+- Retry / Regenerate: failed docs, or ready docs whose template_version is behind current constants
 
 ## Open Questions
 
-- Invoice paper size
-- Bilingual printed output
 - Whether identity documents are required at launch
+- Physical confirmation of preferred invoice paper stock (A5 seed vs A4 / 80mm day-to-day)
 
 ## Step-by-Step Implementation Sub-tasks
 

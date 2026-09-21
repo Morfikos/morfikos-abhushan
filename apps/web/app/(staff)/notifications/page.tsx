@@ -1,5 +1,14 @@
-import { ModulePlaceholder } from "@/features/auth/module-placeholder";
+import { Suspense } from "react";
+
+import {
+  NotificationsDirectoryLoading,
+  NotificationsList,
+} from "@/features/notifications/notifications-list";
 
 export default function NotificationsPage() {
-  return <ModulePlaceholder title="Notifications" permission="reports.read" />;
+  return (
+    <Suspense fallback={<NotificationsDirectoryLoading />}>
+      <NotificationsList />
+    </Suspense>
+  );
 }
