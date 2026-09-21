@@ -62,9 +62,11 @@ export const ChartLegendContent = ({ reversed, payload, align, layout, className
                 <li className="flex items-center gap-2 text-sm text-tertiary" key={index}>
                     <span
                         className={cx(
-                            "block size-2 rounded-full bg-current ring-[0.5px] ring-black/10 ring-inset",
+                            "block size-2 rounded-full ring-[0.5px] ring-black/10 ring-inset",
+                            !entry.color && "bg-current",
                             (entry.payload as { className?: string })?.className,
                         )}
+                        style={entry.color ? { backgroundColor: entry.color } : undefined}
                     />
                     {entry.value}
                 </li>

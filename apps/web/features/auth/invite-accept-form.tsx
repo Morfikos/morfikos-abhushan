@@ -107,9 +107,15 @@ export function InviteAcceptForm() {
         isInvalid={Boolean(error)}
         hint={error}
       />
-      <Button type="submit" color="primary" size="md" isLoading={loading} isDisabled={loading}>
+      <Button type="submit" color="primary" size="md" className="w-full" isLoading={loading} isDisabled={loading}>
         Accept invitation
       </Button>
+      <p className="text-sm text-tertiary">
+        Already set up?{" "}
+        <a className="font-semibold text-brand-secondary underline-offset-4 hover:underline" href="/login">
+          Sign in
+        </a>
+      </p>
     </form>
   );
 }

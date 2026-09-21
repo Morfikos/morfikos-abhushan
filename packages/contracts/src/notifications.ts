@@ -83,7 +83,7 @@ export type NotificationAttention = z.infer<typeof notificationAttentionSchema>;
 /** Human labels for staff UI — never call provider acceptance "Delivered". */
 export const NOTIFICATION_STATUS_LABELS: Record<NotificationStatus, string> = {
   pending: "Pending",
-  accepted: "Accepted by provider",
+  accepted: "Accepted by WhatsApp",
   sent: "Sent",
   delivered: "Delivered",
   failed: "Failed",

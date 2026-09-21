@@ -7,9 +7,9 @@ export default function CheckEmailPage() {
   return (
     <AuthPage
       title="Check your email"
-      description="If the request was accepted, a recovery or invitation message is on its way. This screen is an instruction, not a guarantee that the message was delivered."
+      description="If an email was sent, check your inbox and spam. Ask an owner if nothing arrives."
     >
-      <Button href="/login" color="primary" size="md">
+      <Button href="/login" color="primary" size="md" className="w-full">
         Return to sign-in
       </Button>
     </AuthPage>

@@ -11,6 +11,11 @@ const printDocFont = Noto_Sans_Devanagari({
   display: "swap",
 });
 
+/** Blank title so browser print headers do not show the app name. */
+export const metadata = {
+  title: " ",
+};
+
 export default function PrintLayout({ children }: { children: ReactNode }) {
   return (
     <PrintStaffGate>

@@ -145,7 +145,7 @@ function assertGirviReports(access: ResolvedStaffAccess): void {
 
 function assertExportType(access: ResolvedStaffAccess, exportType: ExportType): void {
   assertPermission(access, "reports.read");
-  if (exportType === "sales" || exportType === "dues") {
+  if (exportType === "sales" || exportType === "dues" || exportType === "collections") {
     assertSalesReports(access);
     return;
   }
@@ -275,6 +275,19 @@ export async function buildExportCsv(
       ]),
     );
     return { csv, rowCount: dues.length, filename: `dues-${stamp}.csv` };
+  }
+  if (exportType === "collections") {
+    const collections = await repo.getCollections(range);
+    const csv = csvLines(
+      ["method", "net_collected_inr", "collection_count", "outflow_count"],
+      collections.by_method.map((row) => [
+        row.method,
+        row.net_collected_inr,
+        String(row.collection_count),
+        String(row.outflow_count),
+      ]),
+    );
+    return { csv, rowCount: collections.by_method.length, filename: `collections-${stamp}.csv` };
   }
   if (exportType === "inventory") {
     const inventory = await repo.getInventory();

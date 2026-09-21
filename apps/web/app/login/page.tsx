@@ -7,7 +7,7 @@ export default function LoginPage() {
   return (
     <AuthPage
       title="Staff sign-in"
-      description="Use the email address from your administrator invitation. Public registration is disabled."
+      description="Sign in with the email from your administrator invitation. Inventory, sales, and Girvi stay behind this staff account."
     >
       <LoginForm />
     </AuthPage>

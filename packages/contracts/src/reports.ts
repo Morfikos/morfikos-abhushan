@@ -92,12 +92,22 @@ export const collectionsByMethodRowSchema = z.object({
 
 export type CollectionsByMethodRow = z.infer<typeof collectionsByMethodRowSchema>;
 
+export const collectionsByDateRowSchema = z.object({
+  business_date: businessDateSchema,
+  net_collected_inr: moneyAmountSchema,
+  collection_count: z.number().int().nonnegative(),
+  outflow_count: z.number().int().nonnegative(),
+});
+
+export type CollectionsByDateRow = z.infer<typeof collectionsByDateRowSchema>;
+
 export const collectionsReportSchema = z.object({
   range: reportRangeSchema,
   total_net_collected_inr: moneyAmountSchema,
   collection_count: z.number().int().nonnegative(),
   outflow_count: z.number().int().nonnegative(),
   by_method: z.array(collectionsByMethodRowSchema),
+  by_business_date: z.array(collectionsByDateRowSchema),
 });
 
 export type CollectionsReport = z.infer<typeof collectionsReportSchema>;
@@ -162,6 +172,7 @@ export const girviPositionSchema = z.object({
   interest_availability: girviInterestAvailabilitySchema,
   interest_outstanding_inr: moneyAmountSchema.nullable(),
   interest_unavailable_reason: z.string().min(1).nullable(),
+  unapproved_active_account_count: z.number().int().nonnegative(),
   overdue_account_count: z.number().int().nonnegative(),
   overdue_principal_outstanding_inr: moneyAmountSchema,
 });
@@ -225,7 +236,7 @@ export const dashboardReportSchema = z.object({
 
 export type DashboardReport = z.infer<typeof dashboardReportSchema>;
 
-export const exportTypeSchema = z.enum(["inventory", "sales", "dues", "girvi"]);
+export const exportTypeSchema = z.enum(["inventory", "sales", "dues", "collections", "girvi"]);
 export type ExportType = z.infer<typeof exportTypeSchema>;
 
 export const exportJobStatusSchema = z.enum(["pending", "running", "ready", "failed"]);

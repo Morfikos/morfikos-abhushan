@@ -58,6 +58,8 @@ export function useSyncedListFilters<T>(pathname: string, codec: ListFilterCodec
   codecRef.current = codec;
 
   const [filters, setFiltersState] = useState<T>(() => codec.parse(new URLSearchParams(searchParams.toString())));
+  const filtersRef = useRef(filters);
+  filtersRef.current = filters;
 
   const writeUrl = useCallback(
     (value: T) => {
@@ -86,19 +88,20 @@ export function useSyncedListFilters<T>(pathname: string, codec: ListFilterCodec
     const expected = buildSearchParams(codecRef.current.serialize(parsed));
     const owned = buildSearchParams(codecRef.current.serialize(filters));
     if (!paramsEqual(expected, owned)) {
+      filtersRef.current = parsed;
       setFiltersState(parsed);
     }
     // Only react to URL changes; local setFilters already updated state.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: sync from URL only
   }, [searchParams]);
 
   const setFilters = useCallback(
     (update: T | ((prev: T) => T)) => {
-      setFiltersState((prev) => {
-        const next = typeof update === "function" ? (update as (prev: T) => T)(prev) : update;
-        writeUrl(next);
-        return next;
-      });
+      // Compute next outside the updater so router.replace is not a render-phase side effect.
+      const prev = filtersRef.current;
+      const next = typeof update === "function" ? (update as (prev: T) => T)(prev) : update;
+      filtersRef.current = next;
+      setFiltersState(next);
+      writeUrl(next);
     },
     [writeUrl],
   );

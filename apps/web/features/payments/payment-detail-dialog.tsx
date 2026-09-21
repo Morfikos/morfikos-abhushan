@@ -13,7 +13,7 @@ import { PaymentCorrectionDialog } from "@/features/payments/payment-correction-
 import { paymentAccessToken, paymentErrorMessage, paymentKindLabel } from "@/features/payments/payment-shared";
 import { ReceiptDocumentsCard } from "@/features/payments/receipt-documents-card";
 import { RefundDocumentsCard } from "@/features/payments/refund-documents-card";
-import { formatInr } from "@/lib/money";
+import { MoneyText } from "@/components/shared/money-text";
 import { paymentMethodLabel } from "@/lib/payment-methods";
 import { fetchPayment } from "@/lib/staff-api";
 
@@ -70,7 +70,7 @@ export function PaymentDetailDialog({
           {query.isLoading ? (
             <div className="flex flex-col gap-4">
               <DefinitionListSkeleton rows={5} label="Loading receipt" />
-              <PanelSkeleton rows={3} label="Loading receipt" />
+              <PanelSkeleton rows={3} chrome="bare" showTitle={false} label="Loading allocations" />
             </div>
           ) : null}
           {query.isError ? (
@@ -92,9 +92,11 @@ export function PaymentDetailDialog({
                 </div>
                 <div className="flex justify-between gap-3">
                   <dt className="text-tertiary">{payment.kind === "refund" ? "Amount refunded" : payment.kind === "reversal" ? "Amount reversed" : "Amount received"}</dt>
-                  <dd className="text-right font-semibold tabular-nums text-primary">
-                    {formatInr(payment.amount_inr)}
-                  </dd>
+                  <MoneyText
+                    amount={payment.amount_inr}
+                    as="dd"
+                    className="text-right font-semibold text-primary"
+                  />
                 </div>
                 <div className="flex justify-between gap-3">
                   <dt className="text-tertiary">Business date</dt>
@@ -118,17 +120,11 @@ export function PaymentDetailDialog({
                         {allocation.invoice_number ?? allocation.invoice_id.slice(0, 8)}
                       </span>
                       <span className="text-xs text-tertiary tabular-nums">{allocation.business_date}</span>
-                      <span className="text-sm font-medium tabular-nums text-primary">
-                        {formatInr(allocation.amount_inr)}
-                      </span>
+                      <MoneyText amount={allocation.amount_inr} className="text-sm font-medium text-primary" />
                     </li>
                   ))}
                 </ul>
               </div>
-
-              <p className="text-xs text-tertiary">
-                Receipt print and PDF run from the outbox after commit. Nothing is sent from this screen.
-              </p>
 
               {payment.kind === "collection" ? <ReceiptDocumentsCard paymentId={payment.id} /> : null}
               {payment.kind === "refund" ? <RefundDocumentsCard paymentId={payment.id} /> : null}
@@ -136,6 +132,16 @@ export function PaymentDetailDialog({
           ) : null}
 
           <div className="flex flex-wrap justify-end gap-2">
+            {payment?.kind === "collection" ? (
+              <Button
+                color="primary"
+                size="md"
+                href={`/print/receipts/${payment.id}?autoprint=1`}
+                target="_blank"
+              >
+                Print
+              </Button>
+            ) : null}
             {canCorrect ? (
               <>
                 <Button color="secondary" size="md" onPress={() => setCorrection("refund")}>

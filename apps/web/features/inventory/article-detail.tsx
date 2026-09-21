@@ -7,11 +7,12 @@ import { ARTICLE_PHOTO_MAX_BYTES, type Article, type ArticleFile, type Inventory
 import { Image01 } from "@untitledui/icons";
 
 import { FileUpload, getReadableFileSize } from "@/components/application/file-upload/file-upload-base";
-import { PanelSkeleton, StaffDetailPageSkeleton } from "@/components/application/skeleton/skeleton";
+import { ArticleDetailSkeleton, PanelSkeleton } from "@/components/application/skeleton/skeleton";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { MoneyText } from "@/components/shared/money-text";
 import { SectionCard } from "@/components/shared/section-card";
 import { SelectField } from "@/components/shared/select-field";
 import { StaffPageHeader } from "@/components/shared/staff-page-header";
@@ -121,7 +122,7 @@ export function ArticleDetail({ articleId }: { articleId: string }) {
   }
 
   if (articleQuery.isLoading) {
-    return <StaffDetailPageSkeleton layout="split3" withTabs={false} label="Loading article" />;
+    return <ArticleDetailSkeleton showAdjustment={canWrite} label="Loading article" />;
   }
 
   if (articleQuery.isError || !article) {
@@ -198,7 +199,7 @@ export function ArticleDetail({ articleId }: { articleId: string }) {
           description={
             underReview
               ? "Release back to available stock or keep the piece unavailable. This is a stock movement, not a sale."
-              : "Adjustments require a reason and write an append-only movement plus audit row."
+              : "Needs a reason. Changes stay in article history."
           }
         >
           <div className="flex flex-col gap-4">
@@ -255,7 +256,7 @@ export function ArticleDetail({ articleId }: { articleId: string }) {
 
       {sold ? (
         <p className="text-sm text-tertiary">
-          Sold identity and weights cannot be edited here. Corrections use return or adjustment workflows in later units.
+          Sold identity and weights cannot be edited here. Use a return or stock adjustment to correct them.
           Reprint of the historical tag is allowed and keeps the same barcode.
         </p>
       ) : null}
@@ -359,7 +360,7 @@ function PieceRail({
             </ul>
           )}
         </div>
-        <p className="text-xs text-tertiary">Private signed URLs only. No public object URL is issued.</p>
+        <p className="text-xs text-tertiary">Photos open with a short-lived private link.</p>
 
         {canWrite && files.length === 0 ? (
           <>
@@ -479,12 +480,19 @@ function SpecificationGrid({ article }: { article: Article }) {
         </SpecSection>
 
         <SpecSection title="Cost">
-          <Detail
-            label="Acquisition cost"
-            value={article.acquisition_cost_inr ? `₹ ${article.acquisition_cost_inr}` : "Not recorded"}
-            empty={!article.acquisition_cost_inr}
-            hint="Internal only — never a customer-facing price."
-          />
+          <div>
+            <p className="text-xs font-semibold text-quaternary">Acquisition cost</p>
+            {article.acquisition_cost_inr ? (
+              <MoneyText
+                amount={article.acquisition_cost_inr}
+                as="p"
+                className="mt-0.5 text-sm font-medium text-primary"
+              />
+            ) : (
+              <p className="mt-0.5 text-sm font-medium text-quaternary">Not recorded</p>
+            )}
+            <p className="mt-0.5 text-xs text-tertiary">Internal only — never a customer-facing price.</p>
+          </div>
         </SpecSection>
       </div>
     </SectionCard>
@@ -522,7 +530,7 @@ function MovementTimeline({
 }) {
   return (
     <SectionCard as="section" title="Movement history" className="h-fit">
-      {isLoading ? <PanelSkeleton rows={4} showTitle={false} label="Loading history" /> : null}
+      {isLoading ? <PanelSkeleton rows={4} showTitle={false} chrome="bare" label="Loading history" /> : null}
       {isError ? <p className="text-sm text-error-primary">{inventoryErrorMessage(error)}</p> : null}
       {!isLoading && !isError && items.length === 0 ? (
         <p className="text-sm text-tertiary">No movements recorded yet.</p>

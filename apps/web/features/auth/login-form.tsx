@@ -7,7 +7,8 @@ import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
-const GENERIC_SIGN_IN_ERROR = "Sign-in failed. Check your email and password, or request a new invitation from an administrator.";
+const GENERIC_SIGN_IN_ERROR =
+  "Sign-in failed. Check your email and password, or request a new invitation from an administrator.";
 
 export function LoginForm() {
   const router = useRouter();
@@ -40,7 +41,7 @@ export function LoginForm() {
   }
 
   return (
-    <form className="flex flex-col gap-4" onSubmit={onSubmit} noValidate>
+    <form className="flex flex-col gap-5" onSubmit={onSubmit} noValidate>
       <Input
         label="Email"
         type="email"
@@ -62,16 +63,18 @@ export function LoginForm() {
         isInvalid={Boolean(error)}
         hint={error}
       />
-      <Button type="submit" color="primary" size="md" isLoading={loading} isDisabled={loading}>
-        Sign in
-      </Button>
-      <p className="text-tertiary text-sm">
-        Forgot your password?{" "}
-        <a className="text-brand-secondary font-semibold underline-offset-4 hover:underline" href="/auth/recovery">
-          Request a reset
-        </a>
-      </p>
-      <p className="text-tertiary text-sm">Access is invitation-only. There is no public create-account option.</p>
+      <div className="mt-1 flex flex-col gap-3">
+        <Button type="submit" color="primary" size="md" className="w-full" isLoading={loading} isDisabled={loading}>
+          Sign in
+        </Button>
+        <p className="text-sm text-tertiary">
+          Forgot your password?{" "}
+          <a className="font-semibold text-brand-secondary underline-offset-4 hover:underline" href="/auth/recovery">
+            Request a reset
+          </a>
+        </p>
+        <p className="text-xs text-tertiary">Access is invitation-only. There is no public create-account option.</p>
+      </div>
     </form>
   );
 }

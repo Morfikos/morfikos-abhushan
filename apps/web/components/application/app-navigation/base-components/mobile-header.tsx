@@ -1,6 +1,8 @@
 "use client";
 
 import type { PropsWithChildren } from "react";
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { X as CloseIcon, Menu02 } from "@untitledui/icons";
 import {
     Button as AriaButton,
@@ -17,8 +19,15 @@ export const MobileNavigationHeader = ({
     shopLegalName = "Aabhushan",
     shopLogoUrl = null,
 }: PropsWithChildren<{ shopLegalName?: string; shopLogoUrl?: string | null }>) => {
+    const pathname = usePathname();
+    const [open, setOpen] = useState(false);
+
+    useEffect(() => {
+        setOpen(false);
+    }, [pathname]);
+
     return (
-        <AriaDialogTrigger>
+        <AriaDialogTrigger isOpen={open} onOpenChange={setOpen}>
             <header className="flex h-14 items-center justify-between border-b border-secondary bg-primary p-3 pl-4 lg:hidden">
                 <ShopMark legalName={shopLegalName} logoUrl={shopLogoUrl} size="sm" className="min-w-0" />
 

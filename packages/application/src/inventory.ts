@@ -27,10 +27,14 @@ import type {
   CatalogueCategoryCreate,
   InventoryMovement,
   Metal,
+  PurityLabel,
+  PurityLabelCreate,
+  PurityLabelPatch,
   StockCount,
   StockCountCreate,
   StorageLocation,
   StorageLocationCreate,
+  StorageLocationPatch,
   TagPreview,
   TagPrintCreate,
   TagPrintEvent,
@@ -64,10 +68,24 @@ export type InventoryAuditWrite = {
 export type InventoryRepository = {
   listCategories(): Promise<CatalogueCategory[]>;
   insertCategory(input: CatalogueCategoryCreate): Promise<CatalogueCategory>;
-  listLocations(): Promise<StorageLocation[]>;
+  listLocations(includeInactive?: boolean): Promise<StorageLocation[]>;
   insertLocation(input: StorageLocationCreate): Promise<StorageLocation>;
+  updateLocation(input: {
+    locationId: string;
+    name?: string;
+    isActive?: boolean;
+  }): Promise<StorageLocation | null>;
+  listPurityLabels(includeInactive?: boolean): Promise<PurityLabel[]>;
+  insertPurityLabel(input: { label: string; sortOrder?: number }): Promise<PurityLabel>;
+  updatePurityLabel(input: {
+    purityLabelId: string;
+    label?: string;
+    isActive?: boolean;
+    sortOrder?: number;
+  }): Promise<PurityLabel | null>;
+  findPurityLabelByLabel(label: string): Promise<PurityLabel | null>;
   categoryExists(categoryId: string): Promise<boolean>;
-  locationExists(locationId: string): Promise<boolean>;
+  locationExists(locationId: string, options?: { allowInactive?: boolean }): Promise<boolean>;
   listArticles(input: ArticleListFilters): Promise<PaginatedRows<ArticleListItem>>;
   getArticle(articleId: string): Promise<Article | null>;
   getArticleByBarcode(barcode: string): Promise<Article | null>;
@@ -210,9 +228,10 @@ export async function createCatalogueCategory(
 export async function listStorageLocations(
   repository: InventoryRepository,
   access: ResolvedStaffAccess,
+  options?: { includeInactive?: boolean },
 ): Promise<StorageLocation[]> {
   assertPermission(access, "inventory.read");
-  return repository.listLocations();
+  return repository.listLocations(options?.includeInactive === true);
 }
 
 export async function createStorageLocation(
@@ -236,6 +255,131 @@ export async function createStorageLocation(
       throw conflictError("LOCATION_NAME_CONFLICT", "A storage location with this name already exists.");
     }
     throw error;
+  }
+}
+
+export async function patchStorageLocation(
+  repository: InventoryRepository,
+  access: ResolvedStaffAccess,
+  locationId: string,
+  input: StorageLocationPatch,
+): Promise<StorageLocation> {
+  assertPermission(access, "inventory.write");
+  try {
+    const location = await repository.updateLocation({
+      locationId,
+      ...(input.name !== undefined ? { name: input.name } : {}),
+      ...(input.is_active !== undefined ? { isActive: input.is_active } : {}),
+    });
+    if (!location) {
+      throw notFoundError("Storage location not found.");
+    }
+    await repository.writeAudit({
+      actorStaffUserId: access.staff_user_id,
+      action: "inventory.location.patch",
+      entityType: "storage_location",
+      entityId: location.id,
+      payload: { name: location.name, is_active: location.is_active },
+    });
+    return location;
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      throw conflictError("LOCATION_NAME_CONFLICT", "A storage location with this name already exists.");
+    }
+    throw error;
+  }
+}
+
+export async function listPurityLabels(
+  repository: InventoryRepository,
+  access: ResolvedStaffAccess,
+  options?: { includeInactive?: boolean },
+): Promise<PurityLabel[]> {
+  assertAnyPermission(access, ["inventory.read", "billing.write", "rates.read"]);
+  return repository.listPurityLabels(options?.includeInactive === true);
+}
+
+export async function createPurityLabel(
+  repository: InventoryRepository,
+  access: ResolvedStaffAccess,
+  input: PurityLabelCreate,
+): Promise<PurityLabel> {
+  assertPermission(access, "inventory.write");
+  try {
+    const label = await repository.insertPurityLabel({
+      label: input.label,
+      ...(input.sort_order !== undefined ? { sortOrder: input.sort_order } : {}),
+    });
+    await repository.writeAudit({
+      actorStaffUserId: access.staff_user_id,
+      action: "inventory.purity.create",
+      entityType: "purity_label",
+      entityId: label.id,
+      payload: { label: label.label },
+    });
+    return label;
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      throw conflictError("PURITY_LABEL_CONFLICT", "A purity label with this name already exists.");
+    }
+    throw error;
+  }
+}
+
+export async function patchPurityLabel(
+  repository: InventoryRepository,
+  access: ResolvedStaffAccess,
+  purityLabelId: string,
+  input: PurityLabelPatch,
+): Promise<PurityLabel> {
+  assertPermission(access, "inventory.write");
+  try {
+    const label = await repository.updatePurityLabel({
+      purityLabelId,
+      ...(input.label !== undefined ? { label: input.label } : {}),
+      ...(input.is_active !== undefined ? { isActive: input.is_active } : {}),
+      ...(input.sort_order !== undefined ? { sortOrder: input.sort_order } : {}),
+    });
+    if (!label) {
+      throw notFoundError("Purity label not found.");
+    }
+    await repository.writeAudit({
+      actorStaffUserId: access.staff_user_id,
+      action: "inventory.purity.patch",
+      entityType: "purity_label",
+      entityId: label.id,
+      payload: { label: label.label, is_active: label.is_active, sort_order: label.sort_order },
+    });
+    return label;
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      throw conflictError("PURITY_LABEL_CONFLICT", "A purity label with this name already exists.");
+    }
+    throw error;
+  }
+}
+
+async function assertPurityAllowed(
+  repository: InventoryRepository,
+  purity: string,
+  options?: { allowInactiveLabel?: string },
+): Promise<void> {
+  const found = await repository.findPurityLabelByLabel(purity);
+  if (!found) {
+    throw validationError("Purity is not in the shop catalogue.", [
+      { field: "purity", message: "Choose a purity from Settings → Catalogues." },
+    ]);
+  }
+  if (found.is_active) {
+    return;
+  }
+  const allowed =
+    options?.allowInactiveLabel !== undefined &&
+    options.allowInactiveLabel.trim().toLowerCase() === found.label.trim().toLowerCase();
+  if (!allowed) {
+    throw validationError("That purity is archived.", [
+      { field: "purity", message: "Choose an active purity from the catalogue." },
+    ]);
   }
 }
 
@@ -455,6 +599,7 @@ export async function receiveArticle(
   if (!(await repository.categoryExists(input.category_id))) {
     throw validationError("Category was not found.", [{ field: "category_id", message: "Unknown category." }]);
   }
+  await assertPurityAllowed(repository, input.purity);
   if (input.location_id && !(await repository.locationExists(input.location_id))) {
     throw validationError("Storage location was not found.", [{ field: "location_id", message: "Unknown location." }]);
   }
@@ -551,8 +696,14 @@ export async function updateArticle(
   if (patch.category_id && !(await repository.categoryExists(patch.category_id))) {
     throw validationError("Category was not found.", [{ field: "category_id", message: "Unknown category." }]);
   }
-  if (patch.location_id && !(await repository.locationExists(patch.location_id))) {
-    throw validationError("Storage location was not found.", [{ field: "location_id", message: "Unknown location." }]);
+  if (patch.purity !== undefined) {
+    await assertPurityAllowed(repository, patch.purity, { allowInactiveLabel: current.purity });
+  }
+  if (patch.location_id) {
+    const keepingCurrent = patch.location_id === current.location_id;
+    if (!(await repository.locationExists(patch.location_id, { allowInactive: keepingCurrent }))) {
+      throw validationError("Storage location was not found.", [{ field: "location_id", message: "Unknown location." }]);
+    }
   }
   if (patch.photograph) {
     assertPhotograph(patch.photograph);

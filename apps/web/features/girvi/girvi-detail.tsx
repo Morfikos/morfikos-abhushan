@@ -9,8 +9,8 @@ import { Scale01 } from "@untitledui/icons";
 import { DatePicker } from "@/components/application/date-picker/date-picker";
 import { EmptyState } from "@/components/application/empty-state/empty-state";
 import {
+  GirviDetailSkeleton,
   MetricTilesSkeleton,
-  StaffDetailPageSkeleton,
   TableSkeleton,
 } from "@/components/application/skeleton/skeleton";
 import { Tabs } from "@/components/application/tabs/tabs";
@@ -35,7 +35,7 @@ import {
   girviStatusLabel,
   girviToday,
 } from "@/features/girvi/girvi-shared";
-import { formatInr } from "@/lib/money";
+import { MoneyText } from "@/components/shared/money-text";
 import { paymentMethodLabel } from "@/lib/payment-methods";
 import {
   activateGirviAccountRequest,
@@ -148,7 +148,7 @@ export function GirviDetail() {
   }
 
   if (query.isLoading) {
-    return <StaffDetailPageSkeleton sections={2} label="Loading Girvi account" />;
+    return <GirviDetailSkeleton label="Loading Girvi account" />;
   }
 
   if (query.isError || !query.data) {
@@ -183,13 +183,13 @@ export function GirviDetail() {
         description={
           <>
             {account.customer_display_name} · Principal{" "}
-            <span className="tabular-nums text-primary">{formatInr(account.principal_inr)}</span>
+            <MoneyText amount={account.principal_inr} className="text-primary" />
             {account.status !== "draft" ? (
               <>
                 {" · Outstanding principal "}
-                <span className="tabular-nums text-primary">{formatInr(account.principal_outstanding_inr)}</span>
+                <MoneyText amount={account.principal_outstanding_inr} className="text-primary" />
                 {" · Unpaid interest "}
-                <span className="tabular-nums text-primary">{formatInr(account.interest_outstanding_inr)}</span>
+                <MoneyText amount={account.interest_outstanding_inr} className="text-primary" />
               </>
             ) : null}
           </>
@@ -285,16 +285,17 @@ export function GirviDetail() {
               <Table.Body items={account.collateral}>
                 {(item) => (
                   <Table.Row id={item.id}>
-                    <Table.Cell>
-                      <p className="font-medium text-primary">{item.description}</p>
-                      <p className="text-xs text-tertiary">
-                        {[item.metal, item.purity].filter(Boolean).join(" · ") || "—"}
-                      </p>
-                      <p className="text-xs text-tertiary">
-                        {item.files.length === 0
-                          ? "No photos"
-                          : `${item.files.length} photo${item.files.length === 1 ? "" : "s"}`}
-                      </p>
+                    <Table.Cell className="font-medium text-primary">
+                      <span
+                        title={[
+                          [item.metal, item.purity].filter(Boolean).join(" · ") || "—",
+                          item.files.length === 0
+                            ? "No photos"
+                            : `${item.files.length} photo${item.files.length === 1 ? "" : "s"}`,
+                        ].join(" · ")}
+                      >
+                        {item.description}
+                      </span>
                     </Table.Cell>
                     <Table.Cell className="font-mono text-sm">{item.packet_number}</Table.Cell>
                     <Table.Cell>{item.custody_location}</Table.Cell>
@@ -302,20 +303,24 @@ export function GirviDetail() {
                       {item.gross_weight_grams ? `${item.gross_weight_grams} g` : "—"}
                       {item.net_metal_weight_grams ? ` / net ${item.net_metal_weight_grams} g` : ""}
                     </Table.Cell>
-                    <Table.Cell className="text-right tabular-nums">
-                      {item.assessed_value_inr ? formatInr(item.assessed_value_inr) : "—"}
+                    <Table.Cell className="text-right">
+                      {item.assessed_value_inr ? (
+                        <MoneyText amount={item.assessed_value_inr} className="text-right" />
+                      ) : (
+                        "—"
+                      )}
                     </Table.Cell>
                     <Table.Cell>
                       <Badge color="gray" size="sm">
                         {item.status === "in_custody" ? "In custody" : "Released"}
                       </Badge>
                     </Table.Cell>
-                    <Table.Cell>
-                      <div className="flex flex-col items-start gap-1">
+                    <Table.Cell truncate={false}>
+                      <div className="flex items-center gap-2">
                         {item.status === "in_custody" &&
                         (account.status === "active" || account.status === "settled") ? (
                           <Button color="link-color" size="sm" className="px-0" onPress={() => setMoveItemId(item.id)}>
-                            Move packet
+                            Move
                           </Button>
                         ) : null}
                         {account.status === "draft" ? (
@@ -378,7 +383,7 @@ export function GirviDetail() {
                               })();
                             }}
                           >
-                            View photo
+                            View
                           </Button>
                         ) : null}
                       </div>
@@ -395,9 +400,11 @@ export function GirviDetail() {
             <dl className="grid gap-3 sm:grid-cols-2">
               <div>
                 <dt className="text-sm text-tertiary">Principal</dt>
-                <dd className="tabular-nums text-md font-medium text-primary">
-                  {formatInr(account.terms_snapshot.principal_inr)}
-                </dd>
+                <MoneyText
+                  amount={account.terms_snapshot.principal_inr}
+                  as="dd"
+                  className="text-md font-medium text-primary"
+                />
               </div>
               <div>
                 <dt className="text-sm text-tertiary">Start</dt>
@@ -507,36 +514,38 @@ export function GirviDetail() {
                   <div className="grid max-w-3xl gap-3 sm:grid-cols-3">
                     <SectionCard className="gap-1 p-4 md:p-4">
                       <p className="text-sm text-tertiary">Principal outstanding</p>
-                      <p className="text-right text-display-xs font-semibold tabular-nums text-primary">
-                        {formatInr(statementQuery.data.principal_outstanding_inr)}
-                      </p>
+                      <MoneyText
+                        amount={statementQuery.data.principal_outstanding_inr}
+                        as="p"
+                        className="text-right text-display-xs font-semibold text-primary"
+                      />
                     </SectionCard>
                     <SectionCard className="gap-1 p-4 md:p-4">
                       <p className="text-sm text-tertiary">Interest outstanding</p>
-                      <p className="text-right text-display-xs font-semibold tabular-nums text-primary">
-                        {formatInr(statementQuery.data.interest_outstanding_inr)}
-                      </p>
+                      <MoneyText
+                        amount={statementQuery.data.interest_outstanding_inr}
+                        as="p"
+                        className="text-right text-display-xs font-semibold text-primary"
+                      />
                     </SectionCard>
                     <SectionCard className="gap-1 bg-secondary p-4 md:p-4">
                       <p className="text-sm text-tertiary">Settlement payable</p>
-                      <p className="text-right text-display-xs font-semibold tabular-nums text-primary">
-                        {formatInr(statementQuery.data.payoff_inr)}
-                      </p>
+                      <MoneyText
+                        amount={statementQuery.data.payoff_inr}
+                        as="p"
+                        className="text-right text-display-xs font-semibold text-primary"
+                      />
                     </SectionCard>
                   </div>
 
                   <dl className="grid max-w-3xl gap-3 sm:grid-cols-2">
                     <div className="flex justify-between gap-3 rounded-lg bg-secondary px-3 py-2 text-sm ring-1 ring-secondary">
                       <dt className="text-tertiary">Principal recovered</dt>
-                      <dd className="tabular-nums text-primary">
-                        {formatInr(statementQuery.data.principal_recovered_inr)}
-                      </dd>
+                      <MoneyText amount={statementQuery.data.principal_recovered_inr} as="dd" className="text-primary" />
                     </div>
                     <div className="flex justify-between gap-3 rounded-lg bg-secondary px-3 py-2 text-sm ring-1 ring-secondary">
                       <dt className="text-tertiary">Interest received</dt>
-                      <dd className="tabular-nums text-primary">
-                        {formatInr(statementQuery.data.interest_received_inr)}
-                      </dd>
+                      <MoneyText amount={statementQuery.data.interest_received_inr} as="dd" className="text-primary" />
                     </div>
                   </dl>
 
@@ -568,11 +577,11 @@ export function GirviDetail() {
                               <Table.Cell className="tabular-nums">{segment.from_business_date}</Table.Cell>
                               <Table.Cell className="tabular-nums">{segment.to_business_date}</Table.Cell>
                               <Table.Cell className="text-right tabular-nums">{segment.days}</Table.Cell>
-                              <Table.Cell className="text-right tabular-nums">
-                                {formatInr(segment.principal_inr)}
+                              <Table.Cell className="text-right">
+                                <MoneyText amount={segment.principal_inr} className="text-right" />
                               </Table.Cell>
-                              <Table.Cell className="text-right tabular-nums">
-                                {formatInr(segment.interest_inr)}
+                              <Table.Cell className="text-right">
+                                <MoneyText amount={segment.interest_inr} className="text-right" />
                               </Table.Cell>
                             </Table.Row>
                           )}
@@ -617,12 +626,14 @@ export function GirviDetail() {
                       <Table.Cell className="tabular-nums">{event.effective_business_date}</Table.Cell>
                       <Table.Cell>{MONEY_EVENT_LABELS[event.event_type] ?? event.event_type}</Table.Cell>
                       <Table.Cell>{event.method ? paymentMethodLabel(event.method) : "—"}</Table.Cell>
-                      <Table.Cell className="text-right tabular-nums">{formatInr(event.amount_inr)}</Table.Cell>
-                      <Table.Cell className="text-right tabular-nums">
-                        {formatInr(absoluteMoney(event.interest_delta_inr))}
+                      <Table.Cell className="text-right">
+                        <MoneyText amount={event.amount_inr} className="text-right" />
                       </Table.Cell>
-                      <Table.Cell className="text-right tabular-nums">
-                        {formatInr(absoluteMoney(event.principal_delta_inr))}
+                      <Table.Cell className="text-right">
+                        <MoneyText amount={absoluteMoney(event.interest_delta_inr)} className="text-right" />
+                      </Table.Cell>
+                      <Table.Cell className="text-right">
+                        <MoneyText amount={absoluteMoney(event.principal_delta_inr)} className="text-right" />
                       </Table.Cell>
                     </Table.Row>
                   )}
@@ -650,7 +661,9 @@ export function GirviDetail() {
                       <Table.Row id={event.id}>
                         <Table.Cell className="capitalize">{event.event_type.replaceAll("_", " ")}</Table.Cell>
                         <Table.Cell className="tabular-nums">{event.effective_business_date}</Table.Cell>
-                        <Table.Cell className="text-right tabular-nums">{formatInr(event.amount_inr)}</Table.Cell>
+                        <Table.Cell className="text-right">
+                          <MoneyText amount={event.amount_inr} className="text-right" />
+                        </Table.Cell>
                       </Table.Row>
                     )}
                   </Table.Body>
@@ -661,7 +674,7 @@ export function GirviDetail() {
             <TableCard.Root>
               <TableCard.Header title="Custody events" badge={String(account.custody_events.length)} />
               {account.custody_events.length === 0 ? (
-                <p className="px-6 py-4 text-sm text-tertiary">Custody receive events are written on activation.</p>
+                <p className="px-6 py-4 text-sm text-tertiary">Custody moves are recorded when the account is activated.</p>
               ) : (
                 <Table aria-label="Custody events">
                   <Table.Header>
@@ -690,7 +703,7 @@ export function GirviDetail() {
               <TableCard.Root>
                 <TableCard.Header
                   title="Release events"
-                  description="Physical handover is a separate row from settlement, never a flag on it."
+                  description="Handing jewellery back is recorded separately from settling the money."
                   badge={String(account.release_events.length)}
                 />
                 <Table aria-label="Release events">
@@ -764,7 +777,7 @@ export function GirviDetail() {
             </p>
             <p>
               Principal{" "}
-              <span className="font-medium tabular-nums text-primary">{formatInr(account.principal_inr)}</span>
+              <MoneyText amount={account.principal_inr} className="font-medium text-primary" />
             </p>
             <p className="text-sm">
               Packets:{" "}
@@ -773,9 +786,9 @@ export function GirviDetail() {
               </span>
             </p>
             <p className="text-sm text-tertiary">
-              This records disbursement and custody receive events. It is not a sale. Interest starts accruing on the
-              start business date and the rate is frozen on this account. Each collateral item must already have at
-              least one photo.
+              Records the cash handed over and takes the packets into shop custody. This is not a sale. Interest
+              starts on the start business date using the rate on this account. Each collateral item needs at least
+              one photo.
             </p>
           </div>
         }

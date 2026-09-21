@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { CustomerWhatsAppConsentFilter } from "@aabhushan/contracts";
 import { customerInitials } from "@aabhushan/domain";
 import { ChevronRight, Users01 } from "@untitledui/icons";
 
-import { Skeleton, StaffDirectoryLoading } from "@/components/application/skeleton/skeleton";
+import { LabeledControlSkeleton } from "@/components/application/skeleton/skeleton";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { Badge } from "@/components/base/badges/badges";
@@ -41,19 +41,29 @@ const DEFAULT_WHATSAPP = "" as const;
 export function CustomersFilterSkeleton() {
   return (
     <div className="flex flex-wrap items-end gap-3">
-      <Skeleton className="h-10 min-w-0 flex-1 max-w-md rounded-lg" />
-      <Skeleton className="h-10 w-36 rounded-lg" />
-      <Skeleton className="h-10 w-44 rounded-lg" />
-      <Skeleton className="h-10 w-40 rounded-lg" />
+      <LabeledControlSkeleton className="min-w-0 max-w-md flex-1" controlWidth="w-full" />
+      <LabeledControlSkeleton controlWidth="w-36" />
+      <LabeledControlSkeleton controlWidth="w-44" />
+      <LabeledControlSkeleton controlWidth="w-40" />
     </div>
   );
 }
 
-/** Route Suspense cold load (includes header shimmer). Feature keeps live StaffPageHeader. */
-export function CustomersDirectoryLoading() {
+/** Body-only loader: Suspense fallback and showInitialLoading (header stays live). */
+export function CustomersListBodyLoading() {
   return (
-    <StaffDirectoryLoading columns={5} label="Loading customers" filterSkeleton={<CustomersFilterSkeleton />} />
+    <DirectoryTableSkeleton
+      title="Directory"
+      columns={5}
+      label="Loading customers"
+      filterSkeleton={<CustomersFilterSkeleton />}
+    />
   );
+}
+
+/** @deprecated Prefer CustomersListBodyLoading — alias kept for call-site clarity. */
+export function CustomersDirectoryLoading() {
+  return <CustomersListBodyLoading />;
 }
 
 export function CustomerList() {
@@ -61,6 +71,40 @@ export function CustomerList() {
   const router = useRouter();
   const allowed = staffHasPermission(staff, "customers.read") || staffHasPermission(staff, "customers.write");
   const canWrite = staffHasPermission(staff, "customers.write");
+
+  useEffect(() => {
+    if (!allowed) {
+      router.replace("/access-denied");
+    }
+  }, [allowed, router]);
+
+  if (!allowed) {
+    return null;
+  }
+
+  return (
+    <section className="flex flex-col gap-6">
+      <StaffPageHeader
+        title="Customers"
+        description="Staff directory for sales and Girvi. Customers do not have login accounts."
+        icon={Users01}
+        actions={
+          canWrite ? (
+            <Button color="primary" size="md" href="/customers/new">
+              New customer
+            </Button>
+          ) : null
+        }
+      />
+      <Suspense fallback={<CustomersListBodyLoading />}>
+        <CustomerListBody canWrite={canWrite} />
+      </Suspense>
+    </section>
+  );
+}
+
+function CustomerListBody({ canWrite }: { canWrite: boolean }) {
+  const staff = useStaff();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [search, setSearch] = useState("");
@@ -68,12 +112,6 @@ export function CustomerList() {
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>(DEFAULT_ACTIVE);
   const [typeFilter, setTypeFilter] = useState<TypeFilter>(DEFAULT_TYPE);
   const [whatsappFilter, setWhatsappFilter] = useState<"" | CustomerWhatsAppConsentFilter>(DEFAULT_WHATSAPP);
-
-  useEffect(() => {
-    if (!allowed) {
-      router.replace("/access-denied");
-    }
-  }, [allowed, router]);
 
   const query = useQuery({
     queryKey: [
@@ -105,13 +143,8 @@ export function CustomerList() {
             : {}),
         ...(whatsappFilter ? { whatsappConsent: whatsappFilter } : {}),
       }),
-    enabled: allowed,
     placeholderData: keepPreviousData,
   });
-
-  if (!allowed) {
-    return null;
-  }
 
   const items = query.data?.items ?? [];
   const total = query.data?.total ?? 0;
@@ -141,27 +174,8 @@ export function CustomerList() {
   }
 
   return (
-    <section className="flex flex-col gap-6">
-      <StaffPageHeader
-        title="Customers"
-        description="Staff directory for sales and Girvi. Customers do not have login accounts."
-        actions={
-          canWrite ? (
-            <Button color="primary" size="md" href="/customers/new">
-              New customer
-            </Button>
-          ) : null
-        }
-      />
-
-      {showInitialLoading ? (
-        <DirectoryTableSkeleton
-          title="Directory"
-          columns={5}
-          label="Loading customers"
-          filterSkeleton={<CustomersFilterSkeleton />}
-        />
-      ) : null}
+    <>
+      {showInitialLoading ? <CustomersListBodyLoading /> : null}
       {query.isError ? <p className="text-sm text-error-primary">{customerErrorMessage(query.error)}</p> : null}
 
       {directoryEmpty ? (
@@ -316,6 +330,6 @@ export function CustomerList() {
           ) : null}
         </TableCard.Root>
       ) : null}
-    </section>
+    </>
   );
 }

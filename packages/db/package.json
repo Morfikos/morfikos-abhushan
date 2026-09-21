@@ -27,6 +27,7 @@
     "verify:reports": "tsx --env-file=../../.env ./scripts/verify-reports.ts",
     "seed:calculation-policy": "tsx --env-file=../../.env ./scripts/seed-calculation-policy.ts",
     "seed:girvi-calculation-policy": "tsx --env-file=../../.env ./scripts/seed-girvi-calculation-policy.ts",
+    "repair:girvi-policy-snapshots": "tsx --env-file=../../.env ./scripts/repair-girvi-policy-snapshots.ts",
     "seed:sample-articles": "tsx --env-file=../../.env ./scripts/seed-sample-articles.ts",
     "seed:sample-customers": "tsx --env-file=../../.env ./scripts/seed-sample-customers.ts",
     "seed:sample-unpaid-invoices": "tsx --env-file=../../.env ./scripts/seed-sample-unpaid-invoices.ts"

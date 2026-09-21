@@ -40,6 +40,7 @@ psql "$DATABASE_URL" -f packages/db/sql/0018_credit_note_and_refund_document_typ
 psql "$DATABASE_URL" -f packages/db/sql/0019_notifications_outbox_and_whatsapp.sql
 psql "$DATABASE_URL" -f packages/db/sql/0020_reporting_views_and_exports.sql
 psql "$DATABASE_URL" -f packages/db/sql/0021_sales_dues_as_of.sql
+psql "$DATABASE_URL" -f packages/db/sql/0022_export_type_collections.sql
 pnpm verify:org-context
 pnpm verify:inventory
 pnpm verify:barcodes

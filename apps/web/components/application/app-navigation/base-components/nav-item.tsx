@@ -10,8 +10,8 @@ import { isSameOriginAppPath } from "@/lib/client-navigation";
 import { cx, sortCx } from "@/utils/cx";
 
 const styles = sortCx({
-    root: "group relative flex max-h-9 w-full cursor-pointer items-center rounded-md bg-transparent outline-focus-ring transition duration-100 ease-linear select-none hover:bg-tertiary focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2",
-    rootSelected: "bg-brand-primary hover:bg-brand-secondary",
+    root: "group relative flex min-h-9 max-h-9 w-full cursor-pointer items-center rounded-lg bg-transparent outline-focus-ring transition duration-100 ease-linear select-none hover:bg-primary/70 focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2",
+    rootSelected: "bg-primary shadow-xs ring-1 ring-secondary hover:bg-primary",
 });
 
 interface NavItemBaseProps {
@@ -43,7 +43,7 @@ export const NavItemBase = ({ current, type, badge, href, icon: Icon, children, 
             aria-hidden="true"
             className={cx(
                 "mr-2 size-5 shrink-0 text-fg-quaternary transition-inherit-all group-hover/item:text-fg-quaternary_hover",
-                current && "text-fg-brand-primary",
+                current && "text-primary stroke-[2.25px]",
             )}
         />
     );
@@ -60,9 +60,9 @@ export const NavItemBase = ({ current, type, badge, href, icon: Icon, children, 
     const labelElement = (
         <span
             className={cx(
-                "flex-1 text-sm font-semibold text-secondary transition-inherit-all group-hover/item:text-secondary_hover",
+                "flex-1 text-sm font-medium text-tertiary transition-inherit-all group-hover/item:text-secondary",
                 truncate && "truncate",
-                current && "text-brand-secondary",
+                current && "font-bold text-primary",
             )}
         >
             {children}

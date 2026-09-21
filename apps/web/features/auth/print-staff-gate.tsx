@@ -1,9 +1,13 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
+import type { CurrentStaff, StaffPermission } from "@aabhushan/contracts";
 
+import { PrintDocumentSkeleton, TagPrintSkeleton } from "@/components/application/skeleton/skeleton";
 import { Button } from "@/components/base/buttons/button";
+import { getBrowserQueryClient } from "@/lib/query-client";
 import { fetchCurrentStaff, StaffApiError } from "@/lib/staff-api";
 import {
   clearStaffSessionCache,
@@ -12,17 +16,37 @@ import {
 } from "@/lib/staff-session-cache";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
+function printGateAllows(staff: CurrentStaff, pathname: string): boolean {
+  const permissions = staff.permissions;
+  if (pathname.startsWith("/print/tags")) {
+    return permissions.includes("inventory.write");
+  }
+  if (pathname.startsWith("/print/invoices")) {
+    return permissions.includes("billing.write");
+  }
+  if (pathname.startsWith("/print/receipts")) {
+    return permissions.includes("payments.write") || permissions.includes("billing.write");
+  }
+  // Unknown print route: require any print-capable permission.
+  const anyPrint: StaffPermission[] = ["inventory.write", "billing.write", "payments.write"];
+  return anyPrint.some((permission) => permissions.includes(permission));
+}
+
 export function PrintStaffGate({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname() ?? "";
+  // Always false on first paint so SSR HTML matches client hydration (no storage on server).
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const cached = readStaffSessionCache();
-    if (cached?.permissions.includes("inventory.write")) {
+    if (cached && printGateAllows(cached, pathname)) {
       setReady(true);
     }
+  }, [pathname]);
 
+  useEffect(() => {
     let cancelled = false;
 
     async function load() {
@@ -41,7 +65,7 @@ export function PrintStaffGate({ children }: { children: ReactNode }) {
           return;
         }
         writeStaffSessionCache(staff);
-        if (!staff.permissions.includes("inventory.write")) {
+        if (!printGateAllows(staff, pathname)) {
           router.replace("/access-denied");
           return;
         }
@@ -63,7 +87,8 @@ export function PrintStaffGate({ children }: { children: ReactNode }) {
           router.replace("/login");
           return;
         }
-        if (!readStaffSessionCache()?.permissions.includes("inventory.write")) {
+        const fallback = readStaffSessionCache();
+        if (!fallback || !printGateAllows(fallback, pathname)) {
           setError("The staff session could not be verified. Try again.");
         }
       }
@@ -73,7 +98,7 @@ export function PrintStaffGate({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [pathname, router]);
 
   if (error && !ready) {
     return (
@@ -87,12 +112,11 @@ export function PrintStaffGate({ children }: { children: ReactNode }) {
   }
 
   if (!ready) {
-    return (
-      <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center bg-white px-6 text-black">
-        <p className="text-sm">Checking staff access…</p>
-      </main>
-    );
+    if (pathname.startsWith("/print/tags")) {
+      return <TagPrintSkeleton label="Preparing tags…" />;
+    }
+    return <PrintDocumentSkeleton label="Loading print view…" />;
   }
 
-  return <>{children}</>;
+  return <QueryClientProvider client={getBrowserQueryClient()}>{children}</QueryClientProvider>;
 }

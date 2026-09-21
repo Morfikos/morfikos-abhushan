@@ -24,6 +24,8 @@ import {
   stockCountSchema,
   storageLocationListSchema,
   storageLocationSchema,
+  purityLabelListSchema,
+  purityLabelSchema,
   tagPreviewSchema,
   tagPrintEventSchema,
   articleBulkDeleteResultSchema,
@@ -48,6 +50,14 @@ import {
   type MetalRate,
   type MetalRateCreate,
   type MetalRateList,
+  type PurityLabel,
+  type PurityLabelCreate,
+  type PurityLabelList,
+  type PurityLabelPatch,
+  type StorageLocation,
+  type StorageLocationCreate,
+  type StorageLocationList,
+  type StorageLocationPatch,
   type MetalRatesCoverage,
   type MakingChargeDefault,
   type MakingChargeDefaultList,
@@ -62,9 +72,6 @@ import {
   type StaffList,
   type StockCount,
   type StockCountCreate,
-  type StorageLocation,
-  type StorageLocationCreate,
-  type StorageLocationList,
   type TagPreview,
   type TagPrintCreate,
   type TagPrintEvent,
@@ -444,8 +451,18 @@ export async function createCatalogueCategoryRequest(
   });
 }
 
-export async function fetchStorageLocations(accessToken: string): Promise<StorageLocationList> {
-  return staffRequest(accessToken, "/api/v1/storage-locations", { schema: storageLocationListSchema });
+export async function fetchStorageLocations(
+  accessToken: string,
+  options?: { includeInactive?: boolean },
+): Promise<StorageLocationList> {
+  const params = new URLSearchParams();
+  if (options?.includeInactive) {
+    params.set("include_inactive", "1");
+  }
+  const query = params.toString();
+  return staffRequest(accessToken, `/api/v1/storage-locations${query ? `?${query}` : ""}`, {
+    schema: storageLocationListSchema,
+  });
 }
 
 export async function createStorageLocationRequest(
@@ -456,6 +473,55 @@ export async function createStorageLocationRequest(
     method: "POST",
     body: input,
     schema: storageLocationSchema,
+  });
+}
+
+export async function patchStorageLocationRequest(
+  accessToken: string,
+  locationId: string,
+  input: StorageLocationPatch,
+): Promise<StorageLocation> {
+  return staffRequest(accessToken, `/api/v1/storage-locations/${locationId}`, {
+    method: "PATCH",
+    body: input,
+    schema: storageLocationSchema,
+  });
+}
+
+export async function fetchPurityLabels(
+  accessToken: string,
+  options?: { includeInactive?: boolean },
+): Promise<PurityLabelList> {
+  const params = new URLSearchParams();
+  if (options?.includeInactive) {
+    params.set("include_inactive", "1");
+  }
+  const query = params.toString();
+  return staffRequest(accessToken, `/api/v1/purity-labels${query ? `?${query}` : ""}`, {
+    schema: purityLabelListSchema,
+  });
+}
+
+export async function createPurityLabelRequest(
+  accessToken: string,
+  input: PurityLabelCreate,
+): Promise<PurityLabel> {
+  return staffRequest(accessToken, "/api/v1/purity-labels", {
+    method: "POST",
+    body: input,
+    schema: purityLabelSchema,
+  });
+}
+
+export async function patchPurityLabelRequest(
+  accessToken: string,
+  purityLabelId: string,
+  input: PurityLabelPatch,
+): Promise<PurityLabel> {
+  return staffRequest(accessToken, `/api/v1/purity-labels/${purityLabelId}`, {
+    method: "PATCH",
+    body: input,
+    schema: purityLabelSchema,
   });
 }
 

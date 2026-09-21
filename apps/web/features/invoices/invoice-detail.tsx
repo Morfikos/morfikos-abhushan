@@ -5,11 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import type { InvoiceLine } from "@aabhushan/contracts";
 
-import {
-  DetailHeaderSkeleton,
-  PanelSkeleton,
-  TableSkeleton,
-} from "@/components/application/skeleton/skeleton";
+import { PosWorkspaceSkeleton } from "@/components/application/skeleton/skeleton";
 import { StaffBackLink } from "@/components/application/staff-back-link";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Badge } from "@/components/base/badges/badges";
@@ -18,7 +14,8 @@ import { staffHasPermission, useStaff } from "@/features/auth/staff-shell";
 import { CreditNoteDocumentsCard } from "@/features/invoices/credit-note-documents-card";
 import { InvoiceCorrectionsCard } from "@/features/invoices/invoice-corrections-card";
 import { InvoiceDocumentsCard } from "@/features/invoices/invoice-documents-card";
-import { formatInr, invoiceAccessToken, invoiceErrorMessage, isZeroMoney } from "@/features/invoices/invoice-shared";
+import { MoneyText } from "@/components/shared/money-text";
+import { invoiceAccessToken, invoiceErrorMessage, isZeroMoney } from "@/features/invoices/invoice-shared";
 import { PosWorkspace } from "@/features/invoices/pos-workspace";
 import { ReturnArticleDialog } from "@/features/invoices/return-article-dialog";
 import { InvoicePaymentsPanel } from "@/features/payments/invoice-payments-panel";
@@ -53,19 +50,7 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
   }
 
   if (query.isLoading) {
-    return (
-      <section className="flex flex-col gap-6">
-        <DetailHeaderSkeleton label="Loading invoice" />
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
-          <div className="flex flex-col gap-4">
-            <TableSkeleton columns={5} rows={6} showCard titleWidth="w-24" label="Loading invoice lines" />
-            <PanelSkeleton rows={3} label="Loading collections" />
-            <PanelSkeleton rows={3} label="Loading corrections" />
-          </div>
-          <PanelSkeleton rows={5} label="Loading snapshot" />
-        </div>
-      </section>
-    );
+    return <PosWorkspaceSkeleton label="Loading invoice" />;
   }
 
   if (query.isError || !query.data) {
@@ -78,7 +63,7 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
 
   const invoice = query.data;
   if (invoice.status === "draft") {
-    return <PosWorkspace draftId={invoice.id} />;
+    return <PosWorkspace draftId={invoice.id} initialInvoice={invoice} />;
   }
 
   const returnedLineIds = new Set(
@@ -107,7 +92,19 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
             </Button>
           ) : null}
           <Button
-            color={staffHasPermission(staff, "payments.write") && !isZeroMoney(invoice.amount_due_inr) ? "secondary" : "primary"}
+            color={
+              staffHasPermission(staff, "payments.write") && !isZeroMoney(invoice.amount_due_inr)
+                ? "secondary"
+                : "primary"
+            }
+            size="md"
+            href={`/print/invoices/${invoice.id}?autoprint=1`}
+            target="_blank"
+          >
+            Print
+          </Button>
+          <Button
+            color="secondary"
             size="md"
             href="/invoices/new"
           >
@@ -132,18 +129,17 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
                   const returned = returnedLineIds.has(line.id);
                   return (
                     <Table.Row id={line.id}>
-                      <Table.Cell>
-                        <div className="flex flex-col">
-                          <span className="font-medium text-primary">{line.description}</span>
-                          <span className="font-mono text-xs text-tertiary">{line.article_number}</span>
-                        </div>
+                      <Table.Cell className="font-medium text-primary">
+                        <span title={line.article_number}>{line.description}</span>
                       </Table.Cell>
                       <Table.Cell className="capitalize">
                         {line.metal} · {line.purity}
                       </Table.Cell>
                       <Table.Cell className="text-right tabular-nums">{line.net_metal_weight_grams}</Table.Cell>
-                      <Table.Cell className="text-right tabular-nums">{formatInr(line.line_total_inr)}</Table.Cell>
-                      <Table.Cell>
+                      <Table.Cell className="text-right tabular-nums">
+                        <MoneyText amount={line.line_total_inr} />
+                      </Table.Cell>
+                      <Table.Cell truncate={false}>
                         {returned ? (
                           <Badge color="warning" size="sm">
                             Under review
@@ -170,23 +166,19 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
           <dl className="flex flex-col gap-2 text-sm">
             <div className="flex justify-between gap-3">
               <dt className="text-tertiary">Grand total</dt>
-              <dd className="font-semibold tabular-nums">{formatInr(invoice.grand_total_inr)}</dd>
+              <MoneyText amount={invoice.grand_total_inr} as="dd" className="font-semibold" />
             </div>
             <div className="flex justify-between gap-3">
               <dt className="text-tertiary">Credited</dt>
-              <dd className="tabular-nums">{formatInr(correctionsQuery.data?.credited_inr ?? "0.00")}</dd>
+              <MoneyText amount={correctionsQuery.data?.credited_inr ?? "0.00"} as="dd" />
             </div>
             <div className="flex justify-between gap-3">
               <dt className="text-tertiary">Paid</dt>
-              <dd className="tabular-nums">{formatInr(invoice.amount_paid_inr)}</dd>
+              <MoneyText amount={invoice.amount_paid_inr} as="dd" />
             </div>
             <div className="flex justify-between gap-3">
               <dt className="text-tertiary">Due</dt>
-              <dd className="tabular-nums">{formatInr(invoice.amount_due_inr)}</dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-tertiary">Policy</dt>
-              <dd className="text-right">{invoice.calculation_policy_version ?? "—"}</dd>
+              <MoneyText amount={invoice.amount_due_inr} as="dd" />
             </div>
           </dl>
           <p className="mt-2 text-xs text-tertiary">

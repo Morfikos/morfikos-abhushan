@@ -9,10 +9,16 @@ import { Heading } from "react-aria-components";
 import { Dialog, Modal, ModalOverlay } from "@/components/application/modals/modal";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
+import { CatalogueCombobox } from "@/components/shared/catalogue-combobox";
 import { SelectField } from "@/components/shared/select-field";
 import { useStaff } from "@/features/auth/staff-shell";
 import { invoiceAccessToken, invoiceErrorMessage } from "@/features/invoices/invoice-shared";
-import { fetchCatalogueCategories, fetchStorageLocations, StaffApiError } from "@/lib/staff-api";
+import {
+  fetchCatalogueCategories,
+  fetchPurityLabels,
+  fetchStorageLocations,
+  StaffApiError,
+} from "@/lib/staff-api";
 
 const WEIGHT_PATTERN = /^\d+(\.\d{1,4})?$/;
 
@@ -44,6 +50,12 @@ export function PosQuickReceiveDialog({ isOpen, isSaving, onClose, onSubmit }: P
   const locations = useQuery({
     queryKey: ["storage-locations", staff.membership.organization_id, "pos-quick"],
     queryFn: async () => fetchStorageLocations(await invoiceAccessToken()),
+    enabled: isOpen,
+  });
+
+  const purities = useQuery({
+    queryKey: ["purity-labels", staff.membership.organization_id, "pos-quick"],
+    queryFn: async () => fetchPurityLabels(await invoiceAccessToken()),
     enabled: isOpen,
   });
 
@@ -90,10 +102,8 @@ export function PosQuickReceiveDialog({ isOpen, isSaving, onClose, onSubmit }: P
       value: item.id,
     }));
 
-  const locationOptions = [
-    { label: "Unspecified", value: "" },
-    ...(locations.data?.items ?? []).map((item) => ({ label: item.name, value: item.id })),
-  ];
+  const purityItems = (purities.data?.items ?? []).map((item) => ({ id: item.label, label: item.label }));
+  const locationItems = (locations.data?.items ?? []).map((item) => ({ id: item.id, label: item.name }));
 
   function submit() {
     setLocalError(null);
@@ -171,7 +181,15 @@ export function PosQuickReceiveDialog({ isOpen, isSaving, onClose, onSubmit }: P
                 { label: "Silver", value: "silver" },
               ]}
             />
-            <Input label="Purity" value={purity} onChange={setPurity} isRequired />
+            <CatalogueCombobox
+              label="Purity"
+              value={purity}
+              onChange={setPurity}
+              placeholder="Search purity"
+              isRequired
+              isDisabled={purities.isLoading}
+              items={purityItems}
+            />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <Input label="Gross weight (g)" value={gross} onChange={setGross} isRequired />
@@ -185,12 +203,15 @@ export function PosQuickReceiveDialog({ isOpen, isSaving, onClose, onSubmit }: P
             hint={net ? `${gross.trim()} − ${nonMetal.trim() || "0"} = ${net} g` : "Calculated as gross minus non-metal."}
             onChange={() => undefined}
           />
-          <SelectField
+          <CatalogueCombobox
             label="Location"
             value={locationId}
             onChange={setLocationId}
-            options={locationOptions}
+            placeholder="Search location"
+            allowEmpty
+            emptyLabel="Unspecified"
             isDisabled={locations.isLoading}
+            items={locationItems}
           />
           <Input label="HUID (optional)" value={huid} onChange={setHuid} />
 

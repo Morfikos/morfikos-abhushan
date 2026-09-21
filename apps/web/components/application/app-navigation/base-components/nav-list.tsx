@@ -61,7 +61,7 @@ export const NavList = ({ activeUrl, items, className, collapsed = false }: NavL
 
                 if (item.items?.length) {
                     return (
-                        <details key={item.label} open={activeItem?.href === item.href} className="appearance-none py-0.25">
+                        <details key={item.label} open={activeItem?.href === item.href} className="appearance-none py-px">
                             <NavItemBase href={item.href} badge={item.badge} icon={item.icon} type="collapsible">
                                 {item.label}
                             </NavItemBase>
@@ -69,7 +69,7 @@ export const NavList = ({ activeUrl, items, className, collapsed = false }: NavL
                             <dd>
                                 <ul className="pb-1">
                                     {item.items.map((childItem) => (
-                                        <li key={childItem.label} className="py-0.25">
+                                        <li key={childItem.label} className="py-px">
                                             <NavItemBase
                                                 href={childItem.href}
                                                 badge={childItem.badge}

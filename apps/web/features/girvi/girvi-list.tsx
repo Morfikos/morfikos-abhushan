@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { CalendarDate, DateValue } from "@internationalized/date";
@@ -11,7 +11,7 @@ import type { DateRange } from "react-aria-components";
 
 import { DatePicker } from "@/components/application/date-picker/date-picker";
 import { DateRangePicker } from "@/components/application/date-picker/date-range-picker";
-import { Skeleton, StaffDirectoryLoading } from "@/components/application/skeleton/skeleton";
+import { LabeledControlSkeleton, Skeleton } from "@/components/application/skeleton/skeleton";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
@@ -34,6 +34,7 @@ import {
   girviStatusBadgeColor,
   girviStatusLabel,
 } from "@/features/girvi/girvi-shared";
+import { MoneyText } from "@/components/shared/money-text";
 import { formatInr } from "@/lib/money";
 import {
   boundsForPeriod,
@@ -57,19 +58,29 @@ export function GirviFilterSkeleton() {
         <Skeleton className="h-10 w-40 rounded-lg" />
       </div>
       <div className="flex flex-wrap items-end gap-3">
-        <Skeleton className="h-10 min-w-0 max-w-md flex-1 rounded-lg" />
-        <Skeleton className="h-10 w-40 rounded-lg" />
-        <Skeleton className="h-10 w-36 rounded-lg" />
+        <LabeledControlSkeleton className="min-w-0 max-w-md flex-1" controlWidth="w-full" />
+        <LabeledControlSkeleton controlWidth="w-40" />
+        <LabeledControlSkeleton controlWidth="w-36" />
       </div>
     </>
   );
 }
 
-/** Route Suspense cold load (includes header shimmer). Feature keeps live StaffPageHeader. */
-export function GirviDirectoryLoading() {
+/** Body-only loader: Suspense fallback and showInitialLoading (header stays live). */
+export function GirviListBodyLoading() {
   return (
-    <StaffDirectoryLoading columns={7} label="Loading Girvi" filterSkeleton={<GirviFilterSkeleton />} />
+    <DirectoryTableSkeleton
+      title="Accounts"
+      columns={7}
+      label="Loading Girvi accounts"
+      filterSkeleton={<GirviFilterSkeleton />}
+    />
   );
+}
+
+/** @deprecated Prefer GirviListBodyLoading — alias kept for call-site clarity. */
+export function GirviDirectoryLoading() {
+  return <GirviListBodyLoading />;
 }
 
 const DEFAULT_STATUS: GirviAccountStatus = "active";
@@ -182,10 +193,39 @@ export function GirviList() {
   const staff = useStaff();
   const router = useRouter();
   const allowed = staffHasPermission(staff, "girvi.write");
-  const { filters, setFilters, chips } = useSyncedListFilters(
-    "/girvi",
-    girviListCodec,
+
+  useEffect(() => {
+    if (!allowed) {
+      router.replace("/access-denied");
+    }
+  }, [allowed, router]);
+
+  if (!allowed) {
+    return null;
+  }
+
+  return (
+    <section className="flex flex-col gap-6">
+      <StaffPageHeader
+        title="Girvi"
+        description="Customer collateral in custody. Packets are never saleable inventory."
+        icon={Scale01}
+        actions={
+          <Button color="primary" size="md" href="/girvi/new">
+            New Girvi
+          </Button>
+        }
+      />
+      <Suspense fallback={<GirviListBodyLoading />}>
+        <GirviListBody />
+      </Suspense>
+    </section>
   );
+}
+
+function GirviListBody() {
+  const staff = useStaff();
+  const { filters, setFilters, chips } = useSyncedListFilters("/girvi", girviListCodec);
   const { status: statusFilter, overdueOnly, periodPreset, dayDate, customStart, customEnd } = filters;
   const overdueFilter = overdueOnly ? "overdue" : "";
   const [page, setPage] = useState(1);
@@ -208,12 +248,6 @@ export function GirviList() {
   const periodActive = periodPreset !== "all";
   const listSort = periodActive ? "maturity_business_date" : "created_at";
   const listDirection = periodActive ? "asc" : "desc";
-
-  useEffect(() => {
-    if (!allowed) {
-      router.replace("/access-denied");
-    }
-  }, [allowed, router]);
 
   const query = useQuery({
     queryKey: [
@@ -241,13 +275,8 @@ export function GirviList() {
         ...(periodBounds.from ? { maturityFrom: periodBounds.from } : {}),
         ...(periodBounds.to ? { maturityTo: periodBounds.to } : {}),
       }),
-    enabled: allowed,
     placeholderData: keepPreviousData,
   });
-
-  if (!allowed) {
-    return null;
-  }
 
   const items = query.data?.items ?? [];
   const total = query.data?.total ?? 0;
@@ -293,26 +322,8 @@ export function GirviList() {
   }
 
   return (
-    <section className="flex flex-col gap-6">
-      <StaffPageHeader
-        title="Girvi"
-        description="Customer collateral in custody. Packets are never saleable inventory."
-        icon={Scale01}
-        actions={
-          <Button color="primary" size="md" href="/girvi/new">
-            New Girvi
-          </Button>
-        }
-      />
-
-      {showInitialLoading ? (
-        <DirectoryTableSkeleton
-          title="Accounts"
-          columns={7}
-          label="Loading Girvi accounts"
-          filterSkeleton={<GirviFilterSkeleton />}
-        />
-      ) : null}
+    <>
+      {showInitialLoading ? <GirviListBodyLoading /> : null}
 
       {query.isError ? (
         <p className="text-sm text-error-primary" role="alert">
@@ -324,7 +335,7 @@ export function GirviList() {
         <DirectoryEmptyState
           icon={Scale01}
           title="No Girvi accounts yet"
-          description="Open an account to record customer collateral and disbursement. Interest accrues from the start date on the frozen rate."
+          description="Open an account to record customer jewellery held as collateral and the amount disbursed. Interest uses the rate set when the account is activated."
           action={
             <Button color="primary" size="md" href="/girvi/new">
               New Girvi
@@ -468,13 +479,15 @@ export function GirviList() {
                         <p className="text-xs text-tertiary">{item.collateral_count} packet(s)</p>
                       </Table.Cell>
                       <Table.Cell>{item.customer_display_name}</Table.Cell>
-                      <Table.Cell className="text-right tabular-nums">{formatInr(item.principal_inr)}</Table.Cell>
+                      <Table.Cell className="text-right">
+                        <MoneyText amount={item.principal_inr} className="text-right" />
+                      </Table.Cell>
                       <Table.Cell className="text-right tabular-nums">
                         {item.status === "draft" ? (
                           "—"
                         ) : (
                           <>
-                            <span className="text-primary">{formatInr(item.principal_outstanding_inr)}</span>
+                            <MoneyText amount={item.principal_outstanding_inr} className="text-primary" />
                             <p className="text-xs text-tertiary">
                               Interest {formatInr(item.interest_outstanding_inr)}
                             </p>
@@ -508,6 +521,6 @@ export function GirviList() {
           ) : null}
         </TableCard.Root>
       ) : null}
-    </section>
+    </>
   );
 }

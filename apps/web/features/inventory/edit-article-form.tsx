@@ -11,6 +11,7 @@ import { FileUpload, getReadableFileSize } from "@/components/application/file-u
 import { FormSkeleton } from "@/components/application/skeleton/skeleton";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
+import { CatalogueCombobox } from "@/components/shared/catalogue-combobox";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { SectionCard } from "@/components/shared/section-card";
 import { SelectField } from "@/components/shared/select-field";
@@ -26,6 +27,7 @@ import {
 import {
   fetchArticle,
   fetchCatalogueCategories,
+  fetchPurityLabels,
   fetchStorageLocations,
   patchArticleRequest,
   StaffApiError,
@@ -103,10 +105,29 @@ export function EditArticleForm({ articleId }: { articleId: string }) {
     queryFn: async () => fetchCatalogueCategories(await inventoryAccessToken()),
     enabled: allowed,
   });
-  const locations = useQuery({
-    queryKey: ["inventory", "locations", staff.membership.organization_id],
-    queryFn: async () => fetchStorageLocations(await inventoryAccessToken()),
+  const purities = useQuery({
+    queryKey: ["inventory", "purity-labels", staff.membership.organization_id],
+    queryFn: async () => fetchPurityLabels(await inventoryAccessToken()),
     enabled: allowed,
+  });
+  const currentLocationId = articleQuery.data?.location_id ?? null;
+  const locations = useQuery({
+    queryKey: [
+      "inventory",
+      "locations",
+      staff.membership.organization_id,
+      "edit",
+      currentLocationId ?? "none",
+    ],
+    queryFn: async () => {
+      const token = await inventoryAccessToken();
+      const active = await fetchStorageLocations(token);
+      if (currentLocationId && !active.items.some((item) => item.id === currentLocationId)) {
+        return fetchStorageLocations(token, { includeInactive: true });
+      }
+      return active;
+    },
+    enabled: allowed && Boolean(articleQuery.data),
   });
 
   useEffect(() => {
@@ -182,6 +203,15 @@ export function EditArticleForm({ articleId }: { articleId: string }) {
 
   const activeCategories = categories.data?.items.filter((item) => item.is_active) ?? [];
   const hasCategories = activeCategories.length > 0;
+  const purityItems = useMemo(() => {
+    const items = (purities.data?.items ?? []).map((item) => ({ id: item.label, label: item.label }));
+    const current = purity.trim();
+    if (current && !items.some((item) => item.id === current)) {
+      return [{ id: current, label: current }, ...items];
+    }
+    return items;
+  }, [purities.data, purity]);
+  const locationItems = (locations.data?.items ?? []).map((item) => ({ id: item.id, label: item.name }));
 
   const computedNet = useMemo(() => {
     const grossValue = gross.trim();
@@ -320,7 +350,13 @@ export function EditArticleForm({ articleId }: { articleId: string }) {
     return null;
   }
 
-  if (articleQuery.isLoading || categories.isLoading || locations.isLoading || !prefillDone) {
+  if (
+    articleQuery.isLoading ||
+    categories.isLoading ||
+    locations.isLoading ||
+    purities.isLoading ||
+    !prefillDone
+  ) {
     return (
       <section className="mx-auto flex w-full max-w-3xl flex-col gap-5">
         <StaffPageHeader
@@ -328,7 +364,7 @@ export function EditArticleForm({ articleId }: { articleId: string }) {
           description="Update identity, weights, source, location, and photograph. Article number and barcode stay permanent."
           back={{ href: `/inventory/${articleId}`, label: "Article" }}
         />
-        <FormSkeleton sections={3} fieldsPerSection={4} showStickyActions label="Loading article" />
+        <FormSkeleton sections={4} fieldsPerSection={5} showStickyActions label="Loading article" />
       </section>
     );
   }
@@ -422,14 +458,15 @@ export function EditArticleForm({ articleId }: { articleId: string }) {
                 { label: "Silver", value: "silver" },
               ]}
             />
-            <Input
+            <CatalogueCombobox
               label="Purity"
               value={purity}
-              placeholder="e.g. 22K"
+              onChange={setPurity}
+              placeholder="Search purity"
               isRequired
               isInvalid={Boolean(purityFieldError)}
               hint={purityFieldError}
-              onChange={setPurity}
+              items={purityItems}
             />
             <Input label="HUID" value={huid} tooltip="Optional until category rules are confirmed." onChange={setHuid} />
           </div>
@@ -485,22 +522,22 @@ export function EditArticleForm({ articleId }: { articleId: string }) {
               tooltip="Reference only, not job-work accounting."
               onChange={setKarigarRef}
             />
-            <SelectField
+            <CatalogueCombobox
               label="Storage location"
               value={locationId}
               onChange={setLocationId}
+              placeholder="Search location"
+              allowEmpty
+              emptyLabel="Unspecified"
               isDisabled={locations.isLoading}
               isInvalid={Boolean(locationFieldError)}
               hint={locationFieldError}
-              options={[
-                { label: "Unspecified", value: "" },
-                ...(locations.data?.items ?? []).map((item) => ({ label: item.name, value: item.id })),
-              ]}
+              items={locationItems}
             />
           </div>
         </SectionCard>
 
-        <SectionCard title="Photograph" description="One current photograph. Replace only when you intend to change it; upload commits on save.">
+        <SectionCard title="Photograph" description="One current photograph. Replace only when you intend to change it. Photo uploads when you save.">
           <div className="flex flex-col gap-3">
             <div className="flex aspect-video max-h-56 flex-col items-center justify-center overflow-hidden rounded-lg bg-secondary ring-1 ring-secondary">
               {photoFile ? (

@@ -11,7 +11,7 @@ import { TextArea } from "@/components/base/textarea/textarea";
 import { MoneyInput } from "@/components/shared/money-input";
 import { MethodSelect } from "@/components/shared/method-select";
 import { paymentAccessToken, paymentErrorMessage, newPaymentIdempotencyKey } from "@/features/payments/payment-shared";
-import { formatInr } from "@/lib/money";
+import { MoneyText } from "@/components/shared/money-text";
 import { refundPaymentRequest, reversePaymentRequest } from "@/lib/staff-api";
 
 export function PaymentCorrectionDialog({
@@ -99,7 +99,7 @@ export function PaymentCorrectionDialog({
               </div>
               <div className="flex justify-between gap-3">
                 <dt className="text-tertiary">Collected</dt>
-                <dd className="tabular-nums text-primary">{formatInr(payment.amount_inr)}</dd>
+                <MoneyText amount={payment.amount_inr} as="dd" className="text-primary" />
               </div>
             </dl>
           ) : null}

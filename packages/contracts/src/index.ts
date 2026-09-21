@@ -177,9 +177,19 @@ export const apiVersionDocument = {
       get: { summary: "Catalogue categories for receiving and filters" },
       post: { summary: "Create a catalogue category" },
     },
+    "/purity-labels": {
+      get: { summary: "Org purity labels for inventory, rates, and making defaults" },
+      post: { summary: "Create a purity label" },
+    },
+    "/purity-labels/{id}": {
+      patch: { summary: "Rename, reorder, or archive a purity label" },
+    },
     "/storage-locations": {
       get: { summary: "Branch storage locations" },
       post: { summary: "Create a storage location" },
+    },
+    "/storage-locations/{id}": {
+      patch: { summary: "Rename or archive a storage location" },
     },
     "/articles": {
       get: { summary: "Paginated saleable-inventory article list" },
@@ -477,6 +487,13 @@ export {
   stockCountCreateSchema,
   stockCountSchema,
   storageLocationCreateSchema,
+  storageLocationPatchSchema,
+  storageLocationListQuerySchema,
+  purityLabelSchema,
+  purityLabelCreateSchema,
+  purityLabelPatchSchema,
+  purityLabelListSchema,
+  purityLabelListQuerySchema,
   tagPreviewSchema,
   tagPrintCreateSchema,
   tagPrintEventSchema,
@@ -505,11 +522,16 @@ export type {
   InventoryMovement,
   InventoryMovementList,
   InventoryMovementType,
+  PurityLabel,
+  PurityLabelCreate,
+  PurityLabelList,
+  PurityLabelPatch,
   StockCount,
   StockCountCreate,
   StorageLocation,
   StorageLocationCreate,
   StorageLocationList,
+  StorageLocationPatch,
   TagPreview,
   TagPrintCreate,
   TagPrintEvent,
@@ -783,8 +805,8 @@ export type {
   StoredObject,
   StoredObjectOwnerType,
 } from "./documents";
-export { bilingualLabel, documentLabelPair } from "./document-labels";
-export type { DocumentLabelKey } from "./document-labels";
+export { bilingualLabel, documentLabelPair, printLabel } from "./document-labels";
+export type { DocumentLabelKey, PrintLabelLanguage } from "./document-labels";
 export {
   NOTIFICATION_STATUS_LABELS,
   notificationAttentionSchema,
@@ -812,6 +834,7 @@ export {
   MAX_INLINE_EXPORT_ROWS,
   collectionMethodSchema,
   collectionsByMethodRowSchema,
+  collectionsByDateRowSchema,
   collectionsReportSchema,
   dashboardReportSchema,
   exportCreateSchema,
@@ -838,6 +861,7 @@ export {
 export type {
   CollectionMethod,
   CollectionsByMethodRow,
+  CollectionsByDateRow,
   CollectionsReport,
   DashboardReport,
   ExportCreate,

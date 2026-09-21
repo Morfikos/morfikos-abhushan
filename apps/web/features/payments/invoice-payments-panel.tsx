@@ -6,6 +6,7 @@ import { PanelSkeleton } from "@/components/application/skeleton/skeleton";
 import { Badge } from "@/components/base/badges/badges";
 import { useStaff } from "@/features/auth/staff-shell";
 import { paymentAccessToken, paymentErrorMessage, paymentKindLabel } from "@/features/payments/payment-shared";
+import { MoneyText } from "@/components/shared/money-text";
 import { formatInr } from "@/lib/money";
 import { paymentMethodLabel } from "@/lib/payment-methods";
 import { fetchInvoicePayments } from "@/lib/staff-api";
@@ -32,7 +33,7 @@ export function InvoicePaymentsPanel({ invoiceId }: { invoiceId: string }) {
         ) : null}
       </div>
 
-      {query.isLoading ? <PanelSkeleton rows={3} showTitle={false} label="Loading collections" /> : null}
+      {query.isLoading ? <PanelSkeleton rows={3} showTitle={false} chrome="bare" label="Loading collections" /> : null}
       {query.isError ? (
         <p className="text-sm text-error-primary" role="alert">
           {paymentErrorMessage(query.error)}
@@ -59,9 +60,10 @@ export function InvoicePaymentsPanel({ invoiceId }: { invoiceId: string }) {
                 <span className="text-xs text-tertiary">{paymentKindLabel(payment.kind)}</span>
                 <span className="text-xs tabular-nums text-tertiary">{payment.received_business_date}</span>
                 <span className="text-sm text-tertiary">{paymentMethodLabel(payment.method)}</span>
-                <span className="text-sm font-medium tabular-nums text-primary">
-                  {formatInr(allocation?.amount_inr ?? payment.amount_inr)}
-                </span>
+                <MoneyText
+                  amount={allocation?.amount_inr ?? payment.amount_inr}
+                  className="text-sm font-medium text-primary"
+                />
               </li>
             );
           })}
@@ -70,8 +72,7 @@ export function InvoicePaymentsPanel({ invoiceId }: { invoiceId: string }) {
 
       {data ? (
         <p className="text-xs text-tertiary">
-          Allocated {formatInr(data.allocated_inr)} of {formatInr(data.grand_total_inr)}. Receipt documents are queued
-          after commit.
+          Allocated {formatInr(data.allocated_inr)} of {formatInr(data.grand_total_inr)}.
         </p>
       ) : null}
     </div>

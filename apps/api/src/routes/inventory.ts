@@ -7,6 +7,7 @@ import {
   assignArticleBarcodesBatch,
   bulkDeleteArticles,
   createCatalogueCategory,
+  createPurityLabel,
   createStockCount,
   createStorageLocation,
   deleteArticle,
@@ -15,8 +16,11 @@ import {
   listArticleMovements,
   listArticles,
   listCatalogueCategories,
+  listPurityLabels,
   listStorageLocations,
   lookupArticleByBarcode,
+  patchPurityLabel,
+  patchStorageLocation,
   receiveArticle,
   recordArticleTagPrint,
   releaseArticleFromInspection,
@@ -32,8 +36,13 @@ import {
   articleLookupQuerySchema,
   articlePatchSchema,
   catalogueCategoryCreateSchema,
+  purityLabelCreateSchema,
+  purityLabelListQuerySchema,
+  purityLabelPatchSchema,
   stockCountCreateSchema,
   storageLocationCreateSchema,
+  storageLocationListQuerySchema,
+  storageLocationPatchSchema,
   tagPrintCreateSchema,
 } from "@aabhushan/contracts";
 import { createInventoryRepository, withOrganizationContext } from "@aabhushan/db";
@@ -94,7 +103,10 @@ export function registerInventoryRoutes(
     "/api/v1/storage-locations",
     requireStaff,
     handle(async (req, res) => {
-      const items = await withInventoryRepo(pool, req, (repo) => listStorageLocations(repo, req.staffAccess));
+      const query = parseQuery(storageLocationListQuerySchema, req);
+      const items = await withInventoryRepo(pool, req, (repo) =>
+        listStorageLocations(repo, req.staffAccess, { includeInactive: query.include_inactive }),
+      );
       res.status(200).json({ items });
     }),
   );
@@ -106,6 +118,54 @@ export function registerInventoryRoutes(
       const body = parseBody(storageLocationCreateSchema, req.body);
       const location = await withInventoryRepo(pool, req, (repo) => createStorageLocation(repo, req.staffAccess, body));
       res.status(201).json(location);
+    }),
+  );
+
+  app.patch(
+    "/api/v1/storage-locations/:id",
+    requireStaff,
+    handle(async (req, res) => {
+      const locationId = parsePathUuid(req.params.id, "id");
+      const body = parseBody(storageLocationPatchSchema, req.body);
+      const location = await withInventoryRepo(pool, req, (repo) =>
+        patchStorageLocation(repo, req.staffAccess, locationId, body),
+      );
+      res.status(200).json(location);
+    }),
+  );
+
+  app.get(
+    "/api/v1/purity-labels",
+    requireStaff,
+    handle(async (req, res) => {
+      const query = parseQuery(purityLabelListQuerySchema, req);
+      const items = await withInventoryRepo(pool, req, (repo) =>
+        listPurityLabels(repo, req.staffAccess, { includeInactive: query.include_inactive }),
+      );
+      res.status(200).json({ items });
+    }),
+  );
+
+  app.post(
+    "/api/v1/purity-labels",
+    requireStaff,
+    handle(async (req, res) => {
+      const body = parseBody(purityLabelCreateSchema, req.body);
+      const label = await withInventoryRepo(pool, req, (repo) => createPurityLabel(repo, req.staffAccess, body));
+      res.status(201).json(label);
+    }),
+  );
+
+  app.patch(
+    "/api/v1/purity-labels/:id",
+    requireStaff,
+    handle(async (req, res) => {
+      const purityLabelId = parsePathUuid(req.params.id, "id");
+      const body = parseBody(purityLabelPatchSchema, req.body);
+      const label = await withInventoryRepo(pool, req, (repo) =>
+        patchPurityLabel(repo, req.staffAccess, purityLabelId, body),
+      );
+      res.status(200).json(label);
     }),
   );
 

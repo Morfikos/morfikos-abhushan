@@ -100,6 +100,21 @@ Billing staff may also create the same kind of minimal `available`+`receipt` art
 | `organization_id` | `uuid` not null | |
 | `branch_id` | `uuid` not null | |
 | `name` | `text` not null | tray/safe/counter |
+| `is_active` | `boolean` not null default true | soft archive; Settings Catalogues |
+
+### `purity_labels`
+
+Org-scoped catalogue for inventory receive/edit, daily rates, and making defaults. Articles, rates, and making rows still store the **label string** (no FK). Metal stays the fixed `gold` \| `silver` enum — not user-editable. Girvi `custody_location` is separate from saleable stock locations.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | `uuid` PK | |
+| `organization_id` | `uuid` not null | |
+| `label` | `text` not null | unique per org case-insensitively |
+| `is_active` | `boolean` not null default true | soft archive |
+| `sort_order` | `integer` not null default 0 | |
+
+Writes must use an active label (receive/create/rate/making). Article edit may keep an archived purity already on the row. Settings → Catalogues (`inventory.write`) manages create/rename/archive/restore. List APIs default to active-only; `?include_inactive=1` for Settings.
 
 ### `articles`
 

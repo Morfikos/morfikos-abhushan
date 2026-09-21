@@ -7,7 +7,7 @@ export function GirviAckDocumentsCard({ accountId }: { accountId: string }) {
   return (
     <DocumentStatusCard
       title="Release acknowledgement"
-      description="PDF is generated after physical release. Download when ready; a failure never undoes the release."
+      description="PDF is prepared after jewellery is handed back. A PDF problem does not undo the release."
       ownerType="girvi"
       ownerId={accountId}
       documentType="girvi_ack_pdf"

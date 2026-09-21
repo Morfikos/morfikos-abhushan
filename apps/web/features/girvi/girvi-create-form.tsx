@@ -287,7 +287,7 @@ export function GirviCreateForm({ accountId }: GirviCreateFormProps = {}) {
         description={
           isEdit
             ? "Update draft terms and collateral before activation. The customer cannot be changed on a draft."
-            : "Save a draft with collateral, then activate with disbursement confirmation. The rate and calculation policy are frozen on the account at activation."
+            : "Save a draft with collateral, then activate when you hand over the cash. The interest rate is locked on this account at activation."
         }
       />
 

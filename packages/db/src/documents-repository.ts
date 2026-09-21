@@ -1,6 +1,5 @@
 import type {
   Document,
-  GeneratedDocumentType,
   StoredObject,
   StoredObjectOwnerType,
 } from "@aabhushan/contracts";
@@ -371,6 +370,7 @@ export function createDocumentsRepository(client: PoolClient, organizationId: st
         invoice_number: string | null;
         business_date: string;
         customer_display_name: string;
+        customer_phone: string | null;
         status: string;
         metal_value_inr: string;
         making_charges_inr: string;
@@ -385,7 +385,8 @@ export function createDocumentsRepository(client: PoolClient, organizationId: st
       }>(
         `
         SELECT
-          i.id, i.invoice_number, i.business_date::text AS business_date, c.display_name AS customer_display_name,
+          i.id, i.invoice_number, i.business_date::text AS business_date,
+          c.display_name AS customer_display_name, c.phone_display AS customer_phone,
           i.status, i.metal_value_inr::text, i.making_charges_inr::text, i.wastage_inr::text,
           i.stone_charges_inr::text, i.discount_inr::text, i.tax_inr::text, i.round_off_inr::text,
           i.grand_total_inr::text, i.amount_paid_inr::text, i.amount_due_inr::text
@@ -400,15 +401,52 @@ export function createDocumentsRepository(client: PoolClient, organizationId: st
         return null;
       }
       const lines = await client.query<{
+        line_no: number;
         article_number: string;
+        barcode: string | null;
         description: string;
+        metal: string;
+        purity: string;
+        gross_weight_grams: string;
+        non_metal_weight_grams: string;
+        net_metal_weight_grams: string;
+        rate_per_gram: string | null;
+        metal_value_inr: string;
+        making_charge_inr: string;
+        wastage_inr: string;
+        stone_charges_inr: string;
+        line_discount_inr: string;
         line_total_inr: string;
       }>(
         `
-        SELECT article_number, description, line_total_inr::text
+        SELECT
+          line_no, article_number, barcode, description, metal, purity,
+          gross_weight_grams::text, non_metal_weight_grams::text, net_metal_weight_grams::text,
+          rate_per_gram::text, metal_value_inr::text, making_charge_inr::text,
+          wastage_inr::text, stone_charges_inr::text, line_discount_inr::text, line_total_inr::text
         FROM app.invoice_lines
         WHERE organization_id = $1 AND invoice_id = $2
-        ORDER BY line_number ASC
+        ORDER BY line_no ASC
+        `,
+        [organizationId, invoiceId],
+      );
+      const collections = await client.query<{
+        receipt_number: string;
+        method: string;
+        amount_inr: string;
+        business_date: string;
+      }>(
+        `
+        SELECT
+          r.receipt_number,
+          p.method,
+          pa.amount_inr::text,
+          p.received_business_date::text AS business_date
+        FROM app.payment_allocations pa
+        JOIN app.payments p ON p.id = pa.payment_id AND p.organization_id = pa.organization_id
+        JOIN app.receipts r ON r.payment_id = p.id AND r.organization_id = p.organization_id
+        WHERE pa.organization_id = $1 AND pa.invoice_id = $2 AND p.status = 'posted'
+        ORDER BY p.received_business_date ASC, r.receipt_number ASC
         `,
         [organizationId, invoiceId],
       );
@@ -417,9 +455,11 @@ export function createDocumentsRepository(client: PoolClient, organizationId: st
         address_line: string | null;
         phone: string | null;
         invoice_footer: string | null;
+        logo_object_key: string | null;
+        logo_content_type: string | null;
       }>(
         `
-        SELECT legal_name, address_line, phone, invoice_footer
+        SELECT legal_name, address_line, phone, invoice_footer, logo_object_key, logo_content_type
         FROM app.shop_profiles
         WHERE organization_id = $1
         LIMIT 1
@@ -433,7 +473,12 @@ export function createDocumentsRepository(client: PoolClient, organizationId: st
       const invoice_paper_size = await loadInvoicePaperSize(client, organizationId);
       return {
         invoice: {
-          ...invoice,
+          id: invoice.id,
+          invoice_number: invoice.invoice_number,
+          business_date: invoice.business_date,
+          customer_display_name: invoice.customer_display_name,
+          customer_phone: invoice.customer_phone,
+          status: invoice.status,
           metal_value_inr: money(invoice.metal_value_inr),
           making_charges_inr: money(invoice.making_charges_inr),
           wastage_inr: money(invoice.wastage_inr),
@@ -446,9 +491,28 @@ export function createDocumentsRepository(client: PoolClient, organizationId: st
           amount_due_inr: money(invoice.amount_due_inr),
         },
         lines: lines.rows.map((line) => ({
+          line_no: line.line_no,
           article_number: line.article_number,
+          barcode: line.barcode,
           description: line.description,
+          metal: line.metal as "gold" | "silver",
+          purity: line.purity,
+          gross_weight_grams: line.gross_weight_grams,
+          non_metal_weight_grams: line.non_metal_weight_grams,
+          net_metal_weight_grams: line.net_metal_weight_grams,
+          rate_per_gram: line.rate_per_gram,
+          metal_value_inr: money(line.metal_value_inr),
+          making_charge_inr: money(line.making_charge_inr),
+          wastage_inr: money(line.wastage_inr),
+          stone_charges_inr: money(line.stone_charges_inr),
+          line_discount_inr: money(line.line_discount_inr),
           line_total_inr: money(line.line_total_inr),
+        })),
+        collections: collections.rows.map((row) => ({
+          receipt_number: row.receipt_number,
+          method: row.method,
+          amount_inr: money(row.amount_inr),
+          business_date: row.business_date,
         })),
         shop: shopRow,
         invoice_paper_size,
@@ -466,6 +530,8 @@ export function createDocumentsRepository(client: PoolClient, organizationId: st
         legal_name: string;
         address_line: string | null;
         phone: string | null;
+        logo_object_key: string | null;
+        logo_content_type: string | null;
       }>(
         `
         SELECT
@@ -482,7 +548,9 @@ export function createDocumentsRepository(client: PoolClient, organizationId: st
           ) AS invoice_numbers,
           sp.legal_name,
           sp.address_line,
-          sp.phone
+          sp.phone,
+          sp.logo_object_key,
+          sp.logo_content_type
         FROM app.receipts r
         JOIN app.payments p ON p.id = r.payment_id AND p.organization_id = r.organization_id
         JOIN app.customers c ON c.id = p.customer_id AND c.organization_id = p.organization_id
@@ -506,6 +574,8 @@ export function createDocumentsRepository(client: PoolClient, organizationId: st
           legal_name: row.legal_name,
           address_line: row.address_line,
           phone: row.phone,
+          logo_object_key: row.logo_object_key,
+          logo_content_type: row.logo_content_type,
         },
         invoice_paper_size: await loadInvoicePaperSize(client, organizationId),
       };

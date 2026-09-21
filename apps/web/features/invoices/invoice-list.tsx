@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import type { CalendarDate, DateValue } from "@internationalized/date";
@@ -10,7 +10,7 @@ import type { DateRange } from "react-aria-components";
 
 import { DatePicker } from "@/components/application/date-picker/date-picker";
 import { DateRangePicker } from "@/components/application/date-picker/date-range-picker";
-import { Skeleton, StaffDirectoryLoading } from "@/components/application/skeleton/skeleton";
+import { LabeledControlSkeleton, Skeleton } from "@/components/application/skeleton/skeleton";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
@@ -24,10 +24,11 @@ import {
 import { ListSearchToolbar } from "@/components/shared/list-search-toolbar";
 import { ListTableFooter } from "@/components/shared/list-table-footer";
 import { SelectField } from "@/components/shared/select-field";
+import { MoneyText } from "@/components/shared/money-text";
 import { StaffPageHeader } from "@/components/shared/staff-page-header";
 import { type ListFilterCodec, useSyncedListFilters } from "@/lib/list-search-params";
 import { staffHasPermission, useStaff } from "@/features/auth/staff-shell";
-import { formatInr, invoiceAccessToken, invoiceErrorMessage } from "@/features/invoices/invoice-shared";
+import { invoiceAccessToken, invoiceErrorMessage } from "@/features/invoices/invoice-shared";
 import {
   boundsForPeriod,
   customPeriodFromParams,
@@ -49,18 +50,28 @@ export function InvoicesFilterSkeleton() {
         <Skeleton className="h-10 w-40 rounded-lg" />
       </div>
       <div className="flex flex-wrap items-end gap-3">
-        <Skeleton className="h-10 min-w-0 max-w-md flex-1 rounded-lg" />
-        <Skeleton className="h-10 w-40 rounded-lg" />
+        <LabeledControlSkeleton className="min-w-0 max-w-md flex-1" controlWidth="w-full" />
+        <LabeledControlSkeleton controlWidth="w-40" />
       </div>
     </>
   );
 }
 
-/** Route Suspense cold load (includes header shimmer). Feature keeps live StaffPageHeader. */
-export function InvoicesDirectoryLoading() {
+/** Body-only loader: Suspense fallback and showInitialLoading (header stays live). */
+export function InvoicesListBodyLoading() {
   return (
-    <StaffDirectoryLoading columns={7} label="Loading invoices" filterSkeleton={<InvoicesFilterSkeleton />} />
+    <DirectoryTableSkeleton
+      title="Invoices"
+      columns={7}
+      label="Loading invoices"
+      filterSkeleton={<InvoicesFilterSkeleton />}
+    />
   );
+}
+
+/** @deprecated Prefer InvoicesListBodyLoading — alias kept for call-site clarity. */
+export function InvoicesDirectoryLoading() {
+  return <InvoicesListBodyLoading />;
 }
 
 const PERIOD_PRESETS: { id: PeriodPreset; label: string }[] = [
@@ -167,10 +178,39 @@ export function InvoiceList() {
   const staff = useStaff();
   const router = useRouter();
   const allowed = staffHasPermission(staff, "billing.write");
-  const { filters, setFilters, chips } = useSyncedListFilters(
-    "/invoices",
-    invoiceListCodec,
+
+  useEffect(() => {
+    if (!allowed) {
+      router.replace("/access-denied");
+    }
+  }, [allowed, router]);
+
+  if (!allowed) {
+    return null;
+  }
+
+  return (
+    <section className="flex flex-col gap-6">
+      <StaffPageHeader
+        title="Invoices"
+        description="Staff POS drafts and completed sales."
+        icon={Receipt}
+        actions={
+          <Button color="primary" size="md" href="/invoices/new">
+            New invoice
+          </Button>
+        }
+      />
+      <Suspense fallback={<InvoicesListBodyLoading />}>
+        <InvoiceListBody />
+      </Suspense>
+    </section>
   );
+}
+
+function InvoiceListBody() {
+  const staff = useStaff();
+  const { filters, setFilters, chips } = useSyncedListFilters("/invoices", invoiceListCodec);
   const { status: statusFilter, dueOnly, periodPreset, dayDate, customStart, customEnd, appliedQ } = filters;
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -192,12 +232,6 @@ export function InvoiceList() {
   );
 
   const listSort = periodPreset === "all" ? "updated_at" : "business_date";
-
-  useEffect(() => {
-    if (!allowed) {
-      router.replace("/access-denied");
-    }
-  }, [allowed, router]);
 
   const query = useQuery({
     queryKey: [
@@ -224,13 +258,8 @@ export function InvoiceList() {
         ...(periodBounds.from ? { businessDateFrom: periodBounds.from } : {}),
         ...(periodBounds.to ? { businessDateTo: periodBounds.to } : {}),
       }),
-    enabled: allowed,
     placeholderData: keepPreviousData,
   });
-
-  if (!allowed) {
-    return null;
-  }
 
   const items = query.data?.items ?? [];
   const total = query.data?.total ?? 0;
@@ -272,25 +301,8 @@ export function InvoiceList() {
   }
 
   return (
-    <section className="flex flex-col gap-6">
-      <StaffPageHeader
-        title="Invoices"
-        description="Staff POS drafts and finalized sales. Totals come from the server quote only."
-        actions={
-          <Button color="primary" size="md" href="/invoices/new">
-            New invoice
-          </Button>
-        }
-      />
-
-      {showInitialLoading ? (
-        <DirectoryTableSkeleton
-          title="Invoices"
-          columns={7}
-          label="Loading invoices"
-          filterSkeleton={<InvoicesFilterSkeleton />}
-        />
-      ) : null}
+    <>
+      {showInitialLoading ? <InvoicesListBodyLoading /> : null}
 
       {query.isError ? (
         <p className="text-sm text-error-primary" role="alert">
@@ -302,7 +314,7 @@ export function InvoiceList() {
         <DirectoryEmptyState
           icon={Receipt}
           title="No invoices yet"
-          description="Start a POS draft, scan available articles, then finalize when calculations are approved."
+          description="Start a POS draft, scan available articles, then complete the sale when totals look right."
           action={
             <Button color="primary" size="md" href="/invoices/new">
               New invoice
@@ -426,8 +438,12 @@ export function InvoiceList() {
                         </Badge>
                       </Table.Cell>
                       <Table.Cell className="tabular-nums">{item.business_date}</Table.Cell>
-                      <Table.Cell className="text-right tabular-nums">{formatInr(item.grand_total_inr)}</Table.Cell>
-                      <Table.Cell className="text-right tabular-nums">{formatInr(item.amount_due_inr)}</Table.Cell>
+                      <Table.Cell className="text-right tabular-nums">
+                        <MoneyText amount={item.grand_total_inr} />
+                      </Table.Cell>
+                      <Table.Cell className="text-right tabular-nums">
+                        <MoneyText amount={item.amount_due_inr} />
+                      </Table.Cell>
                       <Table.Cell>
                         <ChevronRight className="size-4 text-fg-quaternary" aria-hidden="true" />
                       </Table.Cell>
@@ -449,6 +465,6 @@ export function InvoiceList() {
           ) : null}
         </TableCard.Root>
       ) : null}
-    </section>
+    </>
   );
 }

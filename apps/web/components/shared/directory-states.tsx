@@ -69,6 +69,7 @@ export function DirectoryTableSkeleton({
   filterSkeleton,
   showPeriod = false,
   filterBars = 3,
+  showSelectionColumn = false,
 }: {
   title: string;
   columns: number;
@@ -76,6 +77,7 @@ export function DirectoryTableSkeleton({
   filterSkeleton?: ReactNode;
   showPeriod?: boolean;
   filterBars?: number;
+  showSelectionColumn?: boolean;
 }) {
   return (
     <TableCard.Root>
@@ -102,7 +104,13 @@ export function DirectoryTableSkeleton({
           </>
         )}
       </div>
-      <TableSkeleton columns={columns} rows={8} showCard={false} label={label} />
+      <TableSkeleton
+        columns={columns}
+        rows={8}
+        showCard={false}
+        showSelectionColumn={showSelectionColumn}
+        label={label}
+      />
     </TableCard.Root>
   );
 }

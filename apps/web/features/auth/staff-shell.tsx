@@ -13,14 +13,14 @@ import {
 } from "react";
 import type { CurrentStaff, StaffPermission } from "@aabhushan/contracts";
 import { customerInitials, kolkataBusinessDate } from "@aabhushan/domain";
-import { LogOut01, XClose } from "@untitledui/icons";
+import { XClose } from "@untitledui/icons";
 
+import type { NavItemDividerType, NavItemType } from "@/components/application/app-navigation/config";
+import { StaffNavAccountCard } from "@/components/application/app-navigation/base-components/staff-nav-account-card";
 import { SidebarNavigationSimple } from "@/components/application/app-navigation/sidebar-navigation/sidebar-simple";
 import { StaffShellSkeleton } from "@/components/application/skeleton/skeleton";
 import { StaffToastProvider } from "@/components/application/toast/staff-toast";
-import { Avatar } from "@/components/base/avatar/avatar";
 import { Button } from "@/components/base/buttons/button";
-import { Tooltip } from "@/components/base/tooltip/tooltip";
 import { navigationForPermissions } from "@/features/auth/navigation";
 import { getBrowserQueryClient, staffMeQueryKey } from "@/lib/query-client";
 import {
@@ -99,7 +99,7 @@ function StaffRatesBanner({ staff }: { staff: CurrentStaff }) {
 
   return (
     <div
-      className="mb-4 flex flex-col gap-3 rounded-xl bg-warning-primary px-4 py-3 ring-1 ring-secondary sm:flex-row sm:items-center sm:justify-between"
+      className="sticky top-14 z-20 -mx-4 mb-4 flex flex-col gap-3 rounded-none border-b border-secondary bg-warning-primary px-4 py-3 ring-0 sm:flex-row sm:items-center sm:justify-between lg:top-0 lg:-mx-8 lg:rounded-xl lg:border-0 lg:px-8 lg:ring-1 lg:ring-secondary"
       role="status"
     >
       <div className="min-w-0">
@@ -134,16 +134,16 @@ function StaffRatesBanner({ staff }: { staff: CurrentStaff }) {
 
 function StaffShellChrome({ children, staff, onSignOut }: { children: ReactNode; staff: CurrentStaff; onSignOut: () => void }) {
   const pathname = usePathname();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
-  useEffect(() => {
-    try {
-      setSidebarCollapsed(window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1");
-    } catch {
-      // Ignore private-mode / blocked storage.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === "undefined") {
+      return false;
     }
-  }, []);
-
+    try {
+      return window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
   function handleCollapsedChange(next: boolean) {
     setSidebarCollapsed(next);
     try {
@@ -170,17 +170,23 @@ function StaffShellChrome({ children, staff, onSignOut }: { children: ReactNode;
   const notificationBadgeCount =
     (attentionQuery.data?.failed ?? 0) + (attentionQuery.data?.unknown ?? 0);
 
-  const navigation = navigationForPermissions(staff.permissions).map((item) => ({
-    label: item.label,
-    href: item.href,
-    icon: item.icon,
-    ...(item.href === "/notifications" && notificationBadgeCount > 0
-      ? { badge: notificationBadgeCount }
-      : {}),
-  }));
+  const navigation: (NavItemType | NavItemDividerType)[] = [];
+  for (const item of navigationForPermissions(staff.permissions)) {
+    if (item.href === "/settings" && navigation.length > 0) {
+      navigation.push({ divider: true });
+    }
+    navigation.push({
+      label: item.label,
+      href: item.href,
+      icon: item.icon,
+      ...(item.href === "/notifications" && notificationBadgeCount > 0
+        ? { badge: notificationBadgeCount }
+        : {}),
+    });
+  }
 
   return (
-    <div className="bg-primary flex min-h-screen">
+    <div className="bg-secondary flex min-h-screen">
       <SidebarNavigationSimple
         activeUrl={pathname}
         items={navigation}
@@ -189,32 +195,16 @@ function StaffShellChrome({ children, staff, onSignOut }: { children: ReactNode;
         shopLogoUrl={profileQuery.data?.logo_url ?? null}
         collapsed={sidebarCollapsed}
         onCollapsedChange={handleCollapsedChange}
-        featureCard={(isCollapsed) =>
-          isCollapsed ? (
-            <div className="flex flex-col items-center gap-2">
-              <Tooltip title={`${staff.display_name} · ${staff.membership.role}`} placement="right">
-                <span className="inline-flex">
-                  <Avatar size="sm" initials={customerInitials(staff.display_name)} alt="" />
-                </span>
-              </Tooltip>
-              <Tooltip title="Sign out" placement="right">
-                <Button color="secondary" size="sm" iconLeading={LogOut01} aria-label="Sign out" onPress={() => void onSignOut()} />
-              </Tooltip>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              <div>
-                <p className="text-sm font-semibold text-primary">{staff.display_name}</p>
-                <p className="text-xs text-tertiary">
-                  {staff.email} · {staff.membership.role}
-                </p>
-              </div>
-              <Button color="secondary" size="sm" iconLeading={LogOut01} onPress={() => void onSignOut()}>
-                Sign out
-              </Button>
-            </div>
-          )
-        }
+        featureCard={(isCollapsed) => (
+          <StaffNavAccountCard
+            name={staff.display_name}
+            email={staff.email}
+            role={staff.membership.role}
+            initials={customerInitials(staff.display_name)}
+            onSignOut={() => void onSignOut()}
+            collapsed={isCollapsed}
+          />
+        )}
       />
       <div className="min-w-0 flex-1 px-4 py-6 lg:px-8">
         <StaffRatesBanner staff={staff} />
@@ -226,6 +216,7 @@ function StaffShellChrome({ children, staff, onSignOut }: { children: ReactNode;
 
 export function StaffShell({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const queryClient = getBrowserQueryClient();
   const previousStaffId = useRef<string | null>(null);
   // Always null on first paint so SSR HTML matches client hydration.
@@ -331,7 +322,7 @@ export function StaffShell({ children }: { children: ReactNode }) {
   if (!staff) {
     return (
       <QueryClientProvider client={queryClient}>
-        <StaffShellSkeleton />
+        <StaffShellSkeleton pathname={pathname} />
       </QueryClientProvider>
     );
   }
