@@ -7,9 +7,9 @@ export default function AccessDeniedPage() {
   return (
     <AuthPage
       title="Access denied"
-      description="Your session is not allowed to use this workspace. A suspended or missing staff membership is blocked even if a previous sign-in token is still valid."
+      description="You do not have access to this area. Ask an owner if you need it."
     >
-      <Button href="/login" color="primary" size="md">
+      <Button href="/login" color="primary" size="md" className="w-full">
         Return to sign-in
       </Button>
     </AuthPage>

@@ -6,11 +6,12 @@ import { Heading } from "react-aria-components";
 import type { InvoiceLine } from "@aabhushan/contracts";
 
 import { Dialog, Modal, ModalOverlay } from "@/components/application/modals/modal";
+import { MoneyText } from "@/components/shared/money-text";
 import { Button } from "@/components/base/buttons/button";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { TextArea } from "@/components/base/textarea/textarea";
 import { useStaff } from "@/features/auth/staff-shell";
-import { formatInr, invoiceAccessToken, invoiceErrorMessage } from "@/features/invoices/invoice-shared";
+import { invoiceAccessToken, invoiceErrorMessage } from "@/features/invoices/invoice-shared";
 import { newPaymentIdempotencyKey } from "@/features/payments/payment-shared";
 import { acceptInvoiceReturnRequest } from "@/lib/staff-api";
 
@@ -100,7 +101,7 @@ export function ReturnArticleDialog({
               </div>
               <div className="flex justify-between gap-3">
                 <dt className="text-tertiary">Line total</dt>
-                <dd className="tabular-nums text-primary">{formatInr(line.line_total_inr)}</dd>
+                <MoneyText amount={line.line_total_inr} as="dd" className="text-primary" />
               </div>
             </dl>
           ) : null}

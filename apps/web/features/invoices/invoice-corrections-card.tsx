@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { PanelSkeleton } from "@/components/application/skeleton/skeleton";
+import { MoneyText } from "@/components/shared/money-text";
 import { Badge } from "@/components/base/badges/badges";
 import { useStaff } from "@/features/auth/staff-shell";
 import { formatInr, invoiceAccessToken, invoiceErrorMessage } from "@/features/invoices/invoice-shared";
@@ -30,7 +31,7 @@ export function InvoiceCorrectionsCard({ invoiceId }: { invoiceId: string }) {
         ) : null}
       </div>
 
-      {query.isLoading ? <PanelSkeleton rows={3} showTitle={false} label="Loading corrections" /> : null}
+      {query.isLoading ? <PanelSkeleton rows={3} showTitle={false} chrome="bare" label="Loading corrections" /> : null}
       {query.isError ? (
         <p className="text-sm text-error-primary" role="alert">
           {invoiceErrorMessage(query.error)}
@@ -76,7 +77,7 @@ export function InvoiceCorrectionsCard({ invoiceId }: { invoiceId: string }) {
               >
                 <span className="text-sm font-medium text-primary">{paymentKindLabel(payment.kind)}</span>
                 <span className="font-mono text-xs text-tertiary">{payment.receipt_number ?? "Document pending"}</span>
-                <span className="text-sm tabular-nums text-primary">{formatInr(payment.amount_inr)}</span>
+                <MoneyText amount={payment.amount_inr} className="text-sm text-primary" />
               </div>
             ))
         : null}

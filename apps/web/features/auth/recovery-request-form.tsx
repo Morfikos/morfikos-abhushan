@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
-import { publicEnv } from "@/lib/public-env";
 
 export function RecoveryRequestForm() {
   const router = useRouter();
@@ -28,8 +27,8 @@ export function RecoveryRequestForm() {
       if (resetError) {
         setError(
           resetError.message.toLowerCase().includes("smtp") || resetError.status === 500
-            ? "Password recovery email could not be sent. SMTP is not configured or the provider rejected the request."
-            : "The recovery request could not be completed. Try again or contact an administrator.",
+            ? "Reset email could not be sent. Ask an owner to check email setup."
+            : "The recovery request could not be completed. Try again or ask an owner.",
         );
         return;
       }
@@ -55,13 +54,10 @@ export function RecoveryRequestForm() {
         isInvalid={Boolean(error)}
         hint={error}
       />
-      <Button type="submit" color="primary" size="md" isLoading={loading} isDisabled={loading}>
+      <Button type="submit" color="primary" size="md" className="w-full" isLoading={loading} isDisabled={loading}>
         Send reset instructions
       </Button>
-      <p className="text-tertiary text-sm">
-        Recovery mail is sent only when custom SMTP is configured for {publicEnv.NEXT_PUBLIC_APP_NAME}. This form does not
-        confirm that a mailbox received the message.
-      </p>
+      <p className="text-tertiary text-sm">Enter the email from your staff invite.</p>
     </form>
   );
 }

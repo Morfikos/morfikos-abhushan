@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { invoicePaperSizeSchema } from "./shop";
+import { invoicePaperSizeSchema, metalSchema } from "./shop";
 
 export const storedObjectOwnerTypeSchema = z.enum([
   "article",
@@ -150,9 +150,29 @@ export const ownerDocumentsQuerySchema = z.object({
 export type OwnerDocumentsQuery = z.infer<typeof ownerDocumentsQuerySchema>;
 
 export const invoicePrintLineSchema = z.object({
+  line_no: z.number().int().positive(),
   article_number: z.string(),
+  barcode: z.string().nullable(),
   description: z.string(),
+  metal: metalSchema,
+  purity: z.string(),
+  gross_weight_grams: z.string(),
+  non_metal_weight_grams: z.string(),
+  net_metal_weight_grams: z.string(),
+  rate_per_gram: z.string().nullable(),
+  metal_value_inr: z.string(),
+  making_charge_inr: z.string(),
+  wastage_inr: z.string(),
+  stone_charges_inr: z.string(),
+  line_discount_inr: z.string(),
   line_total_inr: z.string(),
+});
+
+export const invoicePrintCollectionSchema = z.object({
+  receipt_number: z.string(),
+  method: z.string(),
+  amount_inr: z.string(),
+  business_date: z.string(),
 });
 
 export const invoicePrintSchema = z.object({
@@ -160,12 +180,15 @@ export const invoicePrintSchema = z.object({
   invoice_number: z.string(),
   business_date: z.string(),
   customer_display_name: z.string(),
+  customer_phone: z.string().nullable(),
   shop_legal_name: z.string(),
   shop_address_line: z.string().nullable(),
   shop_phone: z.string().nullable(),
+  shop_logo_data_uri: z.string().nullable(),
   invoice_footer: z.string().nullable(),
   invoice_paper_size: invoicePaperSizeSchema,
   lines: z.array(invoicePrintLineSchema),
+  collections: z.array(invoicePrintCollectionSchema),
   metal_value_inr: z.string(),
   making_charges_inr: z.string(),
   wastage_inr: z.string(),
@@ -192,6 +215,7 @@ export const receiptPrintSchema = z.object({
   shop_legal_name: z.string(),
   shop_address_line: z.string().nullable(),
   shop_phone: z.string().nullable(),
+  shop_logo_data_uri: z.string().nullable(),
   invoice_paper_size: invoicePaperSizeSchema,
   document: documentSchema.nullable(),
 });

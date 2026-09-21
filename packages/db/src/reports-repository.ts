@@ -1,4 +1,5 @@
 import type {
+  CollectionsByDateRow,
   CollectionsByMethodRow,
   CollectionsReport,
   ExportJobStatus,
@@ -161,7 +162,7 @@ export function createReportsRepository(client: PoolClient, organizationId: stri
     },
 
     async getCollections(range: ReportRangeInput): Promise<CollectionsReport> {
-      const result = await client.query<{
+      const methodResult = await client.query<{
         method: CollectionsByMethodRow["method"];
         net_collected_inr: string | number;
         collection_count: string | number;
@@ -182,8 +183,35 @@ export function createReportsRepository(client: PoolClient, organizationId: stri
         `,
         [organizationId, boundFrom(range), boundTo(range)],
       );
-      const byMethod: CollectionsByMethodRow[] = result.rows.map((row) => ({
+      const byDateResult = await client.query<{
+        business_date: string;
+        net_collected_inr: string | number;
+        collection_count: string | number;
+        outflow_count: string | number;
+      }>(
+        `
+        SELECT
+          received_business_date::text AS business_date,
+          sum(net_collected_inr)::numeric(18, 2) AS net_collected_inr,
+          sum(collection_count)::bigint AS collection_count,
+          sum(outflow_count)::bigint AS outflow_count
+        FROM app.v_collections_by_method
+        WHERE organization_id = $1
+          AND received_business_date >= $2::date
+          AND received_business_date <= $3::date
+        GROUP BY received_business_date
+        ORDER BY received_business_date
+        `,
+        [organizationId, boundFrom(range), boundTo(range)],
+      );
+      const byMethod: CollectionsByMethodRow[] = methodResult.rows.map((row) => ({
         method: row.method,
+        net_collected_inr: asMoney(row.net_collected_inr),
+        collection_count: asInt(row.collection_count),
+        outflow_count: asInt(row.outflow_count),
+      }));
+      const byDate: CollectionsByDateRow[] = byDateResult.rows.map((row) => ({
+        business_date: row.business_date,
         net_collected_inr: asMoney(row.net_collected_inr),
         collection_count: asInt(row.collection_count),
         outflow_count: asInt(row.outflow_count),
@@ -196,6 +224,7 @@ export function createReportsRepository(client: PoolClient, organizationId: stri
         collection_count: byMethod.reduce((sum, row) => sum + row.collection_count, 0),
         outflow_count: byMethod.reduce((sum, row) => sum + row.outflow_count, 0),
         by_method: byMethod,
+        by_business_date: byDate,
       };
     },
 
@@ -362,6 +391,7 @@ export function createReportsRepository(client: PoolClient, organizationId: stri
           interest_unavailable_reason: interestAvailable
             ? null
             : "Interest is unavailable because one or more active accounts use a calculation policy that is not approved.",
+          unapproved_active_account_count: unapproved,
           overdue_account_count: asInt(positionRow?.overdue_account_count),
           overdue_principal_outstanding_inr: asMoney(positionRow?.overdue_principal_outstanding_inr),
         },
@@ -468,6 +498,10 @@ export function createReportsRepository(client: PoolClient, organizationId: stri
         case "dues": {
           const dues = await this.listSalesDues(range);
           return dues.length;
+        }
+        case "collections": {
+          const collections = await this.getCollections(range);
+          return collections.by_method.length;
         }
         case "inventory": {
           const inventory = await this.getInventory();

@@ -22,6 +22,7 @@ import {
   girviToday,
   newGirviIdempotencyKey,
 } from "@/features/girvi/girvi-shared";
+import { MoneyText } from "@/components/shared/money-text";
 import { compareMoney, formatInr, isPositiveMoney, subtractMoney } from "@/lib/money";
 import { paymentMethodLabel } from "@/lib/payment-methods";
 import { fetchGirviStatement, recordGirviRepaymentRequest } from "@/lib/staff-api";
@@ -40,9 +41,11 @@ function SummaryRow({ label, amount, tone = "default" }: { label: string; amount
   return (
     <div className="flex justify-between gap-3">
       <dt className="text-tertiary">{label}</dt>
-      <dd className={`tabular-nums ${tone === "strong" ? "font-medium text-primary" : "text-primary"}`}>
-        {formatInr(amount)}
-      </dd>
+      <MoneyText
+        amount={amount}
+        as="dd"
+        className={tone === "strong" ? "font-medium text-primary" : "text-primary"}
+      />
     </div>
   );
 }
@@ -182,8 +185,8 @@ export function GirviRepaymentDialog({
                 </dl>
                 {posted.clears_account ? (
                   <p className="text-sm text-tertiary">
-                    Nothing is due. Settle the account to close it financially, then release the packets as a separate
-                    step.
+                    Nothing is due. Settle the account to close it financially, then hand the jewellery back as a
+                    separate step.
                   </p>
                 ) : null}
               </div>

@@ -56,6 +56,7 @@ export const storageLocationSchema = z.object({
   id: z.string().uuid(),
   name: z.string().min(1),
   branch_id: z.string().uuid(),
+  is_active: z.boolean(),
 });
 
 export const storageLocationCreateSchema = z
@@ -64,8 +65,62 @@ export const storageLocationCreateSchema = z
   })
   .strict();
 
+export const storageLocationPatchSchema = z
+  .object({
+    name: z.string().trim().min(1).max(80).optional(),
+    is_active: z.boolean().optional(),
+  })
+  .strict()
+  .refine((value) => value.name !== undefined || value.is_active !== undefined, {
+    message: "Provide a name and/or is_active.",
+  });
+
 export const storageLocationListSchema = z.object({
   items: z.array(storageLocationSchema),
+});
+
+export const storageLocationListQuerySchema = z.object({
+  include_inactive: z
+    .enum(["0", "1"])
+    .optional()
+    .transform((value) => value === "1"),
+});
+
+export const purityLabelSchema = z.object({
+  id: z.string().uuid(),
+  label: z.string().min(1),
+  is_active: z.boolean(),
+  sort_order: z.number().int(),
+});
+
+export const purityLabelCreateSchema = z
+  .object({
+    label: z.string().trim().min(1).max(40),
+    sort_order: z.number().int().optional(),
+  })
+  .strict();
+
+export const purityLabelPatchSchema = z
+  .object({
+    label: z.string().trim().min(1).max(40).optional(),
+    is_active: z.boolean().optional(),
+    sort_order: z.number().int().optional(),
+  })
+  .strict()
+  .refine(
+    (value) => value.label !== undefined || value.is_active !== undefined || value.sort_order !== undefined,
+    { message: "Provide label, is_active, and/or sort_order." },
+  );
+
+export const purityLabelListSchema = z.object({
+  items: z.array(purityLabelSchema),
+});
+
+export const purityLabelListQuerySchema = z.object({
+  include_inactive: z
+    .enum(["0", "1"])
+    .optional()
+    .transform((value) => value === "1"),
 });
 
 export const articleStoneSchema = z.object({
@@ -347,7 +402,12 @@ export type CatalogueCategoryCreate = z.infer<typeof catalogueCategoryCreateSche
 export type CatalogueCategoryList = z.infer<typeof catalogueCategoryListSchema>;
 export type StorageLocation = z.infer<typeof storageLocationSchema>;
 export type StorageLocationCreate = z.infer<typeof storageLocationCreateSchema>;
+export type StorageLocationPatch = z.infer<typeof storageLocationPatchSchema>;
 export type StorageLocationList = z.infer<typeof storageLocationListSchema>;
+export type PurityLabel = z.infer<typeof purityLabelSchema>;
+export type PurityLabelCreate = z.infer<typeof purityLabelCreateSchema>;
+export type PurityLabelPatch = z.infer<typeof purityLabelPatchSchema>;
+export type PurityLabelList = z.infer<typeof purityLabelListSchema>;
 export type ArticleStone = z.infer<typeof articleStoneSchema>;
 export type ArticleStoneInput = z.infer<typeof articleStoneInputSchema>;
 export type ArticleFile = z.infer<typeof articleFileSchema>;

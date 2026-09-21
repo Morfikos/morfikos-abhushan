@@ -8,10 +8,10 @@ export default function RecoveryPage() {
   return (
     <AuthPage
       title="Reset password"
-      description="Enter the email used for your staff invitation. If SMTP is configured, you will see the next instructions. This does not confirm that the message was delivered."
+      description="Enter the email from your staff invite."
     >
       <RecoveryRequestForm />
-      <Button href="/login" color="secondary" size="md">
+      <Button href="/login" color="secondary" size="md" className="w-full">
         Back to sign-in
       </Button>
     </AuthPage>

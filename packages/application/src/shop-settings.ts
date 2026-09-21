@@ -112,6 +112,7 @@ export type ShopSettingsRepository = {
     effectiveBusinessDate: string;
     createdByStaffUserId: string;
   }): Promise<MetalRate>;
+  activePurityLabelExists(label: string): Promise<boolean>;
   listMakingChargeDefaults(input: PaginationInput): Promise<PaginatedRows<MakingChargeDefault>>;
   upsertMakingChargeDefault(input: {
     metal: MakingChargeDefaultUpsert["metal"];
@@ -314,6 +315,12 @@ export async function createMetalRate(
   assertPermission(access, "rates.write");
   const effectiveBusinessDate = input.effective_business_date ?? kolkataBusinessDate(now);
 
+  if (!(await repository.activePurityLabelExists(input.purity))) {
+    throw validationError("Purity is not in the shop catalogue.", [
+      { field: "purity", message: "Choose an active purity from Settings → Catalogues." },
+    ]);
+  }
+
   try {
     const rate = await repository.insertRate({
       metal: input.metal,
@@ -361,6 +368,11 @@ export async function upsertMakingChargeDefault(
   input: MakingChargeDefaultUpsert,
 ): Promise<MakingChargeDefault> {
   assertPermission(access, "rates.write");
+  if (!(await repository.activePurityLabelExists(input.purity))) {
+    throw validationError("Purity is not in the shop catalogue.", [
+      { field: "purity", message: "Choose an active purity from Settings → Catalogues." },
+    ]);
+  }
   const row = await repository.upsertMakingChargeDefault({
     metal: input.metal,
     purity: input.purity,

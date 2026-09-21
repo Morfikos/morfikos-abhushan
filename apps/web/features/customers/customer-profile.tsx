@@ -9,7 +9,7 @@ import { File06, NotificationBox, Scale01 } from "@untitledui/icons";
 
 import { FileUpload, getReadableFileSize } from "@/components/application/file-upload/file-upload-base";
 import { EmptyState } from "@/components/application/empty-state/empty-state";
-import { PanelSkeleton, StaffDetailPageSkeleton } from "@/components/application/skeleton/skeleton";
+import { CustomerDetailSkeleton, PanelSkeleton } from "@/components/application/skeleton/skeleton";
 import { Tabs } from "@/components/application/tabs/tabs";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { Badge } from "@/components/base/badges/badges";
@@ -182,8 +182,8 @@ export function CustomerProfile({ customerId }: { customerId: string }) {
     return null;
   }
 
-  if (query.isLoading) {
-    return <StaffDetailPageSkeleton withAvatar sections={2} label="Loading customer" />;
+  if (query.isLoading || (query.data && !hydrated)) {
+    return <CustomerDetailSkeleton label="Loading customer" />;
   }
 
   if (query.isError) {
@@ -332,7 +332,7 @@ export function CustomerProfile({ customerId }: { customerId: string }) {
                 description="Private files via signed upload. View uses a short-lived access URL."
                 className="gap-3"
               >
-                {identityQuery.isLoading ? <PanelSkeleton rows={3} showTitle={false} label="Loading identity files" /> : null}
+                {identityQuery.isLoading ? <PanelSkeleton rows={3} showTitle={false} chrome="bare" label="Loading identity files" /> : null}
                 {identityQuery.isError ? (
                   <p className="text-sm text-error-primary">{customerErrorMessage(identityQuery.error)}</p>
                 ) : null}

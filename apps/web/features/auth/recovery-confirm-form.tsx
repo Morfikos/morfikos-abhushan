@@ -75,7 +75,7 @@ export function RecoveryConfirmForm() {
         isInvalid={Boolean(error)}
         hint={error}
       />
-      <Button type="submit" color="primary" size="md" isLoading={loading} isDisabled={loading}>
+      <Button type="submit" color="primary" size="md" className="w-full" isLoading={loading} isDisabled={loading}>
         Save password
       </Button>
     </form>

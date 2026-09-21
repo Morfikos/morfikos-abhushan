@@ -11,6 +11,7 @@ import type {
   CatalogueCategory,
   InventoryMovement,
   Metal,
+  PurityLabel,
   StockCount,
   StorageLocation,
   TagPrintEvent,
@@ -38,6 +39,14 @@ type LocationRow = {
   id: string;
   name: string;
   branch_id: string;
+  is_active: boolean;
+};
+
+type PurityLabelRow = {
+  id: string;
+  label: string;
+  is_active: boolean;
+  sort_order: number;
 };
 
 type ArticleRow = {
@@ -136,6 +145,16 @@ function mapLocation(row: LocationRow): StorageLocation {
     id: row.id,
     name: row.name,
     branch_id: row.branch_id,
+    is_active: row.is_active,
+  };
+}
+
+function mapPurityLabel(row: PurityLabelRow): PurityLabel {
+  return {
+    id: row.id,
+    label: row.label,
+    is_active: row.is_active,
+    sort_order: row.sort_order,
   };
 }
 
@@ -344,15 +363,16 @@ export function createInventoryRepository(
       return mapCategory(row);
     },
 
-    async listLocations() {
+    async listLocations(includeInactive = false) {
       const result = await client.query<LocationRow>(
         `
-        SELECT id, name, branch_id
+        SELECT id, name, branch_id, is_active
         FROM app.storage_locations
         WHERE organization_id = $1 AND branch_id = $2
+          AND ($3::boolean OR is_active)
         ORDER BY name
         `,
-        [organizationId, branchId],
+        [organizationId, branchId, includeInactive],
       );
       return result.rows.map(mapLocation);
     },
@@ -362,7 +382,7 @@ export function createInventoryRepository(
         `
         INSERT INTO app.storage_locations (organization_id, branch_id, name)
         VALUES ($1, $2, $3)
-        RETURNING id, name, branch_id
+        RETURNING id, name, branch_id, is_active
         `,
         [organizationId, branchId, input.name],
       );
@@ -373,6 +393,92 @@ export function createInventoryRepository(
       return mapLocation(row);
     },
 
+    async updateLocation(input: { locationId: string; name?: string; isActive?: boolean }) {
+      const result = await client.query<LocationRow>(
+        `
+        UPDATE app.storage_locations
+        SET
+          name = COALESCE($4, name),
+          is_active = COALESCE($5, is_active)
+        WHERE organization_id = $1 AND branch_id = $2 AND id = $3
+        RETURNING id, name, branch_id, is_active
+        `,
+        [organizationId, branchId, input.locationId, input.name ?? null, input.isActive ?? null],
+      );
+      return result.rows[0] ? mapLocation(result.rows[0]) : null;
+    },
+
+    async listPurityLabels(includeInactive = false) {
+      const result = await client.query<PurityLabelRow>(
+        `
+        SELECT id, label, is_active, sort_order
+        FROM app.purity_labels
+        WHERE organization_id = $1
+          AND ($2::boolean OR is_active)
+        ORDER BY sort_order ASC, label ASC
+        `,
+        [organizationId, includeInactive],
+      );
+      return result.rows.map(mapPurityLabel);
+    },
+
+    async insertPurityLabel(input: { label: string; sortOrder?: number }) {
+      const result = await client.query<PurityLabelRow>(
+        `
+        INSERT INTO app.purity_labels (organization_id, label, sort_order)
+        VALUES ($1, $2, COALESCE($3, 0))
+        RETURNING id, label, is_active, sort_order
+        `,
+        [organizationId, input.label, input.sortOrder ?? null],
+      );
+      const row = result.rows[0];
+      if (!row) {
+        throw new Error("Purity label insert returned no row.");
+      }
+      return mapPurityLabel(row);
+    },
+
+    async updatePurityLabel(input: {
+      purityLabelId: string;
+      label?: string;
+      isActive?: boolean;
+      sortOrder?: number;
+    }) {
+      const result = await client.query<PurityLabelRow>(
+        `
+        UPDATE app.purity_labels
+        SET
+          label = COALESCE($3, label),
+          is_active = COALESCE($4, is_active),
+          sort_order = COALESCE($5, sort_order),
+          updated_at = timezone('utc', now())
+        WHERE organization_id = $1 AND id = $2
+        RETURNING id, label, is_active, sort_order
+        `,
+        [
+          organizationId,
+          input.purityLabelId,
+          input.label ?? null,
+          input.isActive ?? null,
+          input.sortOrder ?? null,
+        ],
+      );
+      return result.rows[0] ? mapPurityLabel(result.rows[0]) : null;
+    },
+
+    async findPurityLabelByLabel(label: string) {
+      const result = await client.query<PurityLabelRow>(
+        `
+        SELECT id, label, is_active, sort_order
+        FROM app.purity_labels
+        WHERE organization_id = $1 AND lower(trim(label)) = lower(trim($2))
+        LIMIT 1
+        `,
+        [organizationId, label],
+      );
+      return result.rows[0] ? mapPurityLabel(result.rows[0]) : null;
+    },
+
     async categoryExists(categoryId) {
       const result = await client.query<{ exists: boolean }>(
         `SELECT EXISTS(SELECT 1 FROM app.catalogue_categories WHERE organization_id = $1 AND id = $2 AND is_active) AS exists`,
@@ -381,10 +487,16 @@ export function createInventoryRepository(
       return result.rows[0]?.exists === true;
     },
 
-    async locationExists(locationId) {
+    async locationExists(locationId, options?: { allowInactive?: boolean }) {
       const result = await client.query<{ exists: boolean }>(
-        `SELECT EXISTS(SELECT 1 FROM app.storage_locations WHERE organization_id = $1 AND branch_id = $2 AND id = $3) AS exists`,
-        [organizationId, branchId, locationId],
+        `
+        SELECT EXISTS(
+          SELECT 1 FROM app.storage_locations
+          WHERE organization_id = $1 AND branch_id = $2 AND id = $3
+            AND ($4::boolean OR is_active)
+        ) AS exists
+        `,
+        [organizationId, branchId, locationId, options?.allowInactive === true],
       );
       return result.rows[0]?.exists === true;
     },

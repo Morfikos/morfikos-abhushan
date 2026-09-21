@@ -13,6 +13,7 @@ import { FormSkeleton } from "@/components/application/skeleton/skeleton";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
 import { InputDate } from "@/components/base/input/input-date";
+import { CatalogueCombobox } from "@/components/shared/catalogue-combobox";
 import { SectionCard } from "@/components/shared/section-card";
 import { SelectField } from "@/components/shared/select-field";
 import { StaffPageHeader } from "@/components/shared/staff-page-header";
@@ -24,7 +25,13 @@ import {
   inventoryAccessToken,
   inventoryErrorMessage,
 } from "@/features/inventory/inventory-shared";
-import { fetchCatalogueCategories, fetchStorageLocations, receiveArticleRequest, StaffApiError } from "@/lib/staff-api";
+import {
+  fetchCatalogueCategories,
+  fetchPurityLabels,
+  fetchStorageLocations,
+  receiveArticleRequest,
+  StaffApiError,
+} from "@/lib/staff-api";
 import { uploadStaffFile } from "@/lib/staff-file-upload";
 import { cx } from "@/utils/cx";
 
@@ -92,9 +99,16 @@ export function ReceiveArticleForm() {
     queryFn: async () => fetchStorageLocations(await inventoryAccessToken()),
     enabled: allowed,
   });
+  const purities = useQuery({
+    queryKey: ["inventory", "purity-labels", staff.membership.organization_id],
+    queryFn: async () => fetchPurityLabels(await inventoryAccessToken()),
+    enabled: allowed,
+  });
 
   const activeCategories = categories.data?.items.filter((item) => item.is_active) ?? [];
   const hasCategories = activeCategories.length > 0;
+  const purityItems = (purities.data?.items ?? []).map((item) => ({ id: item.label, label: item.label }));
+  const locationItems = (locations.data?.items ?? []).map((item) => ({ id: item.id, label: item.name }));
 
   const computedNet = useMemo(() => {
     const grossValue = gross.trim();
@@ -181,7 +195,7 @@ export function ReceiveArticleForm() {
     return null;
   }
 
-  if (categories.isLoading || locations.isLoading) {
+  if (categories.isLoading || locations.isLoading || purities.isLoading) {
     return (
       <section className="mx-auto flex w-full max-w-3xl flex-col gap-5">
         <StaffPageHeader
@@ -189,7 +203,7 @@ export function ReceiveArticleForm() {
           description="Creates a unique article number and a receipt movement."
           back={{ href: "/inventory", label: "Inventory" }}
         />
-        <FormSkeleton sections={3} fieldsPerSection={4} showStickyActions label="Loading receive form" />
+        <FormSkeleton sections={4} fieldsPerSection={5} showStickyActions label="Loading receive form" />
       </section>
     );
   }
@@ -276,14 +290,15 @@ export function ReceiveArticleForm() {
                 { label: "Silver", value: "silver" },
               ]}
             />
-            <Input
+            <CatalogueCombobox
               label="Purity"
               value={purity}
-              placeholder="e.g. 22K"
+              onChange={setPurity}
+              placeholder="Search purity"
               isRequired
               isInvalid={Boolean(purityFieldError)}
               hint={purityFieldError}
-              onChange={setPurity}
+              items={purityItems}
             />
             <Input
               label="HUID"
@@ -352,17 +367,17 @@ export function ReceiveArticleForm() {
               tooltip="Reference only, not job-work accounting."
               onChange={setKarigarRef}
             />
-            <SelectField
+            <CatalogueCombobox
               label="Storage location"
               value={locationId}
               onChange={setLocationId}
+              placeholder="Search location"
+              allowEmpty
+              emptyLabel="Unspecified"
               isDisabled={locations.isLoading}
               isInvalid={Boolean(locationFieldError)}
               hint={locationFieldError}
-              options={[
-                { label: "Unspecified", value: "" },
-                ...(locations.data?.items ?? []).map((item) => ({ label: item.name, value: item.id })),
-              ]}
+              items={locationItems}
             />
             <Input
               label="Acquisition cost (₹)"
@@ -376,7 +391,7 @@ export function ReceiveArticleForm() {
               label="Receipt business date"
               value={receiptDate}
               onChange={(value) => setReceiptDate(value ? parseDate(value.toString()) : parseDate(kolkataBusinessDate()))}
-              hint="Defaults to today in Asia/Kolkata."
+              hint="Defaults to today (India time)."
             />
           </OptionalSection>
 

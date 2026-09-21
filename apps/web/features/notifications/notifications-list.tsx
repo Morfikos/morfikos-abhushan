@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   notificationStatusSchema,
@@ -11,7 +11,7 @@ import {
 import { Bell01 } from "@untitledui/icons";
 
 import { EmptyState } from "@/components/application/empty-state/empty-state";
-import { Skeleton, StaffDirectoryLoading } from "@/components/application/skeleton/skeleton";
+import { Skeleton } from "@/components/application/skeleton/skeleton";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
@@ -101,10 +101,11 @@ export function NotificationsFilterSkeleton() {
   );
 }
 
-/** Route Suspense cold load (includes header shimmer). Feature keeps live StaffPageHeader. */
-export function NotificationsDirectoryLoading() {
+/** Body-only loader: Suspense fallback and showInitialLoading (header stays live). */
+export function NotificationsListBodyLoading() {
   return (
-    <StaffDirectoryLoading
+    <DirectoryTableSkeleton
+      title="Messages"
       columns={6}
       label="Loading notifications"
       filterSkeleton={<NotificationsFilterSkeleton />}
@@ -112,12 +113,47 @@ export function NotificationsDirectoryLoading() {
   );
 }
 
+/** @deprecated Prefer NotificationsListBodyLoading — alias kept for call-site clarity. */
+export function NotificationsDirectoryLoading() {
+  return <NotificationsListBodyLoading />;
+}
+
 export function NotificationsList() {
+  const staff = useStaff();
+  const allowed = staffHasPermission(staff, "notifications.read");
+  const canRetry = staffHasPermission(staff, "notifications.retry");
+
+  if (!allowed) {
+    return (
+      <EmptyState size="md" className="mx-auto py-10">
+        <EmptyState.Header pattern="none">
+          <EmptyState.Content>
+            <p className="text-lg font-semibold text-primary">Notifications unavailable</p>
+            <EmptyState.Description>Ask an owner if you need access to message delivery status.</EmptyState.Description>
+          </EmptyState.Content>
+        </EmptyState.Header>
+      </EmptyState>
+    );
+  }
+
+  return (
+    <section className="flex flex-col gap-6">
+      <StaffPageHeader
+        title="Notifications"
+        description="WhatsApp send and delivery status for shop messages."
+        icon={Bell01}
+      />
+      <Suspense fallback={<NotificationsListBodyLoading />}>
+        <NotificationsListBody canRetry={canRetry} />
+      </Suspense>
+    </section>
+  );
+}
+
+function NotificationsListBody({ canRetry }: { canRetry: boolean }) {
   const staff = useStaff();
   const toast = useStaffToast();
   const queryClient = useQueryClient();
-  const allowed = staffHasPermission(staff, "notifications.read");
-  const canRetry = staffHasPermission(staff, "notifications.retry");
   const { filters, setFilters, clearFilters, chips } = useSyncedListFilters("/notifications", notificationUrlCodec);
   const status = filters.status;
   const [page, setPage] = useState(1);
@@ -127,14 +163,11 @@ export function NotificationsList() {
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    if (!allowed) {
-      return;
-    }
     const onVisibility = () => setVisible(document.visibilityState === "visible");
     onVisibility();
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, [allowed]);
+  }, []);
 
   const query = useQuery({
     queryKey: [
@@ -152,7 +185,6 @@ export function NotificationsList() {
         ...(status ? { status } : {}),
         ...(purpose ? { purpose } : {}),
       }),
-    enabled: allowed,
     placeholderData: keepPreviousData,
     refetchInterval: visible ? 8_000 : false,
   });
@@ -161,24 +193,11 @@ export function NotificationsList() {
     mutationFn: async (id: string) => retryNotificationRequest(await inventoryAccessToken(), id),
     onSuccess: async () => {
       setActionError(null);
-      toast.success("Retry queued");
+      toast.success("Retry started");
       await queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
     onError: (error) => setActionError(inventoryErrorMessage(error)),
   });
-
-  if (!allowed) {
-    return (
-      <EmptyState size="md" className="mx-auto py-10">
-        <EmptyState.Header pattern="none">
-          <EmptyState.Content>
-            <p className="text-lg font-semibold text-primary">Notifications unavailable</p>
-            <EmptyState.Description>You need notifications.read to view delivery status.</EmptyState.Description>
-          </EmptyState.Content>
-        </EmptyState.Header>
-      </EmptyState>
-    );
-  }
 
   const items = query.data?.items ?? [];
   const total = query.data?.total ?? 0;
@@ -202,23 +221,11 @@ export function NotificationsList() {
   }
 
   return (
-    <section className="flex flex-col gap-6">
-      <StaffPageHeader
-        title="Notifications"
-        description="WhatsApp delivery status. Accepted by provider is not the same as Delivered. Unknown requires reconcile, not a blind resend."
-      />
-
+    <>
       {actionError ? <p className="text-sm text-error-primary">{actionError}</p> : null}
       {query.isError ? <p className="text-sm text-error-primary">{inventoryErrorMessage(query.error)}</p> : null}
 
-      {showInitialLoading ? (
-        <DirectoryTableSkeleton
-          title="Messages"
-          columns={6}
-          label="Loading notifications"
-          filterSkeleton={<NotificationsFilterSkeleton />}
-        />
-      ) : null}
+      {showInitialLoading ? <NotificationsListBodyLoading /> : null}
 
       {directoryEmpty ? (
         <DirectoryEmptyState
@@ -293,9 +300,8 @@ export function NotificationsList() {
                 <Table.Body items={items}>
                   {(item) => (
                     <Table.Row id={item.id}>
-                      <Table.Cell>
-                        <p className="font-medium text-primary">{item.customer_display_name}</p>
-                        <p className="text-xs text-tertiary">{item.channel}</p>
+                      <Table.Cell className="font-medium text-primary">
+                        <span title={item.channel}>{item.customer_display_name}</span>
                       </Table.Cell>
                       <Table.Cell>{purposeLabel(item.purpose)}</Table.Cell>
                       <Table.Cell>
@@ -311,7 +317,7 @@ export function NotificationsList() {
                           {new Date(item.created_at).toLocaleString()}
                         </span>
                       </Table.Cell>
-                      <Table.Cell>
+                      <Table.Cell truncate={false}>
                         {canRetry && item.status === "failed" && item.retry_safe ? (
                           <Button
                             color="secondary"
@@ -322,7 +328,7 @@ export function NotificationsList() {
                             Retry
                           </Button>
                         ) : item.status === "unknown" ? (
-                          <span className="text-xs text-warning-primary">Reconcile</span>
+                          <span className="text-xs text-warning-primary">Check status</span>
                         ) : null}
                       </Table.Cell>
                     </Table.Row>
@@ -343,6 +349,6 @@ export function NotificationsList() {
           ) : null}
         </TableCard.Root>
       ) : null}
-    </section>
+    </>
   );
 }

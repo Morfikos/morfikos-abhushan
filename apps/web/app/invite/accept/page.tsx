@@ -6,8 +6,8 @@ export const dynamic = "force-dynamic";
 export default function InviteAcceptPage() {
   return (
     <AuthPage
-      title="Accept invitation"
-      description="Set a display name and password for your staff account. Invalid or expired invitations show a recovery path instead of confirming whether a private record exists."
+      title="Set up your account"
+      description="Choose a display name and password. If the link is invalid or expired, ask an owner for a new invite."
     >
       <InviteAcceptForm />
     </AuthPage>

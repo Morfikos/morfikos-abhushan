@@ -7,7 +7,7 @@ export function ReceiptDocumentsCard({ paymentId }: { paymentId: string }) {
   return (
     <DocumentStatusCard
       title="Receipt document"
-      description="PDF generation runs after the payment commits. A failed document never undoes the collection."
+      description="PDF is prepared after the payment is saved. A PDF problem does not cancel the payment."
       ownerType="receipt"
       ownerId={paymentId}
       documentType="receipt_pdf"

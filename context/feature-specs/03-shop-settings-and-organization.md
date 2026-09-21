@@ -210,7 +210,7 @@ Settings is a local composition of free form controls, headings, and validation/
 
 - Staffing: who may write rates, adjust stock, refund, or release collateral
 - GSTIN / statutory fields needed on the invoice face
-- Exact purity labels used by the shop
+- Exact purity labels used by the shop → managed in Settings → Catalogues (`app.purity_labels`); articles/rates/making store the label string; metal remains fixed `gold` \| `silver`
 - Hardware dimensions (tracked again in spec 05)
 
 ## Step-by-Step Implementation Sub-tasks

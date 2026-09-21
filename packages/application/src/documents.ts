@@ -144,6 +144,7 @@ export type DocumentsRepository = {
       invoice_number: string | null;
       business_date: string;
       customer_display_name: string;
+      customer_phone: string | null;
       status: string;
       metal_value_inr: string;
       making_charges_inr: string;
@@ -156,12 +157,37 @@ export type DocumentsRepository = {
       amount_paid_inr: string;
       amount_due_inr: string;
     };
-    lines: Array<{ article_number: string; description: string; line_total_inr: string }>;
+    lines: Array<{
+      line_no: number;
+      article_number: string;
+      barcode: string | null;
+      description: string;
+      metal: "gold" | "silver";
+      purity: string;
+      gross_weight_grams: string;
+      non_metal_weight_grams: string;
+      net_metal_weight_grams: string;
+      rate_per_gram: string | null;
+      metal_value_inr: string;
+      making_charge_inr: string;
+      wastage_inr: string;
+      stone_charges_inr: string;
+      line_discount_inr: string;
+      line_total_inr: string;
+    }>;
+    collections: Array<{
+      receipt_number: string;
+      method: string;
+      amount_inr: string;
+      business_date: string;
+    }>;
     shop: {
       legal_name: string;
       address_line: string | null;
       phone: string | null;
       invoice_footer: string | null;
+      logo_object_key: string | null;
+      logo_content_type: string | null;
     };
     invoice_paper_size: InvoicePaperSize;
   } | null>;
@@ -176,6 +202,8 @@ export type DocumentsRepository = {
       legal_name: string;
       address_line: string | null;
       phone: string | null;
+      logo_object_key: string | null;
+      logo_content_type: string | null;
     };
     invoice_paper_size: InvoicePaperSize;
   } | null>;
@@ -526,17 +554,37 @@ export async function getInvoicePrintDto(
     throw notFoundError("The requested invoice was not found.");
   }
   const docs = await listDocumentsForOwner(repository, storage, access, "invoice", invoiceId);
+  let shop_logo_data_uri: string | null = null;
+  if (
+    storage &&
+    source.shop.logo_object_key &&
+    (source.shop.logo_content_type === "image/jpeg" ||
+      source.shop.logo_content_type === "image/png" ||
+      source.shop.logo_content_type === "image/webp")
+  ) {
+    try {
+      shop_logo_data_uri = await storage.downloadAsDataUri(
+        source.shop.logo_object_key,
+        source.shop.logo_content_type,
+      );
+    } catch {
+      shop_logo_data_uri = null;
+    }
+  }
   return {
     invoice_id: source.invoice.id,
     invoice_number: source.invoice.invoice_number,
     business_date: source.invoice.business_date,
     customer_display_name: source.invoice.customer_display_name,
+    customer_phone: source.invoice.customer_phone,
     shop_legal_name: source.shop.legal_name,
     shop_address_line: source.shop.address_line,
     shop_phone: source.shop.phone,
+    shop_logo_data_uri,
     invoice_footer: source.shop.invoice_footer,
     invoice_paper_size: source.invoice_paper_size,
     lines: source.lines,
+    collections: source.collections,
     metal_value_inr: source.invoice.metal_value_inr,
     making_charges_inr: source.invoice.making_charges_inr,
     wastage_inr: source.invoice.wastage_inr,
@@ -563,6 +611,23 @@ export async function getReceiptPrintDto(
     throw notFoundError("The requested receipt was not found.");
   }
   const docs = await listDocumentsForOwner(repository, storage, access, "receipt", paymentId);
+  let shop_logo_data_uri: string | null = null;
+  if (
+    storage &&
+    source.shop.logo_object_key &&
+    (source.shop.logo_content_type === "image/jpeg" ||
+      source.shop.logo_content_type === "image/png" ||
+      source.shop.logo_content_type === "image/webp")
+  ) {
+    try {
+      shop_logo_data_uri = await storage.downloadAsDataUri(
+        source.shop.logo_object_key,
+        source.shop.logo_content_type,
+      );
+    } catch {
+      shop_logo_data_uri = null;
+    }
+  }
   return {
     payment_id: paymentId,
     receipt_number: source.receiptNumber,
@@ -574,6 +639,7 @@ export async function getReceiptPrintDto(
     shop_legal_name: source.shop.legal_name,
     shop_address_line: source.shop.address_line,
     shop_phone: source.shop.phone,
+    shop_logo_data_uri,
     invoice_paper_size: source.invoice_paper_size,
     document: docs.items[0] ?? null,
   };

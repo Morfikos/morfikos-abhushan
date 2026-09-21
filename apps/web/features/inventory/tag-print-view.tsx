@@ -5,7 +5,9 @@ import { useSearchParams } from "next/navigation";
 import { TAG_LOGO_MAX_MM, TAG_TEMPLATE_VERSION } from "@aabhushan/domain";
 import type { TagPreview, TagPrintKind } from "@aabhushan/contracts";
 
+import { TagPrintSkeleton } from "@/components/application/skeleton/skeleton";
 import { Button } from "@/components/base/buttons/button";
+import { PrintPreviewChrome, PrintPreviewPill } from "@/features/documents/print-preview-chrome";
 import { inventoryAccessToken, inventoryErrorMessage } from "@/features/inventory/inventory-shared";
 import {
   assignArticleBarcodesBatchRequest,
@@ -201,7 +203,7 @@ export function TagPrintView() {
   }
 
   return (
-    <main className="tag-print-root min-h-screen bg-secondary text-primary print:bg-white print:text-black">
+    <>
       <style>{`
         @page { size: ${widthMm}mm ${heightMm}mm; margin: 0; }
         .tag-print-barcode svg {
@@ -270,73 +272,79 @@ export function TagPrintView() {
         }
       `}</style>
 
-      <div className="tag-print-actions sticky top-0 z-10 border-b border-secondary bg-primary print:hidden">
-        <div className="mx-auto flex max-w-5xl flex-col gap-3 px-4 py-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0 flex flex-col gap-1">
-              <h1 className="text-lg font-semibold text-primary">{pageTitle}</h1>
-              <div className="flex flex-wrap items-center gap-2 text-sm text-tertiary">
-                {!loading && tagCount > 0 ? <span>{countLabel}</span> : null}
-                {!loading && tagCount > 0 ? (
-                  <span className="rounded-md bg-secondary px-2 py-0.5 font-medium text-secondary ring-1 ring-secondary ring-inset">
-                    {widthMm} × {heightMm} mm
-                  </span>
-                ) : null}
-                {isReprint && reason ? (
-                  <span className="rounded-md bg-secondary px-2 py-0.5 font-medium text-secondary ring-1 ring-secondary ring-inset">
-                    Reason: {reason}
-                  </span>
-                ) : null}
-              </div>
-              <p className="text-sm text-tertiary">
-                {isReprint
-                  ? "Same barcode as before. Printer not confirmed — a preview is not proof that the physical tag is readable."
-                  : "Printer not confirmed. A preview is not proof that the physical tag is readable."}
+      <PrintPreviewChrome
+        className="tag-print-root"
+        headerClassName="tag-print-actions"
+        stageClassName="tag-print-stage"
+        title={pageTitle}
+        metadata={
+          <>
+            {!loading && tagCount > 0 ? <span>{countLabel}</span> : null}
+            {!loading && tagCount > 0 ? (
+              <PrintPreviewPill>
+                {widthMm} × {heightMm} mm
+              </PrintPreviewPill>
+            ) : null}
+            {isReprint && reason ? <PrintPreviewPill>Reason: {reason}</PrintPreviewPill> : null}
+          </>
+        }
+        helpers={
+          <>
+            <p className="text-sm text-tertiary">
+              {isReprint
+                ? "Same barcode as before. Printer not confirmed — a preview is not proof that the physical tag is readable."
+                : "Printer not confirmed. A preview is not proof that the physical tag is readable."}
+            </p>
+            <p className="text-xs text-tertiary">
+              In the print dialog, turn off “Headers and footers” so date, title, and URL are not printed.
+            </p>
+            {logoOmitted ? (
+              <p className="text-sm text-warning-primary">
+                Tag too short for logo + scannable barcode; shop name is used instead.
               </p>
-              {logoOmitted ? (
-                <p className="text-sm text-warning-primary">
-                  Tag too short for logo + scannable barcode; shop name is used instead.
-                </p>
-              ) : null}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button color="primary" size="md" isDisabled={loading || tagCount === 0} onPress={openPrintDialog}>
-                {printLabel}
-              </Button>
-              <Button color="secondary" size="md" href={returnHref}>
-                {returnLabel}
-              </Button>
-            </div>
-          </div>
-
-          {loadError ? <p className="text-sm text-error-primary">{loadError}</p> : null}
-          {printError ? <p className="text-sm text-error-primary">{printError}</p> : null}
-          {recorded ? <p className="text-sm text-success-primary">{successMessage}</p> : null}
-
-          {awaitingPhysical && !recorded ? (
-            <div className="flex flex-col gap-2 rounded-xl bg-secondary px-3 py-3 ring-1 ring-secondary">
-              <div>
-                <p className="text-sm font-semibold text-primary">Did the physical tag print?</p>
-                <p className="mt-0.5 text-xs text-tertiary">
-                  If nothing printed (including Cancel), choose No, print failed.
-                </p>
+            ) : null}
+          </>
+        }
+        primaryAction={
+          <Button color="primary" size="md" isDisabled={loading || tagCount === 0} onPress={openPrintDialog}>
+            {printLabel}
+          </Button>
+        }
+        secondaryAction={
+          <Button color="secondary" size="md" href={returnHref}>
+            {returnLabel}
+          </Button>
+        }
+        footer={
+          <>
+            {loadError ? <p className="text-sm text-error-primary">{loadError}</p> : null}
+            {printError ? <p className="text-sm text-error-primary">{printError}</p> : null}
+            {recorded ? <p className="text-sm text-success-primary">{successMessage}</p> : null}
+            {awaitingPhysical && !recorded ? (
+              <div className="flex flex-col gap-2 rounded-xl bg-secondary px-3 py-3 ring-1 ring-secondary">
+                <div>
+                  <p className="text-sm font-semibold text-primary">Did the physical tag print?</p>
+                  <p className="mt-0.5 text-xs text-tertiary">
+                    If nothing printed (including Cancel), choose No, print failed.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button color="primary" size="sm" isLoading={recording} onPress={() => void confirmPrinted()}>
+                    Yes, record print
+                  </Button>
+                  <Button color="secondary" size="sm" isDisabled={recording} onPress={markPrintFailed}>
+                    No, print failed
+                  </Button>
+                </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <Button color="primary" size="sm" isLoading={recording} onPress={() => void confirmPrinted()}>
-                  Yes, record print
-                </Button>
-                <Button color="secondary" size="sm" isDisabled={recording} onPress={markPrintFailed}>
-                  No, print failed
-                </Button>
-              </div>
-            </div>
-          ) : null}
-        </div>
-      </div>
+            ) : null}
+          </>
+        }
+      >
+        {loading ? (
+          <TagPrintSkeleton showChrome={false} className="tag-print-stage-chrome print:hidden" label="Preparing tags…" />
+        ) : null}
 
-      {loading ? <p className="tag-print-stage-chrome px-4 py-6 text-sm text-tertiary print:hidden">Preparing tags…</p> : null}
-
-      <div className="tag-print-stage px-4 py-6 print:p-0">
         <div className="tag-print-list mx-auto grid max-w-5xl grid-cols-1 justify-items-center gap-6 sm:grid-cols-2 xl:grid-cols-3">
           {previews.map((tag) => (
             <div key={tag.article_id} className="tag-print-frame flex flex-col items-center gap-2">
@@ -347,7 +355,7 @@ export function TagPrintView() {
             </div>
           ))}
         </div>
-      </div>
-    </main>
+      </PrintPreviewChrome>
+    </>
   );
 }

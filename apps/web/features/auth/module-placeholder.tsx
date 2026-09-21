@@ -31,7 +31,7 @@ export function ModulePlaceholder({
     <section className="flex flex-col gap-3">
       <h1 className="text-display-xs text-primary font-semibold">{title}</h1>
       <p className="text-tertiary text-md">
-        This workspace area is reserved for a later unit. Navigation is already limited to your role; the API still
+        This workspace area is reserved for a future module. Navigation is already limited to your role; the API still
         authorizes every request independently.
       </p>
     </section>

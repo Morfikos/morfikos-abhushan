@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ArticleListItem, ArticleStatus, Metal } from "@aabhushan/contracts";
 import { ChevronRight, FilterLines, Package, SearchLg, Trash01 } from "@untitledui/icons";
 
-import { Skeleton, StaffDirectoryLoading } from "@/components/application/skeleton/skeleton";
+import { InventoryFilterStripSkeleton } from "@/components/application/skeleton/skeleton";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
@@ -45,23 +45,25 @@ import { cx } from "@/utils/cx";
 
 /** Live order: scan + search, then status / metal / category / more. */
 export function InventoryFilterSkeleton() {
+  return <InventoryFilterStripSkeleton />;
+}
+
+/** Body-only loader: Suspense fallback and showInitialLoading (header stays live). */
+export function InventoryListBodyLoading() {
   return (
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-      <Skeleton className="h-10 w-full rounded-lg" />
-      <Skeleton className="h-10 w-full rounded-lg" />
-      <Skeleton className="h-10 w-full rounded-lg" />
-      <Skeleton className="h-10 w-full rounded-lg" />
-      <Skeleton className="h-10 w-full rounded-lg" />
-      <Skeleton className="h-10 w-32 rounded-lg" />
-    </div>
+    <DirectoryTableSkeleton
+      title="Articles"
+      columns={9}
+      showSelectionColumn
+      label="Loading articles"
+      filterSkeleton={<InventoryFilterSkeleton />}
+    />
   );
 }
 
-/** Route Suspense cold load (includes header shimmer). Feature keeps live StaffPageHeader. */
+/** @deprecated Prefer InventoryListBodyLoading — alias kept for call-site clarity. */
 export function InventoryDirectoryLoading() {
-  return (
-    <StaffDirectoryLoading columns={10} label="Loading inventory" filterSkeleton={<InventoryFilterSkeleton />} />
-  );
+  return <InventoryListBodyLoading />;
 }
 
 type TableSelection = "all" | Set<string | number>;
@@ -157,9 +159,59 @@ type PendingDelete =
 export function InventoryList() {
   const staff = useStaff();
   const router = useRouter();
-  const queryClient = useQueryClient();
   const allowed = staffHasPermission(staff, "inventory.read");
   const canWrite = staffHasPermission(staff, "inventory.write");
+  // Optimistic true matches prior showInitialLoading header (catalogueEmpty is false while loading).
+  const [showStockCountAction, setShowStockCountAction] = useState(true);
+
+  useEffect(() => {
+    if (!allowed) {
+      router.replace("/access-denied");
+    }
+  }, [allowed, router]);
+
+  if (!allowed) {
+    return null;
+  }
+
+  return (
+    <section className="flex flex-col gap-6">
+      <StaffPageHeader
+        title="Inventory"
+        description="Saleable articles only. Girvi collateral never appears here."
+        icon={Package}
+        actions={
+          canWrite ? (
+            <>
+              {showStockCountAction ? (
+                <Button color="secondary" size="md" href="/inventory/stock-counts/new">
+                  Record stock count
+                </Button>
+              ) : null}
+              <Button color="primary" size="md" href="/inventory/receive">
+                Receive article
+              </Button>
+            </>
+          ) : null
+        }
+      />
+      <Suspense fallback={<InventoryListBodyLoading />}>
+        <InventoryListBody canWrite={canWrite} onShowStockCountAction={setShowStockCountAction} />
+      </Suspense>
+    </section>
+  );
+}
+
+function InventoryListBody({
+  canWrite,
+  onShowStockCountAction,
+}: {
+  canWrite: boolean;
+  onShowStockCountAction: (show: boolean) => void;
+}) {
+  const staff = useStaff();
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const scanRef = useRef<HTMLInputElement>(null);
   const { filters: urlFilters, setFilters: setUrlFilters, clearFilters: clearUrlFilters, chips } =
     useSyncedListFilters("/inventory", inventoryUrlCodec);
@@ -185,16 +237,8 @@ export function InventoryList() {
   const [pendingReprintIds, setPendingReprintIds] = useState<string[]>([]);
 
   useEffect(() => {
-    if (!allowed) {
-      router.replace("/access-denied");
-    }
-  }, [allowed, router]);
-
-  useEffect(() => {
-    if (allowed) {
-      scanRef.current?.focus();
-    }
-  }, [allowed]);
+    scanRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     if (hasAdvancedApplied(applied)) {
@@ -210,13 +254,11 @@ export function InventoryList() {
   const categories = useQuery({
     queryKey: ["inventory", "categories", staff.membership.organization_id],
     queryFn: async () => fetchCatalogueCategories(await inventoryAccessToken()),
-    enabled: allowed,
   });
 
   const devices = useQuery({
     queryKey: ["shop", "devices", staff.membership.organization_id],
     queryFn: async () => fetchDevices(await inventoryAccessToken()),
-    enabled: allowed,
   });
 
   const query = useQuery({
@@ -233,7 +275,6 @@ export function InventoryList() {
         ...(applied.minWeight ? { minGrossWeightGrams: applied.minWeight } : {}),
         ...(applied.maxWeight ? { maxGrossWeightGrams: applied.maxWeight } : {}),
       }),
-    enabled: allowed,
     placeholderData: keepPreviousData,
   });
 
@@ -268,10 +309,6 @@ export function InventoryList() {
     },
   });
 
-  if (!allowed) {
-    return null;
-  }
-
   const total = query.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const filtersActive = hasAppliedFilters(applied);
@@ -279,6 +316,11 @@ export function InventoryList() {
   const filteredEmpty = !query.isLoading && items.length === 0 && filtersActive;
   const showInitialLoading = query.isLoading && !query.data;
   const showArticlesCard = !catalogueEmpty && !showInitialLoading;
+
+  useEffect(() => {
+    onShowStockCountAction(!catalogueEmpty);
+  }, [catalogueEmpty, onShowStockCountAction]);
+
   const selectedIds =
     selectedKeys === "all" ? items.map((item) => item.id) : [...selectedKeys].map((key) => String(key));
   const selectedCount = selectedIds.length;
@@ -462,26 +504,7 @@ export function InventoryList() {
   );
 
   return (
-    <section className="flex flex-col gap-6">
-      <StaffPageHeader
-        title="Inventory"
-        description="Saleable articles only. Girvi collateral never appears here."
-        actions={
-          canWrite ? (
-            <>
-              {!catalogueEmpty ? (
-                <Button color="secondary" size="md" href="/inventory/stock-counts/new">
-                  Record stock count
-                </Button>
-              ) : null}
-              <Button color="primary" size="md" href="/inventory/receive">
-                Receive article
-              </Button>
-            </>
-          ) : null
-        }
-      />
-
+    <>
       {catalogueEmpty ? (
         <div className="flex flex-col gap-3 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-5">
           {filterToolbar}
@@ -489,14 +512,7 @@ export function InventoryList() {
         </div>
       ) : null}
 
-      {showInitialLoading ? (
-        <DirectoryTableSkeleton
-          title="Articles"
-          columns={10}
-          label="Loading articles"
-          filterSkeleton={<InventoryFilterSkeleton />}
-        />
-      ) : null}
+      {showInitialLoading ? <InventoryListBodyLoading /> : null}
       {query.isError ? <p className="text-sm text-error-primary">{inventoryErrorMessage(query.error)}</p> : null}
       {actionError ? <p className="text-sm text-error-primary">{actionError}</p> : null}
 
@@ -707,7 +723,7 @@ export function InventoryList() {
           setPendingReprintIds([]);
         }}
       />
-    </section>
+    </>
   );
 }
 

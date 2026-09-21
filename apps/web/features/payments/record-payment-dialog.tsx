@@ -21,6 +21,7 @@ import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { Input } from "@/components/base/input/input";
 import { MethodSelect } from "@/components/shared/method-select";
 import { MoneyInput } from "@/components/shared/money-input";
+import { MoneyText } from "@/components/shared/money-text";
 import { useStaff } from "@/features/auth/staff-shell";
 import { useStaffToast } from "@/components/application/toast/staff-toast";
 import { CustomerCombobox } from "@/features/customers/customer-combobox";
@@ -97,13 +98,13 @@ function TotalsRow({
       <dt className={emphasize && !zero ? "text-error-primary" : zero ? "text-quaternary" : "text-tertiary"}>
         {label}
       </dt>
-      <dd
-        className={`tabular-nums ${
+      <MoneyText
+        amount={amount}
+        as="dd"
+        className={
           emphasize && !zero ? "font-medium text-error-primary" : zero ? "text-quaternary" : "text-primary"
-        }`}
-      >
-        {formatInr(amount)}
-      </dd>
+        }
+      />
     </div>
   );
 }
@@ -406,9 +407,7 @@ export function RecordPaymentDialog({
             {customer ? (
               <p className="text-sm text-tertiary">{customer.display_name}</p>
             ) : (
-              <p className="text-sm text-tertiary">
-                Staff record collections they have verified themselves. There is no payment gateway.
-              </p>
+              <p className="text-sm text-tertiary">Records money you already collected in the shop.</p>
             )}
           </header>
 
@@ -420,7 +419,7 @@ export function RecordPaymentDialog({
                     Collection received: {formatInr(posted.total_inr)}
                   </p>
                   <p className="mt-1 text-xs text-tertiary">
-                    Server confirmed. Receipt documents are queued after commit and may arrive later.
+                    Payment saved. The receipt PDF may take a moment.
                   </p>
                 </div>
                 <ul className="flex flex-col gap-2">
@@ -447,9 +446,7 @@ export function RecordPaymentDialog({
                         ) : null}
                       </div>
                       <span className="text-sm text-tertiary">{paymentMethodLabel(payment.method)}</span>
-                      <span className="text-sm font-medium tabular-nums text-primary">
-                        {formatInr(payment.amount_inr)}
-                      </span>
+                      <MoneyText amount={payment.amount_inr} className="text-sm font-medium text-primary" />
                     </li>
                   ))}
                 </ul>
@@ -713,9 +710,11 @@ export function RecordPaymentDialog({
                     <div className="flex flex-col gap-3">
                       <div className="rounded-lg bg-brand-primary px-3 py-3">
                         <p className="text-sm font-medium text-brand-secondary">Collecting</p>
-                        <p className="text-display-sm font-semibold tabular-nums text-brand-primary">
-                          {formatInr(allocationTotal)}
-                        </p>
+                        <MoneyText
+                          amount={allocationTotal}
+                          as="p"
+                          className="text-display-sm font-semibold text-brand-primary"
+                        />
                       </div>
                       <dl className="flex flex-col gap-2 text-sm">
                         <TotalsRow label="Allocated to invoices" amount={allocationTotal} />
@@ -753,12 +752,11 @@ export function RecordPaymentDialog({
                         </div>
                         <div className="flex justify-between gap-3">
                           <dt className="text-tertiary">Total</dt>
-                          <dd className="font-medium tabular-nums text-primary">{formatInr(allocationTotal)}</dd>
+                          <MoneyText amount={allocationTotal} as="dd" className="font-medium text-primary" />
                         </div>
                       </dl>
                       <p className="mt-2 text-xs text-tertiary">
-                        Recording posts this collection against the selected invoices. There is no payment gateway
-                        and no automatic bank confirmation.
+                        Records money you already collected in the shop against the selected invoices.
                       </p>
                     </div>
                   </>

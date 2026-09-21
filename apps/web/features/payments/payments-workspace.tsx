@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Payment, PaymentMethod } from "@aabhushan/contracts";
 import type { CalendarDate, DateValue } from "@internationalized/date";
 import { parseDate } from "@internationalized/date";
-import { ChevronRight, CoinsHand } from "@untitledui/icons";
+import { ChevronRight, CoinsHand, CreditCard02 } from "@untitledui/icons";
 import type { DateRange } from "react-aria-components";
 
 import { DatePicker } from "@/components/application/date-picker/date-picker";
@@ -39,7 +39,7 @@ import {
 } from "@/features/payments/payment-period";
 import { paymentAccessToken, paymentErrorMessage, paymentKindLabel } from "@/features/payments/payment-shared";
 import { RecordPaymentDialog } from "@/features/payments/record-payment-dialog";
-import { formatInr } from "@/lib/money";
+import { MoneyText } from "@/components/shared/money-text";
 import { paymentMethodLabel, paymentMethodOptions } from "@/lib/payment-methods";
 import { fetchCustomer, fetchDailyCollections, fetchInvoice, fetchPayments } from "@/lib/staff-api";
 
@@ -53,21 +53,11 @@ export function PaymentsFilterSkeleton() {
   );
 }
 
-/**
- * Route Suspense cold load: header + collections metrics card + table.
- * Feature keeps live header / period controls and only skeletons metrics + table.
- */
+/** Body-only loader: Suspense fallback (header stays live). Period stubs + metrics + table. */
 export function PaymentsWorkspaceLoading() {
   return (
     <div className="flex flex-col gap-6" aria-busy="true" aria-live="polite">
       <span className="sr-only">Loading payments</span>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex flex-col gap-2">
-          <Skeleton className="h-7 w-40" />
-          <Skeleton className="h-4 w-72 max-w-full" />
-        </div>
-        <Skeleton className="h-10 w-36 rounded-lg" />
-      </div>
       <SectionCard>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="flex flex-col gap-2">
@@ -187,8 +177,48 @@ const paymentPeriodCodec: ListFilterCodec<PaymentPeriodFilters> = {
 export function PaymentsWorkspace() {
   const staff = useStaff();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const allowed = staffHasPermission(staff, "payments.write");
+  const [recordOpen, setRecordOpen] = useState(false);
+
+  useEffect(() => {
+    if (!allowed) {
+      router.replace("/access-denied");
+    }
+  }, [allowed, router]);
+
+  if (!allowed) {
+    return null;
+  }
+
+  return (
+    <section className="flex flex-col gap-6">
+      <StaffPageHeader
+        title="Payments"
+        description="Manually verified collections against sales invoices. Girvi principal and interest are settled separately."
+        icon={CreditCard02}
+        actions={
+          <Button color="primary" size="md" onPress={() => setRecordOpen(true)}>
+            Record payment
+          </Button>
+        }
+      />
+      <Suspense fallback={<PaymentsWorkspaceLoading />}>
+        <PaymentsWorkspaceBody recordOpen={recordOpen} setRecordOpen={setRecordOpen} />
+      </Suspense>
+    </section>
+  );
+}
+
+function PaymentsWorkspaceBody({
+  recordOpen,
+  setRecordOpen,
+}: {
+  recordOpen: boolean;
+  setRecordOpen: (open: boolean) => void;
+}) {
+  const staff = useStaff();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const prefillCustomerId = searchParams.get("customer");
   const prefillInvoiceId = searchParams.get("invoice");
   const { filters: periodFilters, setFilters: setPeriodFilters, chips } = useSyncedListFilters(
@@ -202,7 +232,6 @@ export function PaymentsWorkspace() {
   const [search, setSearch] = useState("");
   const [appliedQ, setAppliedQ] = useState("");
   const [methodFilter, setMethodFilter] = useState("");
-  const [recordOpen, setRecordOpen] = useState(false);
   const [detailPaymentId, setDetailPaymentId] = useState<string | null>(null);
 
   const periodBounds = useMemo(
@@ -216,23 +245,17 @@ export function PaymentsWorkspace() {
     [customEnd, customStart, dayDate, periodPreset],
   );
 
-  useEffect(() => {
-    if (!allowed) {
-      router.replace("/access-denied");
-    }
-  }, [allowed, router]);
-
   const prefillInvoice = useQuery({
     queryKey: ["invoices", staff.membership.organization_id, prefillInvoiceId ?? ""],
     queryFn: async () => fetchInvoice(await paymentAccessToken(), prefillInvoiceId ?? ""),
-    enabled: allowed && Boolean(prefillInvoiceId),
+    enabled: Boolean(prefillInvoiceId),
   });
 
   const prefillCustomerKey = prefillCustomerId ?? prefillInvoice.data?.customer_id ?? "";
   const prefillCustomer = useQuery({
     queryKey: ["customers", "detail", staff.membership.organization_id, prefillCustomerKey],
     queryFn: async () => fetchCustomer(await paymentAccessToken(), prefillCustomerKey),
-    enabled: allowed && Boolean(prefillCustomerKey),
+    enabled: Boolean(prefillCustomerKey),
   });
 
   useEffect(() => {
@@ -242,7 +265,7 @@ export function PaymentsWorkspace() {
     if (prefillCustomer.data) {
       setRecordOpen(true);
     }
-  }, [prefillCustomer.data, prefillCustomerId, prefillInvoiceId]);
+  }, [prefillCustomer.data, prefillCustomerId, prefillInvoiceId, setRecordOpen]);
 
   const collections = useQuery({
     queryKey: [
@@ -257,7 +280,6 @@ export function PaymentsWorkspace() {
         ...(periodBounds.from ? { from: periodBounds.from } : {}),
         ...(periodBounds.to ? { to: periodBounds.to } : {}),
       }),
-    enabled: allowed,
     placeholderData: keepPreviousData,
   });
 
@@ -284,7 +306,6 @@ export function PaymentsWorkspace() {
         ...(periodBounds.from ? { receivedBusinessDateFrom: periodBounds.from } : {}),
         ...(periodBounds.to ? { receivedBusinessDateTo: periodBounds.to } : {}),
       }),
-    enabled: allowed,
     placeholderData: keepPreviousData,
   });
 
@@ -300,10 +321,6 @@ export function PaymentsWorkspace() {
   const caption = periodCaption(periodPreset, periodBounds);
   const customRangeValue: DateRange | null =
     customStart && customEnd ? { start: customStart, end: customEnd } : null;
-
-  if (!allowed) {
-    return null;
-  }
 
   function applySearch() {
     setPage(1);
@@ -342,17 +359,7 @@ export function PaymentsWorkspace() {
   }
 
   return (
-    <section className="flex flex-col gap-6">
-      <StaffPageHeader
-        title="Payments"
-        description="Manually verified collections against sales invoices. Girvi principal and interest are settled separately."
-        actions={
-          <Button color="primary" size="md" onPress={() => setRecordOpen(true)}>
-            Record payment
-          </Button>
-        }
-      />
-
+    <>
       <SectionCard>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -418,7 +425,7 @@ export function PaymentsWorkspace() {
             {methodRows.map((row) => (
               <div key={row.method} className="rounded-lg bg-secondary px-3 py-3 ring-1 ring-secondary">
                 <p className="text-sm text-tertiary">{paymentMethodLabel(row.method)}</p>
-                <p className="text-lg font-semibold tabular-nums text-primary">{formatInr(row.amount_inr)}</p>
+                <MoneyText amount={row.amount_inr} as="p" className="text-lg font-semibold text-primary" />
                 <p className="text-xs text-tertiary">
                   {row.payment_count} {row.payment_count === 1 ? "receipt" : "receipts"}
                 </p>
@@ -426,9 +433,11 @@ export function PaymentsWorkspace() {
             ))}
             <div className="rounded-lg bg-brand-primary px-3 py-3">
               <p className="text-sm font-medium text-brand-secondary">Total collected</p>
-              <p className="text-lg font-semibold tabular-nums text-brand-primary">
-                {formatInr(collections.data?.total_inr ?? "0.00")}
-              </p>
+              <MoneyText
+                amount={collections.data?.total_inr ?? "0.00"}
+                as="p"
+                className="text-lg font-semibold text-brand-primary"
+              />
               <p className="text-xs text-brand-secondary">
                 {collections.data?.payment_count ?? 0} posted
               </p>
@@ -456,7 +465,7 @@ export function PaymentsWorkspace() {
         <DirectoryEmptyState
           icon={CoinsHand}
           title="No collections yet"
-          description="Record a collection against a finalized invoice. Counter tenders taken at finalization appear here too."
+          description="Includes cash/UPI taken when the invoice was completed."
           action={
             <Button color="primary" size="md" onPress={() => setRecordOpen(true)}>
               Record payment
@@ -540,7 +549,9 @@ export function PaymentsWorkspace() {
                         </Badge>
                       </Table.Cell>
                       <Table.Cell className="font-mono text-xs">{allocationSummary(payment)}</Table.Cell>
-                      <Table.Cell className="text-right tabular-nums">{formatInr(payment.amount_inr)}</Table.Cell>
+                      <Table.Cell className="text-right">
+                        <MoneyText amount={payment.amount_inr} className="text-right" />
+                      </Table.Cell>
                       <Table.Cell>
                         <ChevronRight className="size-4 text-fg-quaternary" aria-hidden="true" />
                       </Table.Cell>
@@ -571,6 +582,6 @@ export function PaymentsWorkspace() {
       />
 
       <PaymentDetailDialog paymentId={detailPaymentId} onClose={() => setDetailPaymentId(null)} />
-    </section>
+    </>
   );
 }

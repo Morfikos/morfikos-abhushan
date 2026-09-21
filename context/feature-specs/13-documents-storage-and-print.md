@@ -1,6 +1,6 @@
 # 13 — Documents, Storage, and Print
 
-**Status:** Implemented and verified (paper size from Settings; bilingual EN+HI on document PDF/HTML)  
+**Status:** Implemented and verified (Settings paper + bilingual PDF; HTML print format/language selectable)  
 **Depends on:** `08-pos-billing-and-finalization`, `09-payments-and-outstanding-balances`, `05-barcode-tagging-and-hardware`  
 **Enables:** WhatsApp attachments, authorized reprints, backup of object bytes  
 **Blocked by:** — (identity-required-at-launch remains a product question)  
@@ -15,10 +15,12 @@ Staff need documents without public links. PDF or print failure must not undo a 
 
 ## Owner-confirmed print decisions
 
-- **Paper size:** `device_settings.invoice_paper_size` (`A4` | `A5` | `80mm`) drives invoice/receipt HTML print and all document PDFs. Tag millimetres remain separate.
-- **Language:** Printed labels are always bilingual English + Hindi. Embed Devanagari-capable fonts in PDFKit; HTML print uses Noto Sans Devanagari. Reminder language does not gate documents.
-- **80mm:** Thermal-narrow layout (stacked rows, tight margins), not a sheet size swap alone.
+- **Paper size (PDF / Settings):** `device_settings.invoice_paper_size` (`A4` | `A5` | `80mm`) drives document PDFs on the worker. Tag millimetres remain separate. Seeded default **A5**.
+- **HTML print format:** On-screen print preview Format control (`80mm` thermal default | `A5` | `A4`) overrides layout and `@page` for that browser print only. It does **not** rewrite Settings. Last-used format is sticky in `localStorage` (`aabhushan.print.format`).
+- **Language:** HTML print Language control (`en` default | `hi` | `both`). Bilingual remains an option. PDFKit stays bilingual EN+HI. Reminder language does not gate documents. Last-used language is sticky in `localStorage` (`aabhushan.print.lang`).
+- **80mm:** Thermal-narrow layout (stacked jewellery lines, tight margins), not a sheet size swap alone.
 - **Templates:** `*.pdf.v2`. Staff may Regenerate failed docs or ready docs whose `template_version` is outdated.
+- **Divergence:** HTML print can use a different paper size and language than PDF download until PDF templates are updated to match.
 ## Scope
 
 ### In this unit

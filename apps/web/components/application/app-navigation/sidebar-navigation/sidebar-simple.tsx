@@ -1,24 +1,28 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { ChevronLeft, ChevronRight } from "@untitledui/icons";
+import type { CSSProperties, ReactNode } from "react";
+import { ChevronLeft } from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
 import { Tooltip } from "@/components/base/tooltip/tooltip";
 import { ShopMark } from "@/components/shared/shop-mark";
 import { isStaffNavActive } from "@/features/auth/navigation";
+import {
+    SIDEBAR_WIDTH_EXPANDED,
+    useSidebarDrag,
+} from "@/hooks/use-sidebar-drag";
 import { cx } from "@/utils/cx";
 import { MobileNavigationHeader } from "../base-components/mobile-header";
 import { NavAccountCard } from "../base-components/nav-account-card";
 import { NavItemBase } from "../base-components/nav-item";
 import { NavList } from "../base-components/nav-list";
-import type { NavItemType } from "../config";
+import type { NavItemDividerType, NavItemType } from "../config";
 
-const EXPANDED_SIDEBAR_WIDTH = 280;
-const COLLAPSED_SIDEBAR_WIDTH = 72;
-
-function collectNavHrefs(items: NavItemType[]): string[] {
+function collectNavHrefs(items: (NavItemType | NavItemDividerType)[]): string[] {
     const hrefs: string[] = [];
     for (const item of items) {
+        if ("divider" in item && item.divider) {
+            continue;
+        }
         if (item.href) {
             hrefs.push(item.href);
         }
@@ -35,14 +39,14 @@ interface SidebarNavigationProps {
     /** URL of the currently active item. */
     activeUrl?: string;
     /** List of items to display. */
-    items: NavItemType[];
+    items: (NavItemType | NavItemDividerType)[];
     /** List of footer items to display. */
-    footerItems?: NavItemType[];
+    footerItems?: (NavItemType | NavItemDividerType)[];
     /** Feature card to display. May be a node or a function of the rail collapse state. */
     featureCard?: ReactNode | ((collapsed: boolean) => ReactNode);
     /** Whether to show the account card. */
     showAccountCard?: boolean;
-    /** Whether to hide the right side border. */
+    /** Whether to hide the right-edge chrome (shadow / handle highlight). */
     hideBorder?: boolean;
     /** Additional CSS classes to apply to the sidebar. */
     className?: string;
@@ -54,7 +58,7 @@ interface SidebarNavigationProps {
     shopLogoUrl?: string | null;
     /** Desktop icon-rail mode. Ignored for the mobile drawer (always expanded). */
     collapsed?: boolean;
-    /** Called when the desktop collapse control is pressed. */
+    /** Called when the desktop collapse control is pressed or drag snaps. */
     onCollapsedChange?: (collapsed: boolean) => void;
 }
 
@@ -71,75 +75,144 @@ export const SidebarNavigationSimple = ({
     collapsed = false,
     onCollapsedChange,
 }: SidebarNavigationProps) => {
-    const desktopWidth = collapsed ? COLLAPSED_SIDEBAR_WIDTH : EXPANDED_SIDEBAR_WIDTH;
+    const collapseEnabled = typeof onCollapsedChange === "function";
+    const drag = useSidebarDrag({
+        collapsed,
+        onCollapsedChange: onCollapsedChange ?? (() => undefined),
+        enabled: collapseEnabled,
+    });
+
+    const desktopWidth = collapseEnabled ? drag.widthPx : SIDEBAR_WIDTH_EXPANDED;
+    const isCollapsedVisual = collapseEnabled ? drag.isCollapsedVisual : false;
     const allHrefs = [...collectNavHrefs(items), ...collectNavHrefs(footerItems)];
 
-    const renderContent = (isCollapsed: boolean) => (
-        <aside
-            style={
-                {
-                    "--width": `${isCollapsed ? COLLAPSED_SIDEBAR_WIDTH : EXPANDED_SIDEBAR_WIDTH}px`,
-                } as React.CSSProperties
-            }
-            className={cx(
-                "flex h-full w-full max-w-full flex-col justify-between overflow-auto bg-sidebar pt-4 lg:w-(--width) lg:pt-5",
-                !hideBorder && "border-secondary md:border-r",
-                className,
-            )}
-        >
-            <div className={cx("flex flex-col gap-5", isCollapsed ? "px-2" : "px-4 lg:px-5")}>
-                <div className={cx("flex items-center gap-2", isCollapsed ? "flex-col" : "justify-between")}>
-                    {isCollapsed ? (
-                        <Tooltip title={shopLegalName} placement="right">
-                            <span className="inline-flex">
-                                <ShopMark legalName={shopLegalName} logoUrl={shopLogoUrl} showName={false} size="sm" />
-                            </span>
-                        </Tooltip>
-                    ) : (
-                        <ShopMark legalName={shopLegalName} logoUrl={shopLogoUrl} />
-                    )}
-                    {onCollapsedChange ? (
-                        <Button
-                            color="tertiary"
-                            size="sm"
-                            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                            iconLeading={isCollapsed ? ChevronRight : ChevronLeft}
-                            onPress={() => onCollapsedChange(!isCollapsed)}
-                            className={cx(isCollapsed ? undefined : "max-lg:hidden")}
-                        />
+    const widthStyle = { "--width": `${desktopWidth}px` } as CSSProperties;
+    const widthTransitionClass = cx(
+        "transition-[width] duration-300 ease-in-out motion-reduce:transition-none",
+        drag.isDragging && "transition-none",
+    );
+
+    const renderContent = (isCollapsed: boolean, options?: { desktop?: boolean }) => {
+        const isDesktop = options?.desktop === true;
+
+        return (
+            <aside
+                data-sidebar-rail={isDesktop ? "" : undefined}
+                style={isDesktop ? widthStyle : undefined}
+                className={cx(
+                    "relative flex h-full w-full max-w-full flex-col justify-between overflow-x-hidden overflow-y-auto bg-sidebar pt-4 lg:pt-5",
+                    isDesktop && "lg:w-(--width)",
+                    isDesktop && widthTransitionClass,
+                    isDesktop &&
+                        !hideBorder &&
+                        "border-r border-secondary shadow-[3px_0_4px_rgb(0_0_0/0.07)] dark:shadow-[3px_0_4px_rgb(0_0_0/0.32)]",
+                    isDesktop &&
+                        !hideBorder &&
+                        drag.isDragging &&
+                        "shadow-[4px_0_6px_rgb(0_0_0/0.09)] dark:shadow-[4px_0_6px_rgb(0_0_0/0.4)]",
+                    className,
+                )}
+            >
+                <div className={cx("flex flex-col gap-5", isCollapsed ? "px-2" : "px-4 lg:px-5")}>
+                    <div className={cx("flex items-center gap-2", isCollapsed ? "flex-col" : "justify-between")}>
+                        {isCollapsed ? (
+                            <Tooltip title={shopLegalName} placement="right">
+                                <span className="inline-flex">
+                                    <ShopMark legalName={shopLegalName} logoUrl={shopLogoUrl} showName={false} size="sm" />
+                                </span>
+                            </Tooltip>
+                        ) : (
+                            <ShopMark legalName={shopLegalName} logoUrl={shopLogoUrl} showName />
+                        )}
+                        {collapseEnabled ? (
+                            <Button
+                                color="tertiary"
+                                size="sm"
+                                aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                                aria-expanded={!collapsed}
+                                iconLeading={(props: { className?: string }) => (
+                                    <ChevronLeft
+                                        {...props}
+                                        className={cx(
+                                            props.className,
+                                            "transition-transform duration-300 ease-in-out motion-reduce:transition-none",
+                                            isCollapsed && "rotate-180",
+                                        )}
+                                    />
+                                )}
+                                onPress={drag.toggle}
+                                className={cx(isCollapsed ? undefined : "max-lg:hidden")}
+                            />
+                        ) : null}
+                    </div>
+                </div>
+
+                <NavList activeUrl={activeUrl} items={items} collapsed={isCollapsed} />
+
+                <div className={cx("mt-auto flex flex-col gap-3 py-4 lg:py-5", isCollapsed ? "items-center px-2" : "px-4")}>
+                    {footerItems.length > 0 ? (
+                        <ul
+                            className={cx(
+                                "flex flex-col overflow-hidden transition-[opacity,max-height] duration-300 ease-in-out motion-reduce:transition-none",
+                                isCollapsed ? "max-h-0 opacity-0" : "max-h-96 opacity-100",
+                            )}
+                            aria-hidden={isCollapsed}
+                        >
+                            {footerItems.map((item, index) => {
+                                if ("divider" in item && item.divider) {
+                                    return (
+                                        <li key={`footer-divider-${index}`} className="w-full px-0.5 py-2">
+                                            <hr className="h-px w-full border-none bg-border-secondary" />
+                                        </li>
+                                    );
+                                }
+                                return (
+                                    <li key={item.label} className="py-px">
+                                        <NavItemBase
+                                            badge={item.badge}
+                                            icon={item.icon}
+                                            href={item.href}
+                                            type="link"
+                                            current={Boolean(
+                                                activeUrl && item.href && isStaffNavActive(activeUrl, item.href, allHrefs),
+                                            )}
+                                        >
+                                            {item.label}
+                                        </NavItemBase>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    ) : null}
+
+                    {typeof featureCard === "function" ? featureCard(isCollapsed) : featureCard}
+
+                    {showAccountCard ? (
+                        <div
+                            className={cx(
+                                "overflow-hidden transition-[opacity,max-height] duration-300 ease-in-out motion-reduce:transition-none",
+                                isCollapsed ? "max-h-0 opacity-0" : "max-h-40 opacity-100",
+                            )}
+                            aria-hidden={isCollapsed}
+                        >
+                            <NavAccountCard />
+                        </div>
                     ) : null}
                 </div>
-            </div>
 
-            <NavList activeUrl={activeUrl} items={items} collapsed={isCollapsed} />
-
-            <div className={cx("mt-auto flex flex-col gap-3 py-4 lg:py-5", isCollapsed ? "items-center px-2" : "px-4")}>
-                {footerItems.length > 0 && !isCollapsed ? (
-                    <ul className="flex flex-col">
-                        {footerItems.map((item) => (
-                            <li key={item.label} className="py-px">
-                                <NavItemBase
-                                    badge={item.badge}
-                                    icon={item.icon}
-                                    href={item.href}
-                                    type="link"
-                                    current={Boolean(
-                                        activeUrl && item.href && isStaffNavActive(activeUrl, item.href, allHrefs),
-                                    )}
-                                >
-                                    {item.label}
-                                </NavItemBase>
-                            </li>
-                        ))}
-                    </ul>
+                {isDesktop && collapseEnabled ? (
+                    <div
+                        {...drag.handleProps}
+                        className={cx(
+                            "absolute inset-y-0 right-0 z-10 w-2 translate-x-1/2 cursor-col-resize touch-none outline-focus-ring",
+                            "hover:bg-fg-quaternary/10 focus-visible:outline-2 focus-visible:-outline-offset-2",
+                            drag.isDragging && "bg-fg-quaternary/15",
+                        )}
+                    />
                 ) : null}
-
-                {typeof featureCard === "function" ? featureCard(isCollapsed) : featureCard}
-
-                {showAccountCard && !isCollapsed ? <NavAccountCard /> : null}
-            </div>
-        </aside>
-    );
+            </aside>
+        );
+    };
 
     return (
         <>
@@ -149,14 +222,18 @@ export const SidebarNavigationSimple = ({
             </MobileNavigationHeader>
 
             {/* Desktop sidebar navigation */}
-            <div className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:flex">{renderContent(collapsed)}</div>
+            <div className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:flex">
+                {renderContent(isCollapsedVisual, { desktop: true })}
+            </div>
 
             {/* Placeholder to take up physical space because the real sidebar has `fixed` position. */}
             <div
-                style={{
-                    paddingLeft: desktopWidth,
-                }}
-                className="invisible hidden lg:sticky lg:top-0 lg:bottom-0 lg:left-0 lg:block"
+                style={{ width: desktopWidth }}
+                className={cx(
+                    "invisible hidden shrink-0 lg:sticky lg:top-0 lg:bottom-0 lg:left-0 lg:block",
+                    widthTransitionClass,
+                )}
+                aria-hidden
             />
         </>
     );

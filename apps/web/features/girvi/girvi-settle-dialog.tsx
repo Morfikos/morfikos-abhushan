@@ -23,6 +23,7 @@ import {
   girviToday,
   newGirviIdempotencyKey,
 } from "@/features/girvi/girvi-shared";
+import { MoneyText } from "@/components/shared/money-text";
 import { formatInr, isMoneyShape, isZeroMoney, moneyEquals, subtractMoney, sumMoney } from "@/lib/money";
 import { quoteGirviSettlementRequest, settleGirviAccountRequest } from "@/lib/staff-api";
 
@@ -206,17 +207,15 @@ export function GirviSettleDialog({
                   <dl className="flex flex-col gap-2 rounded-lg bg-secondary px-3 py-3 text-sm ring-1 ring-secondary">
                     <div className="flex justify-between gap-3">
                       <dt className="text-tertiary">Principal outstanding</dt>
-                      <dd className="tabular-nums text-primary">
-                        {formatInr(quote.data.principal_outstanding_inr)}
-                      </dd>
+                      <MoneyText amount={quote.data.principal_outstanding_inr} as="dd" className="text-primary" />
                     </div>
                     <div className="flex justify-between gap-3">
                       <dt className="text-tertiary">Interest outstanding</dt>
-                      <dd className="tabular-nums text-primary">{formatInr(quote.data.interest_outstanding_inr)}</dd>
+                      <MoneyText amount={quote.data.interest_outstanding_inr} as="dd" className="text-primary" />
                     </div>
                     <div className="flex justify-between gap-3 border-t border-secondary pt-2">
                       <dt className="font-medium text-secondary">Payable</dt>
-                      <dd className="font-medium tabular-nums text-primary">{formatInr(quote.data.payoff_inr)}</dd>
+                      <MoneyText amount={quote.data.payoff_inr} as="dd" className="font-medium text-primary" />
                     </div>
                     <p className="text-xs text-tertiary">
                       {quote.data.rate_percent_per_30_days}% {GIRVI_RATE_PERIOD_LABEL} · quoted for{" "}

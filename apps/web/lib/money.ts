@@ -10,6 +10,26 @@ export function formatInr(amount: string): string {
   return `${negative ? "-" : ""}₹${grouped}.${frac}`;
 }
 
+/** Axis tick formatter: 0, 80k, 1.6L (Indian-style compact INR, no ₹). */
+export function formatInrCompact(value: number): string {
+  if (!Number.isFinite(value)) {
+    return "0";
+  }
+  const sign = value < 0 ? "-" : "";
+  const abs = Math.abs(value);
+  if (abs >= 100_000) {
+    const lakhs = abs / 100_000;
+    const body = lakhs >= 10 ? lakhs.toFixed(0) : lakhs.toFixed(1).replace(/\.0$/, "");
+    return `${sign}${body}L`;
+  }
+  if (abs >= 1_000) {
+    const thousands = abs / 1_000;
+    const body = thousands >= 10 ? thousands.toFixed(0) : thousands.toFixed(1).replace(/\.0$/, "");
+    return `${sign}${body}k`;
+  }
+  return `${sign}${Math.round(abs).toString()}`;
+}
+
 export function isZeroMoney(amount: string | undefined | null): boolean {
   if (!amount) {
     return true;

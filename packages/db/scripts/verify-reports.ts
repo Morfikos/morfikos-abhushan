@@ -306,6 +306,20 @@ async function main(): Promise<void> {
       if (!dashboard.collections || dashboard.collections.total_net_collected_inr !== "550.00") {
         throw new Error(`Collections expected 550.00, got ${dashboard.collections?.total_net_collected_inr ?? "null"}`);
       }
+      const collectionsByDateSum = dashboard.collections.by_business_date.reduce(
+        (sum, row) => sum + Number(row.net_collected_inr),
+        0,
+      );
+      if (collectionsByDateSum.toFixed(2) !== dashboard.collections.total_net_collected_inr) {
+        throw new Error(
+          `Collections by_business_date ${collectionsByDateSum.toFixed(2)} drifted from total ${dashboard.collections.total_net_collected_inr}.`,
+        );
+      }
+      const collectionsDates = dashboard.collections.by_business_date.map((row) => row.business_date);
+      const sortedDates = [...collectionsDates].sort();
+      if (collectionsDates.join(",") !== sortedDates.join(",")) {
+        throw new Error("Collections by_business_date must be sorted ascending by business_date.");
+      }
       if (!dashboard.sales_dues || dashboard.sales_dues.amount_due_inr !== "300.00") {
         throw new Error(`Dues expected 300.00, got ${dashboard.sales_dues?.amount_due_inr ?? "null"}`);
       }
@@ -421,6 +435,20 @@ async function main(): Promise<void> {
       const duesExport = duesRows.reduce((sum, row) => sum + Number(row.amount_due_inr), 0);
       if (duesExport.toFixed(2) !== dashboard.sales_dues.amount_due_inr) {
         throw new Error(`Dues export ${duesExport.toFixed(2)} drifted from tile ${dashboard.sales_dues.amount_due_inr}.`);
+      }
+
+      if (!dashboard.collections) {
+        throw new Error("Owner dashboard must include collections for export drift check.");
+      }
+      const collectionsExport = await repo.getCollections(range);
+      const collectionsExportSum = collectionsExport.by_method.reduce(
+        (sum, row) => sum + Number(row.net_collected_inr),
+        0,
+      );
+      if (collectionsExportSum.toFixed(2) !== dashboard.collections.total_net_collected_inr) {
+        throw new Error(
+          `Collections export ${collectionsExportSum.toFixed(2)} drifted from tile ${dashboard.collections.total_net_collected_inr}.`,
+        );
       }
 
       if (dashboardSectionsForRole("girvi").includes("sales")) {

@@ -11,6 +11,7 @@ import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
 import { Tooltip } from "@/components/base/tooltip/tooltip";
+import { MoneyText } from "@/components/shared/money-text";
 import { SelectField } from "@/components/shared/select-field";
 import {
   defaultMakingValue,
@@ -136,26 +137,12 @@ export function PosLineTable({
 
               return (
                 <Table.Row id={line.id}>
-                  <Table.Cell>
-                    <div className="flex flex-col gap-1 py-0.5">
-                      <span className="font-medium text-primary">{title}</span>
-                      <span className="text-xs text-tertiary">
-                        <span className="font-mono">{line.article_number}</span>
-                        <span className="capitalize">
-                          {" "}
-                          · {line.metal} · {line.purity}
-                        </span>
-                      </span>
-                      {badges.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {badges.map((badge) => (
-                            <Badge key={badge.key} color="gray" size="sm" type="modern">
-                              {badge.label}
-                            </Badge>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
+                  <Table.Cell className="font-medium text-primary">
+                    <span
+                      title={`${line.article_number} · ${line.metal} · ${line.purity}${badges.length ? ` · ${badges.map((b) => b.label).join(", ")}` : ""}`}
+                    >
+                      {title}
+                    </span>
                   </Table.Cell>
                   <Table.Cell className="text-right font-medium tabular-nums">
                     {formatGrams(line.net_metal_weight_grams)}
@@ -169,10 +156,16 @@ export function PosLineTable({
                       </Badge>
                     )}
                   </Table.Cell>
-                  <Table.Cell>
+                  <Table.Cell truncate={false}>
                     {isDraft ? (
-                      <div className="flex flex-col gap-1 py-0.5">
-                        <div className="flex items-end gap-1.5">
+                      <div
+                        className="flex items-center gap-1.5"
+                        title={
+                          makingHint
+                            ? makingHint
+                            : `Quoted ${formatInr(line.making_charge_inr)}`
+                        }
+                      >
                           <SelectField
                             aria-label="Making method"
                             size="sm"
@@ -222,22 +215,15 @@ export function PosLineTable({
                           >
                             Apply
                           </Button>
-                        </div>
-                        {makingHint ? (
-                          <span className="text-xs text-error-primary">{makingHint}</span>
-                        ) : null}
-                        <span className="text-xs tabular-nums text-tertiary">
-                          Quoted {formatInr(line.making_charge_inr)}
-                        </span>
                       </div>
                     ) : (
-                      <span className="tabular-nums text-sm">{formatInr(line.making_charge_inr)}</span>
+                      <MoneyText amount={line.making_charge_inr} className="text-sm" />
                     )}
                   </Table.Cell>
                   <Table.Cell className="text-right font-medium tabular-nums">
-                    {formatInr(line.line_total_inr)}
+                    <MoneyText amount={line.line_total_inr} />
                   </Table.Cell>
-                  <Table.Cell>
+                  <Table.Cell truncate={false}>
                     {isDraft ? (
                       <div className="flex items-center justify-end gap-1">
                         <div className="relative">

@@ -27,6 +27,7 @@
     "verify:reports": "pnpm --filter @aabhushan/db verify:reports",
     "seed:calculation-policy": "pnpm --filter @aabhushan/db seed:calculation-policy",
     "seed:girvi-calculation-policy": "pnpm --filter @aabhushan/db seed:girvi-calculation-policy",
+    "repair:girvi-policy-snapshots": "pnpm --filter @aabhushan/db repair:girvi-policy-snapshots",
     "seed:sample-articles": "pnpm --filter @aabhushan/db seed:sample-articles",
     "seed:sample-customers": "pnpm --filter @aabhushan/db seed:sample-customers",
     "seed:sample-unpaid-invoices": "pnpm --filter @aabhushan/db seed:sample-unpaid-invoices"

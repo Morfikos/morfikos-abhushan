@@ -6,8 +6,9 @@ import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
 import { MethodSelect } from "@/components/shared/method-select";
 import { MoneyInput } from "@/components/shared/money-input";
+import { MoneyText } from "@/components/shared/money-text";
 import { SelectField } from "@/components/shared/select-field";
-import { formatInr, isZeroMoney } from "@/features/invoices/invoice-shared";
+import { isZeroMoney } from "@/features/invoices/invoice-shared";
 
 export type TenderRow = {
   id: string;
@@ -23,7 +24,11 @@ function TotalsRow({ label, amount }: { label: string; amount: string }) {
   return (
     <div className="flex justify-between gap-3">
       <dt className={zero ? "text-quaternary" : "text-tertiary"}>{label}</dt>
-      <dd className={`tabular-nums ${zero ? "text-quaternary" : "text-primary"}`}>{formatInr(amount)}</dd>
+      <MoneyText
+        amount={amount}
+        as="dd"
+        className={zero ? "text-quaternary" : "text-primary"}
+      />
     </div>
   );
 }
@@ -107,9 +112,11 @@ export function PosTotalsPanel({
         <>
           <div className="rounded-lg bg-brand-primary px-3 py-3">
             <p className="text-sm font-medium text-brand-secondary">Grand total</p>
-            <p className="text-2xl font-semibold tabular-nums text-brand-primary md:text-display-sm">
-              {formatInr(invoice?.grand_total_inr ?? "0")}
-            </p>
+            <MoneyText
+              amount={invoice?.grand_total_inr ?? "0"}
+              as="p"
+              className="text-2xl font-semibold text-brand-primary md:text-display-sm"
+            />
           </div>
           <dl className="flex flex-col gap-2 text-sm">
             <TotalsRow label="Metal" amount={invoice?.metal_value_inr ?? "0"} />
@@ -206,11 +213,7 @@ export function PosTotalsPanel({
         Finalize invoice
       </Button>
       {invoice ? (
-        <p className="text-xs text-tertiary">
-          Quote version {invoice.quote_version}
-          {invoice.calculation_policy_version ? ` · ${invoice.calculation_policy_version}` : ""}
-          <span className="mt-0.5 block">Server quote only. No local calculator.</span>
-        </p>
+        <p className="text-xs text-tertiary">Totals refresh from the shop rates when you change lines.</p>
       ) : null}
     </aside>
   );

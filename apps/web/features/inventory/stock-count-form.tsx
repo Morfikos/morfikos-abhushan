@@ -8,7 +8,7 @@ import type { StockCountCreate } from "@aabhushan/contracts";
 
 import { DatePicker } from "@/components/application/date-picker/date-picker";
 import { EmptyState } from "@/components/application/empty-state/empty-state";
-import { Skeleton, TableSkeleton } from "@/components/application/skeleton/skeleton";
+import { LabeledControlSkeleton, Skeleton, TableSkeleton } from "@/components/application/skeleton/skeleton";
 import { StaffBackLink } from "@/components/application/staff-back-link";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Badge } from "@/components/base/badges/badges";
@@ -101,12 +101,25 @@ export function StockCountForm() {
       </div>
 
       {articles.isLoading ? (
-        <>
-          <TableSkeleton columns={3} rows={8} titleWidth="w-28" label="Loading articles to count" />
+        <div className="flex flex-col gap-6" aria-busy="true" aria-live="polite">
+          <div className="grid max-w-3xl gap-4 md:grid-cols-2">
+            <LabeledControlSkeleton controlWidth="w-full" />
+            <div className="flex flex-col gap-1.5">
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-24 w-full rounded-lg" />
+            </div>
+          </div>
+          <TableCard.Root>
+            <TableCard.Header
+              title="Count lines"
+              description="Mark missing pieces as missing. That records a discrepancy and, for available stock, an adjustment to unavailable."
+            />
+            <TableSkeleton columns={3} rows={8} showCard={false} label="Loading articles to count" />
+          </TableCard.Root>
           <div className="flex flex-wrap gap-3" aria-hidden="true">
             <Skeleton className="h-10 w-44 rounded-lg" />
           </div>
-        </>
+        </div>
       ) : null}
 
       {!articles.isLoading && items.length === 0 ? (
@@ -165,7 +178,7 @@ export function StockCountForm() {
                         {articleStatusLabel(item.status)}
                       </Badge>
                     </Table.Cell>
-                    <Table.Cell>
+                    <Table.Cell truncate={false}>
                       <SelectField
                         aria-label={`Counted status for ${item.article_number}`}
                         value={counts[item.id] ?? "available"}

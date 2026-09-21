@@ -81,7 +81,7 @@ export function DocumentStatusCard({
   const canRegenerate =
     document != null && (document.status === "failed" || isOutdatedReady(document));
   const regenerateLabel =
-    document?.status === "failed" ? "Retry document" : "Regenerate document";
+    document?.status === "failed" ? "Try PDF again" : "Create PDF again";
 
   return (
     <div className="flex flex-col gap-3 rounded-xl bg-primary p-4 ring-1 ring-secondary ring-inset">
@@ -90,7 +90,7 @@ export function DocumentStatusCard({
         {document ? (
           <Badge color={statusColor(document.status)} size="sm">
             {statusLabel(document.status)}
-            {isOutdatedReady(document) ? " · outdated" : ""}
+            {isOutdatedReady(document) ? " · old layout" : ""}
           </Badge>
         ) : (
           <Badge color="gray" size="sm">
@@ -104,14 +104,14 @@ export function DocumentStatusCard({
           {errorMessage(query.error)}
         </p>
       ) : null}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-2">
         {printHref ? (
-          <Button color="secondary" size="sm" href={printHref} target="_blank">
-            Print
+          <Button color="secondary" size="sm" className="w-full" href={printHref} target="_blank">
+            Preview & print
           </Button>
         ) : null}
         {document?.status === "ready" && document.download_url ? (
-          <Button color="secondary" size="sm" href={document.download_url} target="_blank">
+          <Button color="secondary" size="sm" className="w-full" href={document.download_url} target="_blank">
             Download PDF
           </Button>
         ) : null}
@@ -119,6 +119,7 @@ export function DocumentStatusCard({
           <Button
             color="primary"
             size="sm"
+            className="w-full"
             isDisabled={retry.isPending}
             onPress={() => {
               if (document) {
@@ -131,12 +132,10 @@ export function DocumentStatusCard({
         ) : null}
       </div>
       {document?.status === "failed" && document.last_error_code ? (
-        <p className="text-xs text-tertiary">Error: {document.last_error_code}</p>
+        <p className="text-xs text-tertiary">Details: {document.last_error_code}</p>
       ) : null}
       {document && isOutdatedReady(document) ? (
-        <p className="text-xs text-tertiary">
-          PDF template changed. Regenerate to apply current paper size and bilingual layout.
-        </p>
+        <p className="text-xs text-tertiary">Paper size or layout changed. Create the PDF again.</p>
       ) : null}
     </div>
   );

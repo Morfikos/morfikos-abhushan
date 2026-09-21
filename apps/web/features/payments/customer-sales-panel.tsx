@@ -4,13 +4,13 @@ import { useQuery } from "@tanstack/react-query";
 import { ShoppingBag03 } from "@untitledui/icons";
 
 import { EmptyState } from "@/components/application/empty-state/empty-state";
-import { MetricTilesSkeleton, TableSkeleton } from "@/components/application/skeleton/skeleton";
+import { CustomerSalesPanelSkeleton } from "@/components/application/skeleton/skeleton";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { staffHasPermission, useStaff } from "@/features/auth/staff-shell";
 import { paymentAccessToken, paymentErrorMessage, paymentKindLabel } from "@/features/payments/payment-shared";
-import { formatInr } from "@/lib/money";
+import { MoneyText } from "@/components/shared/money-text";
 import { paymentMethodLabel } from "@/lib/payment-methods";
 import { fetchCustomerSalesStatement } from "@/lib/staff-api";
 
@@ -28,12 +28,7 @@ export function CustomerSalesPanel({ customerId }: { customerId: string }) {
   });
 
   if (query.isLoading) {
-    return (
-      <div className="flex flex-col gap-4">
-        <MetricTilesSkeleton count={1} label="Loading sales statement" />
-        <TableSkeleton columns={5} rows={4} titleWidth="w-36" label="Loading sales statement" />
-      </div>
-    );
+    return <CustomerSalesPanelSkeleton label="Loading sales statement" />;
   }
 
   if (query.isError) {
@@ -72,9 +67,7 @@ export function CustomerSalesPanel({ customerId }: { customerId: string }) {
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-5">
         <div>
           <p className="text-sm text-tertiary">Sales due</p>
-          <p className="text-display-xs font-semibold tabular-nums text-primary">
-            {formatInr(statement.sales_due_inr)}
-          </p>
+          <MoneyText amount={statement.sales_due_inr} as="p" className="text-display-xs font-semibold text-primary" />
           <p className="text-xs text-tertiary">
             Sales only. Girvi principal and interest are shown on the Girvi tab.
           </p>
@@ -109,10 +102,14 @@ export function CustomerSalesPanel({ customerId }: { customerId: string }) {
                 >
                   <Table.Cell className="font-mono text-sm">{invoice.invoice_number ?? "—"}</Table.Cell>
                   <Table.Cell className="tabular-nums">{invoice.business_date}</Table.Cell>
-                  <Table.Cell className="text-right tabular-nums">{formatInr(invoice.grand_total_inr)}</Table.Cell>
-                  <Table.Cell className="text-right tabular-nums">{formatInr(invoice.amount_paid_inr)}</Table.Cell>
-                  <Table.Cell className="text-right font-medium tabular-nums">
-                    {formatInr(invoice.amount_due_inr)}
+                  <Table.Cell className="text-right">
+                    <MoneyText amount={invoice.grand_total_inr} className="text-right" />
+                  </Table.Cell>
+                  <Table.Cell className="text-right">
+                    <MoneyText amount={invoice.amount_paid_inr} className="text-right" />
+                  </Table.Cell>
+                  <Table.Cell className="text-right">
+                    <MoneyText amount={invoice.amount_due_inr} className="text-right font-medium" />
                   </Table.Cell>
                 </Table.Row>
               )}
@@ -144,7 +141,7 @@ export function CustomerSalesPanel({ customerId }: { customerId: string }) {
                 <span className="font-mono text-sm text-primary">{note.credit_note_number}</span>
                 <span className="text-sm text-tertiary">Credit</span>
                 <span className="font-mono text-xs text-tertiary">{note.invoice_number ?? note.invoice_id.slice(0, 8)}</span>
-                <span className="text-sm font-medium tabular-nums text-primary">{formatInr(note.amount_inr)}</span>
+                <MoneyText amount={note.amount_inr} className="text-sm font-medium text-primary" />
               </li>
             ))}
           </ul>
@@ -171,9 +168,7 @@ export function CustomerSalesPanel({ customerId }: { customerId: string }) {
                 <span className="text-xs text-tertiary">{paymentKindLabel(payment.kind)}</span>
                 <span className="text-xs tabular-nums text-tertiary">{payment.received_business_date}</span>
                 <span className="text-sm text-tertiary">{paymentMethodLabel(payment.method)}</span>
-                <span className="text-sm font-medium tabular-nums text-primary">
-                  {formatInr(payment.amount_inr)}
-                </span>
+                <MoneyText amount={payment.amount_inr} className="text-sm font-medium text-primary" />
               </li>
             ))}
           </ul>

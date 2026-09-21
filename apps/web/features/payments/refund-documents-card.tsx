@@ -7,7 +7,7 @@ export function RefundDocumentsCard({ paymentId }: { paymentId: string }) {
   return (
     <DocumentStatusCard
       title="Refund document"
-      description="PDF generation runs after the refund commits. A failed document never undoes the refund."
+      description="PDF is prepared after the refund is saved. A PDF problem does not cancel the refund."
       ownerType="receipt"
       ownerId={paymentId}
       documentType="refund_pdf"

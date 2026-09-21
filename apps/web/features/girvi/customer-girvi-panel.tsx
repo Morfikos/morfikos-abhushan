@@ -14,6 +14,7 @@ import {
   girviErrorMessage,
   girviStatusLabel,
 } from "@/features/girvi/girvi-shared";
+import { MoneyText } from "@/components/shared/money-text";
 import { formatInr } from "@/lib/money";
 import { fetchGirviAccounts } from "@/lib/staff-api";
 
@@ -101,13 +102,15 @@ export function CustomerGirviPanel({ customerId }: { customerId: string }) {
                 <span className="font-mono text-sm text-primary">{item.account_number}</span>
                 <p className="text-xs text-tertiary">{item.collateral_count} packet(s)</p>
               </Table.Cell>
-              <Table.Cell className="text-right tabular-nums">{formatInr(item.principal_inr)}</Table.Cell>
+              <Table.Cell className="text-right">
+                <MoneyText amount={item.principal_inr} className="text-right" />
+              </Table.Cell>
               <Table.Cell className="text-right tabular-nums">
                 {item.status === "draft" ? (
                   "—"
                 ) : (
                   <>
-                    <span className="text-primary">{formatInr(item.principal_outstanding_inr)}</span>
+                    <MoneyText amount={item.principal_outstanding_inr} className="text-primary" />
                     <p className="text-xs text-tertiary">
                       Interest {formatInr(item.interest_outstanding_inr)}
                     </p>

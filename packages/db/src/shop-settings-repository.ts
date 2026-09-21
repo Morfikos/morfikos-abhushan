@@ -375,6 +375,21 @@ export function createShopSettingsRepository(client: PoolClient, organizationId:
       return mapRate(row);
     },
 
+    async activePurityLabelExists(label: string) {
+      const result = await client.query<{ exists: boolean }>(
+        `
+        SELECT EXISTS(
+          SELECT 1 FROM app.purity_labels
+          WHERE organization_id = $1
+            AND is_active
+            AND lower(trim(label)) = lower(trim($2))
+        ) AS exists
+        `,
+        [organizationId, label],
+      );
+      return result.rows[0]?.exists === true;
+    },
+
     async listMakingChargeDefaults(input: PaginationInput): Promise<PaginatedRows<MakingChargeDefault>> {
       const sort =
         MAKING_DEFAULT_SORT_COLUMNS[input.sort as keyof typeof MAKING_DEFAULT_SORT_COLUMNS] ?? "metal";

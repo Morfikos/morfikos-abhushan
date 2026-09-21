@@ -69,7 +69,7 @@ export function ScanField({
   isDisabled,
   hint,
   placeholder = "Scan barcode",
-  tooltip = "This field looks up an article. It does not finalize sales.",
+  tooltip = "Looks up an article by barcode.",
   inputRef,
 }: ScanFieldProps) {
   const localRef = useRef<HTMLInputElement>(null);
@@ -78,7 +78,7 @@ export function ScanField({
   const terminatorHint =
     terminator === "None"
       ? "Configured terminator is None. Use Lookup after the scanner finishes."
-      : `Scanner ${terminator} completes lookup. It does not finalize payment.`;
+      : `Scanner ${terminator} completes lookup.`;
   const resolvedHint = hint === null ? undefined : (hint ?? terminatorHint);
 
   function finishScan() {

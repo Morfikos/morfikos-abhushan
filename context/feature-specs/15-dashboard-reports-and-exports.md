@@ -18,13 +18,15 @@ Missing data is shown as empty, not as decorative trends. This unit does not int
 - Period filters in `Asia/Kolkata` business dates
 - Sales, invoice count, returns
 - Collections by method
+- Collections by business date (same definition as method totals; UI trend series)
 - Outstanding customer sales dues
 - Available article counts and metal weights by category/purity
 - Active Girvi: outstanding principal, accrued unpaid interest, upcoming maturities, overdue
 - Girvi disbursements, principal repayments, interest receipts
 - Operational attention: stock discrepancies, failed/unknown notifications
-- CSV/statement exports of inventory, sales, dues, and Girvi
+- CSV/statement exports of inventory, sales, collections (by method), dues, and Girvi
 - Charts from public chart foundations with explicit series labels
+- Dashboard period filters synced to `from`/`to` URL params (bookmarkable / drill-aligned)
 
 ### Explicitly out of this unit
 
@@ -58,7 +60,7 @@ Missing data is shown as empty, not as decorative trends. This unit does not int
 Prefer live aggregate queries with indexes already specified. Add reporting views if they stay reconcilable:
 
 - `v_sales_by_business_date`
-- `v_collections_by_method`
+- `v_collections_by_method` (also aggregated by `received_business_date` for the dashboard trend)
 - `v_sales_dues`
 - `v_inventory_available`
 - `v_girvi_balances`
@@ -97,6 +99,7 @@ Metric definitions to implement and test:
 ## UI/UX Requirements
 
 - Original metric summaries; public `charts-base` and table
+- Full-width sales + collections by business date trend when both sections are authorized; method breakdown as compact labels
 - Local headings; no paid dashboard template
 - Separate tiles for Sales, Collections, Outstanding sales dues, Girvi principal, Accrued interest
 - Empty states instead of fake charts
@@ -108,7 +111,7 @@ Metric definitions to implement and test:
 - Range with no data: zeros and empty tables
 - Partial role: omit unauthorized tiles; do not return the JSON either
 - Export too large: `422` or async job with pending status
-- Interest cannot be computed because Girvi policy is unapproved: show Unavailable with explanation, not ₹0 pretending to be calculated
+- Interest cannot be computed because Girvi policy is unapproved: show Unavailable with explanation, not ₹0 pretending to be calculated. Accrued interest clears only when every **active** account snapshots an approved policy version; seed alone does not convert accounts activated earlier — use `pnpm repair:girvi-policy-snapshots -- --apply` for that pilot remediation. Dashboard reports `unapproved_active_account_count` for tile copy.
 - Filters must not change series colors as the only legend
 
 ## Open Questions
