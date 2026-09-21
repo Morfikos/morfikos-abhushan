@@ -159,7 +159,7 @@ export function registerWhatsAppWebhookRoutes(app: Express, pool: Pool): void {
         });
       }
       await client.query("COMMIT");
-    } catch (error) {
+    } catch {
       await client.query("ROLLBACK").catch(() => undefined);
       res.status(500).json({ code: "WEBHOOK_PERSIST_FAILED", message: "Could not persist webhook." });
       return;

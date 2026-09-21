@@ -74,7 +74,7 @@ export function InvoicePrintView({ invoiceId }: { invoiceId: string }) {
       <div
         className={`w-full bg-white text-black print:p-0 ${
           thermal ? "p-3 text-[11px] leading-snug" : "p-8 text-sm"
-        } font-[family-name:var(--font-print-doc)]`}
+        } font-(family-name:--font-print-doc)`}
       >
         <style>{printPageCss(format)}</style>
         {thermal ? (

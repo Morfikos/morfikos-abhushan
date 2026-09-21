@@ -92,7 +92,6 @@ export function useSyncedListFilters<T>(pathname: string, codec: ListFilterCodec
       setFiltersState(parsed);
     }
     // Only react to URL changes; local setFilters already updated state.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: sync from URL only
   }, [searchParams]);
 
   const setFilters = useCallback(

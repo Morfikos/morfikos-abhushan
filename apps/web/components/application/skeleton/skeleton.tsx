@@ -105,7 +105,7 @@ export function TableSkeleton({
                 key={`c-${String(row)}-${String(col)}`}
                 className={cx(
                   "h-3 flex-1",
-                  col === 0 ? "max-w-[10rem]" : col === columns - 1 ? "max-w-8" : "",
+                  col === 0 ? "max-w-40" : col === columns - 1 ? "max-w-8" : "",
                 )}
               />
             ))}
@@ -225,7 +225,7 @@ export function FormSkeleton({
         </div>
       ))}
       {showStickyActions ? (
-        <div className="-mx-4 border-t border-secondary bg-primary px-4 py-4 md:-mx-0 md:rounded-xl md:px-5 md:ring-1 md:ring-secondary">
+        <div className="-mx-4 border-t border-secondary bg-primary px-4 py-4 md:mx-0 md:rounded-xl md:px-5 md:ring-1 md:ring-secondary">
           <div className="flex flex-wrap justify-end gap-2">
             <Skeleton className="h-10 w-24 rounded-lg" />
             <Skeleton className="h-10 w-32 rounded-lg" />
@@ -626,7 +626,7 @@ export function StaffShellSkeleton({
   return (
     <div className={cx("bg-primary flex min-h-screen", className)} aria-busy="true" aria-live="polite">
       <LoadingLabel label={label} />
-      <aside className="bg-secondary hidden w-[280px] shrink-0 flex-col gap-4 border-r border-secondary p-4 lg:flex lg:pt-5">
+      <aside className="bg-secondary hidden w-70 shrink-0 flex-col gap-4 border-r border-secondary p-4 lg:flex lg:pt-5">
         <Skeleton className="h-8 w-36" />
         <div className="flex flex-col gap-2 pt-4">
           {Array.from({ length: 8 }, (_, index) => (
@@ -779,7 +779,7 @@ export function ArticleDetailSkeleton({
 
       <div className="grid gap-4 xl:grid-cols-[minmax(16rem,20rem)_1fr_minmax(16rem,20rem)]">
         <div className={sectionCardClass}>
-          <Skeleton className="aspect-[4/5] w-full rounded-lg" />
+          <Skeleton className="aspect-4/5 w-full rounded-lg" />
           <Skeleton className="h-3 w-40" />
           <div className="flex flex-wrap gap-2 border-t border-secondary pt-3">
             <Skeleton className="h-8 w-24 rounded-lg" />

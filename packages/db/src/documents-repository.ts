@@ -1,6 +1,5 @@
 import type {
   Document,
-  GeneratedDocumentType,
   StoredObject,
   StoredObjectOwnerType,
 } from "@aabhushan/contracts";
