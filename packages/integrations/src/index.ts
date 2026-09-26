@@ -20,6 +20,7 @@ export type {
   InvoicePdfInput,
   InvoicePdfLine,
   ReceiptPdfInput,
+  ReceiptPdfAllocation,
   GirviAckPdfInput,
   CreditNotePdfInput,
   RefundPdfInput,

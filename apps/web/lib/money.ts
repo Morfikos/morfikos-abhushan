@@ -1,13 +1,10 @@
+import { formatInr as domainFormatInr, formatMoneyInputDisplay as domainFormatMoneyInputDisplay } from "@aabhushan/domain";
+
 const MONEY_PATTERN = /^\d+(\.\d{1,2})?$/;
 
 /** Display formatting only. The decimal string stays the source for any later calculation. */
 export function formatInr(amount: string): string {
-  const negative = amount.startsWith("-");
-  const raw = negative ? amount.slice(1) : amount;
-  const [whole = "0", fraction = "00"] = raw.split(".");
-  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  const frac = `${fraction}00`.slice(0, 2);
-  return `${negative ? "-" : ""}₹${grouped}.${frac}`;
+  return domainFormatInr(amount);
 }
 
 /** Axis tick formatter: 0, 80k, 1.6L (Indian-style compact INR, no ₹). */
@@ -44,6 +41,53 @@ export function isPositiveMoney(value: string): boolean {
 
 export function isMoneyShape(value: string): boolean {
   return MONEY_PATTERN.test(value.trim());
+}
+
+/**
+ * Strip currency noise while typing. Keeps digits and at most one `.` with up to
+ * 2 fractional digits. Empty / trailing-dot drafts stay editable.
+ */
+export function sanitizeMoneyInput(raw: string): string {
+  const stripped = raw.replace(/[₹,\s]/g, "");
+  let sawDot = false;
+  let whole = "";
+  let fraction = "";
+  for (const char of stripped) {
+    if (char >= "0" && char <= "9") {
+      if (sawDot) {
+        if (fraction.length < 2) {
+          fraction += char;
+        }
+      } else {
+        whole += char;
+      }
+      continue;
+    }
+    if (char === "." && !sawDot) {
+      sawDot = true;
+    }
+  }
+  if (sawDot) {
+    return `${whole}.${fraction}`;
+  }
+  return whole;
+}
+
+/** Indian grouping without ₹ (MoneyInput already shows a prefix). */
+export function formatMoneyInputDisplay(amount: string): string {
+  return domainFormatMoneyInputDisplay(amount);
+}
+
+/** Normalize a money-shaped string to two decimal places (e.g. `10` → `10.00`). */
+export function normalizeMoneyInput(amount: string): string {
+  const trimmed = amount.trim();
+  if (/^\d+\.$/.test(trimmed)) {
+    return paiseToMoney(moneyToPaise(trimmed.slice(0, -1)));
+  }
+  if (!isMoneyShape(trimmed)) {
+    return trimmed;
+  }
+  return paiseToMoney(moneyToPaise(trimmed));
 }
 
 function moneyToPaise(amount: string): bigint {

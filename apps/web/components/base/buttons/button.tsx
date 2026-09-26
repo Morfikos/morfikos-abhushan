@@ -57,7 +57,7 @@ export const styles = sortCx({
     colors: {
         primary: {
             root: [
-                "bg-brand-solid text-white shadow-xs-skeuomorphic ring-1 ring-transparent ring-inset hover:bg-brand-solid_hover data-loading:bg-brand-solid_hover",
+                "bg-brand-solid text-white ring-1 ring-transparent ring-inset hover:bg-brand-solid_hover data-loading:bg-brand-solid_hover",
                 // Inner border gradient
                 "before:absolute before:inset-px before:border before:border-white/12 before:mask-b-from-0%",
                 // Icon styles
@@ -81,8 +81,8 @@ export const styles = sortCx({
         "link-color": {
             root: [
                 "justify-normal rounded p-0! text-brand-secondary hover:text-brand-secondary_hover",
-                // Inner text underline
-                "*:data-text:underline *:data-text:decoration-transparent hover:*:data-text:decoration-fg-brand-secondary_alt",
+                // Inner text underline (always visible)
+                "*:data-text:underline *:data-text:decoration-fg-brand-secondary_alt hover:*:data-text:decoration-fg-brand-secondary_alt",
                 // Icon styles
                 "*:data-icon:text-fg-brand-secondary_alt hover:*:data-icon:text-fg-brand-secondary_hover",
             ].join(" "),
@@ -90,15 +90,15 @@ export const styles = sortCx({
         "link-gray": {
             root: [
                 "justify-normal rounded p-0! text-tertiary hover:text-tertiary_hover",
-                // Inner text underline
-                "*:data-text:underline *:data-text:decoration-transparent hover:*:data-text:decoration-fg-quaternary",
+                // Inner text underline (always visible)
+                "*:data-text:underline *:data-text:decoration-fg-quaternary hover:*:data-text:decoration-fg-quaternary",
                 // Icon styles
                 "*:data-icon:text-fg-quaternary hover:*:data-icon:text-fg-quaternary_hover",
             ].join(" "),
         },
         "primary-destructive": {
             root: [
-                "bg-error-solid text-white shadow-xs-skeuomorphic ring-1 ring-transparent outline-error ring-inset hover:bg-error-solid_hover data-loading:bg-error-solid_hover",
+                "bg-error-solid text-white ring-1 ring-transparent outline-error ring-inset hover:bg-error-solid_hover data-loading:bg-error-solid_hover",
                 // Inner border gradient
                 "before:absolute before:inset-px before:border before:border-white/12 before:mask-b-from-0%",
                 // Icon styles
@@ -122,8 +122,8 @@ export const styles = sortCx({
         "link-destructive": {
             root: [
                 "justify-normal rounded p-0! text-error-primary outline-error hover:text-error-primary_hover",
-                // Inner text underline
-                "*:data-text:underline *:data-text:decoration-transparent *:data-text:underline-offset-2 hover:*:data-text:decoration-current",
+                // Inner text underline (always visible)
+                "*:data-text:underline *:data-text:decoration-current *:data-text:underline-offset-2",
                 // Icon styles
                 "*:data-icon:text-fg-error-secondary hover:*:data-icon:text-fg-error-primary",
             ].join(" "),
@@ -149,7 +149,7 @@ export interface CommonProps {
     iconTrailing?: FC<{ className?: string }> | ReactNode;
     /** Removes horizontal padding from the text content */
     noTextPadding?: boolean;
-    /** When true, keeps the text visible during loading state */
+    /** When false, hides the label during loading (icon-only spinner). Defaults to true. */
     showTextWhileLoading?: boolean;
 
     children?: ReactNode;
@@ -183,7 +183,7 @@ export const Button: {
     iconTrailing: IconTrailing,
     isDisabled: disabled,
     isLoading: loading,
-    showTextWhileLoading,
+    showTextWhileLoading = true,
     ...props
 }) => {
     const href = "href" in props ? props.href : undefined;
@@ -210,7 +210,7 @@ export const Button: {
                     <circle className="stroke-current opacity-30" cx="10" cy="10" r="8" fill="none" strokeWidth="2" />
                     {/* Spinning circle */}
                     <circle
-                        className="origin-center animate-spin stroke-current"
+                        className="origin-center animate-spin stroke-current motion-reduce:animate-none"
                         cx="10"
                         cy="10"
                         r="8"

@@ -26,7 +26,7 @@ export const documentStatusSchema = z.enum(["pending", "ready", "failed"]);
 export type DocumentStatus = z.infer<typeof documentStatusSchema>;
 
 export const INVOICE_PDF_TEMPLATE_VERSION = "invoice.pdf.v2";
-export const RECEIPT_PDF_TEMPLATE_VERSION = "receipt.pdf.v2";
+export const RECEIPT_PDF_TEMPLATE_VERSION = "receipt.pdf.v3";
 export const GIRVI_ACK_PDF_TEMPLATE_VERSION = "girvi_ack.pdf.v2";
 export const CREDIT_NOTE_PDF_TEMPLATE_VERSION = "credit_note.pdf.v2";
 export const REFUND_PDF_TEMPLATE_VERSION = "refund.pdf.v2";
@@ -204,18 +204,33 @@ export const invoicePrintSchema = z.object({
 
 export type InvoicePrint = z.infer<typeof invoicePrintSchema>;
 
+export const receiptPrintAllocationSchema = z.object({
+  invoice_number: z.string(),
+  business_date: z.string(),
+  invoice_total_inr: z.string(),
+  applied_inr: z.string(),
+  amount_due_inr: z.string(),
+});
+
+export type ReceiptPrintAllocation = z.infer<typeof receiptPrintAllocationSchema>;
+
 export const receiptPrintSchema = z.object({
   payment_id: z.string().uuid(),
   receipt_number: z.string(),
   issued_at: z.string().datetime({ offset: true }),
   customer_display_name: z.string(),
+  customer_phone: z.string().nullable(),
   payment_method: z.string(),
   amount_inr: z.string(),
-  invoice_numbers: z.array(z.string()),
+  reference: z.string().nullable(),
+  received_business_date: z.string(),
+  received_by_display_name: z.string(),
+  allocations: z.array(receiptPrintAllocationSchema),
   shop_legal_name: z.string(),
   shop_address_line: z.string().nullable(),
   shop_phone: z.string().nullable(),
   shop_logo_data_uri: z.string().nullable(),
+  invoice_footer: z.string().nullable(),
   invoice_paper_size: invoicePaperSizeSchema,
   document: documentSchema.nullable(),
 });

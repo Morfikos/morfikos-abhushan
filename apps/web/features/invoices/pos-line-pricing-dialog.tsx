@@ -8,7 +8,8 @@ import { Heading } from "react-aria-components";
 import { Dialog, Modal, ModalOverlay } from "@/components/application/modals/modal";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
-import { SelectField } from "@/components/shared/select-field";
+import { MoneyInput } from "@/components/shared/money-input";
+import { SegmentedField } from "@/components/shared/segmented-field";
 import {
   defaultMakingValue,
   makingValueFieldMeta,
@@ -135,49 +136,71 @@ export function PosLinePricingDialog({ line, isOpen, isSaving, onClose, onSave }
             {line ? `${line.description} · ${line.article_number}` : "Select a line"}
           </p>
 
-          <SelectField
+          <SegmentedField
             label="Making method"
+            selection="quiet"
             value={makingMethod}
-            onChange={(value) => {
-              const method = value as MakingMethod;
+            onChange={(method) => {
               setMakingMethod(method);
               setMakingAmount(defaultMakingValue(method));
             }}
             options={[
               { label: "Fixed ₹", value: "fixed" },
-              { label: "₹ per gram net metal", value: "per_gram" },
-              { label: "% of metal value", value: "percent_of_metal" },
+              { label: "₹/g", value: "per_gram" },
+              { label: "% metal", value: "percent_of_metal" },
             ]}
           />
-          <Input
-            label={makingMeta.label}
-            placeholder={makingMeta.placeholder}
-            value={makingAmount}
-            isInvalid={!makingValid}
-            hint={makingCheck.hint ?? undefined}
-            onChange={setMakingAmount}
-          />
+          {makingMeta.unit === "money" ? (
+            <MoneyInput
+              label={makingMeta.label}
+              placeholder={makingMeta.placeholder}
+              value={makingAmount}
+              isInvalid={!makingValid}
+              error={makingCheck.hint ?? undefined}
+              onChange={setMakingAmount}
+            />
+          ) : (
+            <Input
+              label={makingMeta.label}
+              aria-label={makingMeta.ariaLabel}
+              placeholder={makingMeta.placeholder}
+              value={makingAmount}
+              isInvalid={!makingValid}
+              error={makingCheck.hint ?? undefined}
+              inputMode="decimal"
+              suffix={makingMeta.unit === "per_gram" ? "₹/g" : "%"}
+              onChange={setMakingAmount}
+            />
+          )}
 
-          <SelectField
+          <SegmentedField
             label="Wastage"
+            selection="quiet"
             value={wastageMode}
-            onChange={(value) => setWastageMode(value as WastageMode)}
+            onChange={setWastageMode}
             options={[
               { label: "None", value: "none" },
-              { label: "% of net metal weight", value: "percent_of_net_weight" },
+              { label: "% net weight", value: "percent_of_net_weight" },
             ]}
           />
           {wastageMode === "percent_of_net_weight" ? (
-            <Input label="Wastage percent" value={wastagePercent} onChange={setWastagePercent} />
+            <Input
+              label="Wastage"
+              value={wastagePercent}
+              onChange={setWastagePercent}
+              inputMode="decimal"
+              suffix="%"
+            />
           ) : null}
 
           <Input label="Stone description (optional)" value={stoneDescription} onChange={setStoneDescription} />
           <Input label="Stone charge (INR, optional)" value={stoneAmount} onChange={setStoneAmount} />
 
-          <SelectField
+          <SegmentedField
             label="Line discount"
+            selection="quiet"
             value={discountMode}
-            onChange={(value) => setDiscountMode(value as DiscountMode)}
+            onChange={setDiscountMode}
             options={[
               { label: "None", value: "none" },
               { label: "Fixed ₹", value: "amount" },

@@ -73,7 +73,7 @@ export function RecoveryConfirmForm() {
         isRequired
         autoComplete="new-password"
         isInvalid={Boolean(error)}
-        hint={error}
+        error={error}
       />
       <Button type="submit" color="primary" size="md" className="w-full" isLoading={loading} isDisabled={loading}>
         Save password

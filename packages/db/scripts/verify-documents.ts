@@ -146,7 +146,7 @@ async function main(): Promise<void> {
       `
       INSERT INTO app.documents (
         organization_id, document_type, template_version, status, source_event_key, owner_type, owner_id, last_error_code
-      ) VALUES ($1, 'receipt_pdf', 'receipt.pdf.v2', 'failed', $2, 'receipt', $3, 'PDF_GENERATION_FAILED')
+      ) VALUES ($1, 'receipt_pdf', 'receipt.pdf.v3', 'failed', $2, 'receipt', $3, 'PDF_GENERATION_FAILED')
       ON CONFLICT (organization_id, source_event_key) DO UPDATE SET
         status = 'failed',
         last_error_code = 'PDF_GENERATION_FAILED',
@@ -159,7 +159,7 @@ async function main(): Promise<void> {
       `
       INSERT INTO app.documents (
         organization_id, document_type, template_version, status, source_event_key, owner_type, owner_id
-      ) VALUES ($1, 'receipt_pdf', 'receipt.pdf.v2', 'pending', $2, 'receipt', $3)
+      ) VALUES ($1, 'receipt_pdf', 'receipt.pdf.v3', 'pending', $2, 'receipt', $3)
       ON CONFLICT (organization_id, source_event_key) DO UPDATE SET
         status = 'pending',
         stored_object_id = NULL,

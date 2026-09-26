@@ -9,13 +9,15 @@
   "scripts": {
     "lint": "eslint src --max-warnings=0",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "verify:money-format": "tsx ./scripts/verify-money-format.ts"
   },
   "dependencies": {
     "@aabhushan/contracts": "workspace:*",
     "decimal.js": "^10.5.0"
   },
   "devDependencies": {
+    "tsx": "^4.20.5",
     "typescript": "^5.9.2"
   }
 }

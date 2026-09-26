@@ -124,7 +124,7 @@ async function main(): Promise<void> {
           INSERT INTO app.tag_print_events (
             organization_id, article_id, barcode, print_kind, template_version, actor_staff_user_id
           )
-        VALUES ($1, $2, $3, 'reprint', 'tag-v2', $4)
+        VALUES ($1, $2, $3, 'reprint', 'tag-v4', $4)
           `,
           [ORGANIZATION_ID, assignId, expectedPayload, staffRow.id],
         ),
@@ -138,7 +138,7 @@ async function main(): Promise<void> {
         INSERT INTO app.tag_print_events (
           organization_id, article_id, barcode, print_kind, reason, template_version, actor_staff_user_id
         )
-        VALUES ($1, $2, $3, 'reprint', 'Damaged tag', 'tag-v2', $4)
+        VALUES ($1, $2, $3, 'reprint', 'Damaged tag', 'tag-v4', $4)
         `,
         [ORGANIZATION_ID, assignId, expectedPayload, staffRow.id],
       );

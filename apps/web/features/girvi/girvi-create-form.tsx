@@ -15,7 +15,7 @@ import { Input } from "@/components/base/input/input";
 import { InputDate } from "@/components/base/input/input-date";
 import { MoneyInput } from "@/components/shared/money-input";
 import { SectionCard } from "@/components/shared/section-card";
-import { SelectField } from "@/components/shared/select-field";
+import { SegmentedField } from "@/components/shared/segmented-field";
 import { StaffPageHeader } from "@/components/shared/staff-page-header";
 import { StickyFormActions } from "@/components/shared/sticky-form-actions";
 import { CustomerCombobox } from "@/features/customers/customer-combobox";
@@ -304,7 +304,7 @@ export function GirviCreateForm({ accountId }: GirviCreateFormProps = {}) {
           />
         )}
         <div className="grid gap-4 sm:grid-cols-2">
-          <MoneyInput label="Principal" value={principal} onChange={setPrincipal} />
+          <MoneyInput label="Principal" value={principal} onChange={setPrincipal} isRequired />
           <Input
             label="Interest rate (% per 30 days)"
             value={ratePercent}
@@ -328,9 +328,18 @@ export function GirviCreateForm({ accountId }: GirviCreateFormProps = {}) {
         </div>
       </SectionCard>
 
-      <SectionCard>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold text-primary">Collateral</h2>
+      <SectionCard
+        title="Collateral"
+        description={
+          <>
+            Packet numbers are unique while in custody. These records are not articles and never appear in Inventory or
+            POS.
+            {isEdit
+              ? " Existing photos stay attached when you save. Activation requires at least one photo per item."
+              : " Save the draft first, then edit it to attach photos before activation."}
+          </>
+        }
+        actions={
           <Button
             type="button"
             color="secondary"
@@ -340,14 +349,8 @@ export function GirviCreateForm({ accountId }: GirviCreateFormProps = {}) {
           >
             Add item
           </Button>
-        </div>
-        <p className="text-sm text-tertiary">
-          Packet numbers are unique while in custody. These records are not articles and never appear in Inventory or
-          POS.
-          {isEdit
-            ? " Existing photos stay attached when you save. Activation requires at least one photo per item."
-            : " Save the draft first, then edit it to attach photos before activation."}
-        </p>
+        }
+      >
         {collateral.map((row, index) => (
           <div key={row.key} className="flex flex-col gap-3 rounded-lg bg-secondary p-4 ring-1 ring-secondary">
             <div className="flex items-center justify-between gap-2">
@@ -371,12 +374,14 @@ export function GirviCreateForm({ accountId }: GirviCreateFormProps = {}) {
               isRequired
             />
             <div className="grid gap-3 sm:grid-cols-2">
-              <SelectField
+              <SegmentedField
                 label="Metal"
-                value={row.metal}
-                onChange={(value) => updateRow(row.key, { metal: value as "" | "gold" | "silver" })}
+                value={row.metal === "" ? "unset" : row.metal}
+                onChange={(value) =>
+                  updateRow(row.key, { metal: value === "unset" ? "" : value })
+                }
                 options={[
-                  { label: "Not set", value: "" },
+                  { label: "Not set", value: "unset" },
                   { label: "Gold", value: "gold" },
                   { label: "Silver", value: "silver" },
                 ]}
@@ -477,7 +482,7 @@ export function GirviCreateForm({ accountId }: GirviCreateFormProps = {}) {
         </p>
       ) : null}
 
-      <StickyFormActions variant="bar" className="justify-end">
+      <StickyFormActions variant="bar">
         <Button
           color="secondary"
           size="md"

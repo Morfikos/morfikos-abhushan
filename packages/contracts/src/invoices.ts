@@ -272,6 +272,7 @@ export const invoiceListItemSchema = z.object({
   invoice_number: z.string().nullable(),
   customer_id: z.string().uuid(),
   customer_display_name: z.string().min(1),
+  customer_phone_display: z.string().nullable(),
   status: invoiceStatusSchema,
   business_date: businessDateSchema,
   grand_total_inr: moneyAmountSchema,

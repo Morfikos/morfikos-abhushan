@@ -113,9 +113,20 @@ async function generateReceiptPdf(
     receiptNumber: source.receiptNumber,
     issuedAtIso: source.issuedAt,
     customerDisplayName: source.customerDisplayName,
+    customerPhone: source.customerPhone,
     paymentMethod: source.paymentMethod,
     amountInr: source.amountInr,
-    invoiceNumbers: source.invoiceNumbers,
+    reference: source.reference,
+    receivedBusinessDate: source.receivedBusinessDate,
+    receivedByDisplayName: source.receivedByDisplayName,
+    invoiceFooter: source.shop.invoice_footer,
+    allocations: source.allocations.map((row) => ({
+      invoiceNumber: row.invoice_number,
+      businessDate: row.business_date,
+      invoiceTotalInr: row.invoice_total_inr,
+      appliedInr: row.applied_inr,
+      amountDueInr: row.amount_due_inr,
+    })),
   });
   const objectKey = buildDocumentObjectKey({
     organizationId,

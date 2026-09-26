@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import PDFDocument from "pdfkit";
 import { bilingualLabel, type DocumentLabelKey } from "@aabhushan/contracts";
 import type { InvoicePaperSize } from "@aabhushan/contracts";
+import { formatInr } from "@aabhushan/domain";
 
 const FONT_DIR = join(dirname(fileURLToPath(import.meta.url)), "../assets/fonts");
 const FONT_REGULAR = join(FONT_DIR, "NotoSansDevanagari-Regular.ttf");
@@ -67,13 +68,26 @@ export type InvoicePdfInput = ShopFields & {
   amountDueInr: string;
 };
 
+export type ReceiptPdfAllocation = {
+  invoiceNumber: string;
+  businessDate: string;
+  invoiceTotalInr: string;
+  appliedInr: string;
+  amountDueInr: string;
+};
+
 export type ReceiptPdfInput = ShopFields & {
   receiptNumber: string;
   issuedAtIso: string;
   customerDisplayName: string;
+  customerPhone: string | null;
   paymentMethod: string;
   amountInr: string;
-  invoiceNumbers: string[];
+  reference: string | null;
+  receivedBusinessDate: string;
+  receivedByDisplayName: string;
+  invoiceFooter: string | null;
+  allocations: ReceiptPdfAllocation[];
 };
 
 export type GirviAckPdfInput = ShopFields & {
@@ -100,10 +114,6 @@ export type RefundPdfInput = ShopFields & {
   amountInr: string;
   reversesReceiptNumber: string | null;
 };
-
-function formatInr(value: string): string {
-  return `₹${value}`;
-}
 
 function collectPdf(doc: PDFKit.PDFDocument): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -255,6 +265,32 @@ export async function renderInvoicePdf(input: InvoicePdfInput): Promise<Buffer> 
   return done;
 }
 
+function formatMethodLabel(method: string): string {
+  if (!method) {
+    return method;
+  }
+  if (method === "upi") {
+    return "UPI";
+  }
+  return method.charAt(0).toUpperCase() + method.slice(1).toLowerCase();
+}
+
+function formatIssuedAt(iso: string): string {
+  return new Date(iso).toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+function isZeroMoney(amount: string): boolean {
+  return /^-?0+(\.0+)?$/.test(amount);
+}
+
 /** Renders a bilingual receipt PDF from payment/receipt snapshot fields. */
 export async function renderReceiptPdf(input: ReceiptPdfInput): Promise<Buffer> {
   const thermal = isThermalPaper(input.paperSize);
@@ -267,12 +303,61 @@ export async function renderReceiptPdf(input: ReceiptPdfInput): Promise<Buffer> 
   fontBold(doc, titleSize);
   doc.text(label("receipt"));
   writeLabeledValue(doc, "receipt", input.receiptNumber, { bodySize });
-  writeLabeledValue(doc, "issued", input.issuedAtIso, { bodySize });
+  writeLabeledValue(doc, "issued", formatIssuedAt(input.issuedAtIso), { bodySize });
+  writeLabeledValue(doc, "business_date", input.receivedBusinessDate, { bodySize });
   writeLabeledValue(doc, "customer", input.customerDisplayName, { bodySize });
-  writeLabeledValue(doc, "method", input.paymentMethod, { bodySize });
+  if (input.customerPhone) {
+    fontRegular(doc, bodySize);
+    doc.text(input.customerPhone);
+  }
+  writeLabeledValue(doc, "method", formatMethodLabel(input.paymentMethod), { bodySize });
+  if (input.reference) {
+    writeLabeledValue(doc, "reference", input.reference, { bodySize });
+  }
   writeLabeledValue(doc, "amount", formatInr(input.amountInr), { bold: true, bodySize });
-  if (input.invoiceNumbers.length > 0) {
-    writeLabeledValue(doc, "invoices", input.invoiceNumbers.join(", "), { bodySize });
+  writeLabeledValue(doc, "received_by", input.receivedByDisplayName, { bodySize });
+
+  if (input.allocations.length > 0) {
+    doc.moveDown(0.5);
+    fontBold(doc, bodySize);
+    doc.text(label("applied"));
+    for (const row of input.allocations) {
+      if (thermal) {
+        writeStackedRow(
+          doc,
+          `${row.invoiceNumber} · ${row.businessDate}`,
+          formatInr(row.appliedInr),
+          { bodySize },
+        );
+        fontRegular(doc, bodySize);
+        doc.text(`${label("grand_total")}: ${formatInr(row.invoiceTotalInr)}`);
+        if (isZeroMoney(row.amountDueInr)) {
+          fontBold(doc, bodySize);
+          doc.text(label("paid_in_full"));
+        } else {
+          writeStackedRow(doc, label("due"), formatInr(row.amountDueInr), { bodySize });
+        }
+      } else {
+        fontRegular(doc, bodySize);
+        doc.text(
+          `${row.invoiceNumber} · ${row.businessDate} · ${label("grand_total")} ${formatInr(row.invoiceTotalInr)}`,
+          { continued: true },
+        );
+        doc.text(formatInr(row.appliedInr), { align: "right" });
+        if (isZeroMoney(row.amountDueInr)) {
+          fontBold(doc, bodySize);
+          doc.text(label("paid_in_full"));
+        } else {
+          writeLabeledValue(doc, "due", formatInr(row.amountDueInr), { bodySize });
+        }
+      }
+    }
+  }
+
+  if (input.invoiceFooter) {
+    doc.moveDown(0.5);
+    fontRegular(doc, thermal ? 7 : 9);
+    doc.text(input.invoiceFooter);
   }
 
   doc.end();

@@ -9,7 +9,7 @@ import { Input } from "@/components/base/input/input";
 import { TextArea } from "@/components/base/textarea/textarea";
 import { Toggle } from "@/components/base/toggle/toggle";
 import { SectionCard } from "@/components/shared/section-card";
-import { SelectField } from "@/components/shared/select-field";
+import { SegmentedField } from "@/components/shared/segmented-field";
 import { StickyFormActions } from "@/components/shared/sticky-form-actions";
 import {
   consentPurposeLabel,
@@ -18,7 +18,6 @@ import {
   WHATSAPP_PURPOSES,
 } from "@/features/customers/customer-shared";
 import { StaffApiError } from "@/lib/staff-api";
-import { cx } from "@/utils/cx";
 
 export type CustomerFormValues = {
   displayName: string;
@@ -117,18 +116,19 @@ function OptionalSection({ title, children }: { title: string; children: ReactNo
 }
 
 function phoneHint(phone: string, apiPhoneError: string | undefined): {
-  hint: string;
+  hint?: string;
+  error?: string;
   isInvalid: boolean;
 } {
   if (apiPhoneError) {
-    return { hint: apiPhoneError, isInvalid: true };
+    return { error: apiPhoneError, isInvalid: true };
   }
   const parsed = normalizeShopPhone(phone);
   if (parsed.kind === "ok") {
     return { hint: `Stored as ${parsed.normalized}.`, isInvalid: false };
   }
   if (parsed.kind === "invalid") {
-    return { hint: parsed.message, isInvalid: true };
+    return { error: parsed.message, isInvalid: true };
   }
   return {
     hint: "Required when WhatsApp is on. 10-digit Indian numbers are stored as +91.",
@@ -143,7 +143,6 @@ export function CustomerForm({
   error,
   onSubmit,
   onCancel,
-  actionsClassName,
   onDirtyChange,
 }: {
   initial: CustomerFormValues;
@@ -152,7 +151,6 @@ export function CustomerForm({
   error: unknown;
   onSubmit: (values: CustomerFormValues) => void;
   onCancel: () => void;
-  actionsClassName?: string;
   onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [values, setValues] = useState(initial);
@@ -216,7 +214,10 @@ export function CustomerForm({
           value={values.displayName}
           onChange={(value) => update("displayName", value)}
           isInvalid={Boolean(fieldError(error, "display_name") || localError === "Enter a customer name.")}
-          hint={fieldError(error, "display_name")}
+          error={
+            fieldError(error, "display_name") ??
+            (localError === "Enter a customer name." ? localError : undefined)
+          }
         />
         <Input
           label="Phone"
@@ -226,6 +227,12 @@ export function CustomerForm({
           placeholder="98765 43210"
           isRequired={whatsappOn}
           hint={phoneField.hint}
+          error={
+            phoneField.error ??
+            (localError === "Add a phone number before granting WhatsApp consent."
+              ? localError
+              : undefined)
+          }
           isInvalid={
             phoneField.isInvalid ||
             Boolean(localError === "Add a phone number before granting WhatsApp consent.")
@@ -251,10 +258,11 @@ export function CustomerForm({
           );
         })}
         {whatsappOn ? (
-          <SelectField
+          <SegmentedField
             label="Message language"
+            selection="quiet"
             value={values.language}
-            onChange={(value) => update("language", value === "hi" ? "hi" : "en")}
+            onChange={(value) => update("language", value)}
             hint="Defaults from shop reminder settings. Hindi at launch is still an open decision."
             options={[
               { label: "English", value: "en" },
@@ -269,7 +277,7 @@ export function CustomerForm({
           label="Email"
           value={values.email}
           onChange={(value) => update("email", value)}
-          hint={fieldError(error, "email")}
+          error={fieldError(error, "email")}
           isInvalid={Boolean(fieldError(error, "email"))}
         />
         <TextArea
@@ -295,12 +303,12 @@ export function CustomerForm({
         </Button>
       ) : null}
 
-      <StickyFormActions variant="inset" className={cx("flex flex-wrap gap-3", actionsClassName)}>
-        <Button color="primary" size="md" isLoading={isSubmitting} isDisabled={isSubmitting} onPress={submit}>
-          {submitLabel}
-        </Button>
+      <StickyFormActions variant="bar">
         <Button color="secondary" size="md" isDisabled={isSubmitting} onPress={onCancel}>
           Cancel
+        </Button>
+        <Button color="primary" size="md" isLoading={isSubmitting} isDisabled={isSubmitting} onPress={submit}>
+          {submitLabel}
         </Button>
       </StickyFormActions>
     </form>

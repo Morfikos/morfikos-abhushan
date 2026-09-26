@@ -15,34 +15,40 @@ import { Skeleton } from "@/components/application/skeleton/skeleton";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
-import { ActiveFiltersBar } from "@/components/shared/active-filters-bar";
 import {
   DirectoryEmptyState,
+  DirectoryError,
+  DirectoryTableBusy,
   DirectoryTableSkeleton,
   FilteredEmptyState,
+  directoryListFlags,
 } from "@/components/shared/directory-states";
 import { ListTableFooter } from "@/components/shared/list-table-footer";
 import { SelectField } from "@/components/shared/select-field";
 import { StaffPageHeader } from "@/components/shared/staff-page-header";
-import { type ListFilterCodec, useSyncedListFilters } from "@/lib/list-search-params";
+import {
+  type ListFilterCodec,
+  useListPagination,
+  useSyncedListFilters,
+} from "@/lib/list-search-params";
 import { staffHasPermission, useStaff } from "@/features/auth/staff-shell";
 import { useStaffToast } from "@/components/application/toast/staff-toast";
 import { inventoryAccessToken, inventoryErrorMessage } from "@/features/inventory/inventory-shared";
 import { fetchNotifications, retryNotificationRequest } from "@/lib/staff-api";
 
-function statusColor(status: NotificationStatus): "gray" | "brand" | "success" | "warning" | "error" {
+function statusColor(status: NotificationStatus): "gray" | "success" | "blue" | "error" | "orange" {
   switch (status) {
     case "delivered":
       return "success";
     case "accepted":
     case "sent":
-      return "brand";
+      return "blue";
     case "pending":
-      return "gray";
+      return "blue";
     case "failed":
       return "error";
     case "unknown":
-      return "warning";
+      return "orange";
     case "skipped":
       return "gray";
     default:
@@ -50,30 +56,21 @@ function statusColor(status: NotificationStatus): "gray" | "brand" | "success" |
   }
 }
 
+const PURPOSES: NotificationPurpose[] = [
+  "transactional_invoice",
+  "transactional_receipt",
+  "due_reminder",
+  "girvi_reminder",
+];
+
 type NotificationUrlFilters = {
   status: "" | NotificationStatus;
+  purpose: "" | NotificationPurpose;
 };
 
 const notificationUrlDefaults: NotificationUrlFilters = {
   status: "",
-};
-
-const notificationUrlCodec: ListFilterCodec<NotificationUrlFilters> = {
-  ownedKeys: ["status"],
-  defaults: notificationUrlDefaults,
-  parse(params) {
-    const parsed = notificationStatusSchema.safeParse(params.get("status"));
-    return { status: parsed.success ? parsed.data : "" };
-  },
-  serialize(value) {
-    return { status: value.status || undefined };
-  },
-  chips(value) {
-    if (!value.status) {
-      return [];
-    }
-    return [{ id: "status", label: `Status: ${NOTIFICATION_STATUS_LABELS[value.status]}` }];
-  },
+  purpose: "",
 };
 
 function purposeLabel(purpose: NotificationPurpose): string {
@@ -90,6 +87,32 @@ function purposeLabel(purpose: NotificationPurpose): string {
       return purpose;
   }
 }
+
+const notificationUrlCodec: ListFilterCodec<NotificationUrlFilters> = {
+  ownedKeys: ["status", "purpose"],
+  defaults: notificationUrlDefaults,
+  parse(params) {
+    const parsed = notificationStatusSchema.safeParse(params.get("status"));
+    const purposeRaw = params.get("purpose");
+    const purpose =
+      purposeRaw && PURPOSES.includes(purposeRaw as NotificationPurpose)
+        ? (purposeRaw as NotificationPurpose)
+        : "";
+    return {
+      status: parsed.success ? parsed.data : "",
+      purpose,
+    };
+  },
+  serialize(value) {
+    return {
+      status: value.status || undefined,
+      purpose: value.purpose || undefined,
+    };
+  },
+  chips() {
+    return [];
+  },
+};
 
 /** Live filter strip: Status + Purpose selects. */
 export function NotificationsFilterSkeleton() {
@@ -111,11 +134,6 @@ export function NotificationsListBodyLoading() {
       filterSkeleton={<NotificationsFilterSkeleton />}
     />
   );
-}
-
-/** @deprecated Prefer NotificationsListBodyLoading — alias kept for call-site clarity. */
-export function NotificationsDirectoryLoading() {
-  return <NotificationsListBodyLoading />;
 }
 
 export function NotificationsList() {
@@ -154,11 +172,12 @@ function NotificationsListBody({ canRetry }: { canRetry: boolean }) {
   const staff = useStaff();
   const toast = useStaffToast();
   const queryClient = useQueryClient();
-  const { filters, setFilters, clearFilters, chips } = useSyncedListFilters("/notifications", notificationUrlCodec);
-  const status = filters.status;
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
-  const [purpose, setPurpose] = useState<"" | NotificationPurpose>("");
+  const { filters, setFilters, clearFilters } = useSyncedListFilters(
+    "/notifications",
+    notificationUrlCodec,
+  );
+  const { status, purpose } = filters;
+  const { page, setPage, pageSize, setPageSize } = useListPagination(25);
   const [actionError, setActionError] = useState<string | null>(null);
   const [visible, setVisible] = useState(true);
 
@@ -203,27 +222,29 @@ function NotificationsListBody({ canRetry }: { canRetry: boolean }) {
   const total = query.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const filtersActive = Boolean(status) || Boolean(purpose);
-  const directoryEmpty = !query.isLoading && total === 0 && !filtersActive;
-  const filteredEmpty = !query.isLoading && items.length === 0 && filtersActive;
-  const showInitialLoading = query.isLoading && !query.data;
-  const showDirectoryCard = !directoryEmpty && !showInitialLoading;
-  const displayChips = [
-    ...chips,
-    ...(purpose
-      ? [{ id: "purpose", label: `Purpose: ${purposeLabel(purpose)}` }]
-      : []),
-  ];
+  const { showInitialLoading, directoryEmpty, filteredEmpty, showDirectoryCard } = directoryListFlags({
+    isLoading: query.isLoading,
+    hasData: Boolean(query.data),
+    total,
+    itemCount: items.length,
+    filtersActive,
+  });
 
   function clearAllFilters() {
     clearFilters();
-    setPurpose("");
     setPage(1);
   }
 
+  const tableBusy = query.isFetching && Boolean(query.data);
+
   return (
     <>
-      {actionError ? <p className="text-sm text-error-primary">{actionError}</p> : null}
-      {query.isError ? <p className="text-sm text-error-primary">{inventoryErrorMessage(query.error)}</p> : null}
+      {(actionError || query.isError) && !showDirectoryCard ? (
+        <>
+          {actionError ? <DirectoryError message={actionError} /> : null}
+          {query.isError ? <DirectoryError message={inventoryErrorMessage(query.error)} /> : null}
+        </>
+      ) : null}
 
       {showInitialLoading ? <NotificationsListBodyLoading /> : null}
 
@@ -238,6 +259,12 @@ function NotificationsListBody({ canRetry }: { canRetry: boolean }) {
       {showDirectoryCard ? (
         <TableCard.Root>
           <TableCard.Header title="Messages" badge={String(total)} />
+          {actionError || query.isError ? (
+            <div className="flex flex-col gap-2 border-b border-secondary px-4 py-3 md:px-6">
+              {actionError ? <DirectoryError message={actionError} /> : null}
+              {query.isError ? <DirectoryError message={inventoryErrorMessage(query.error)} /> : null}
+            </div>
+          ) : null}
           <div className="flex flex-col gap-3 border-b border-secondary px-4 py-4 md:px-6">
             <div className="flex flex-wrap items-end gap-3">
               <div className="w-48">
@@ -245,12 +272,14 @@ function NotificationsListBody({ canRetry }: { canRetry: boolean }) {
                   label="Status"
                   value={status}
                   onChange={(value) => {
-                    setFilters({ status: value as "" | NotificationStatus });
+                    setFilters({ status: value, purpose });
                     setPage(1);
                   }}
                   options={[
                     { label: "All statuses", value: "" },
-                    ...Object.entries(NOTIFICATION_STATUS_LABELS).map(([value, label]) => ({
+                    ...(
+                      Object.entries(NOTIFICATION_STATUS_LABELS) as [NotificationStatus, string][]
+                    ).map(([value, label]) => ({
                       label,
                       value,
                     })),
@@ -262,7 +291,7 @@ function NotificationsListBody({ canRetry }: { canRetry: boolean }) {
                   label="Purpose"
                   value={purpose}
                   onChange={(value) => {
-                    setPurpose(value as "" | NotificationPurpose);
+                    setFilters({ status, purpose: value });
                     setPage(1);
                   }}
                   options={[
@@ -274,20 +303,25 @@ function NotificationsListBody({ canRetry }: { canRetry: boolean }) {
                   ]}
                 />
               </div>
+              {filtersActive ? (
+                <Button color="link-gray" size="sm" onPress={clearAllFilters}>
+                  Clear filters
+                </Button>
+              ) : null}
             </div>
-            <ActiveFiltersBar chips={displayChips} onClear={clearAllFilters} />
           </div>
 
           {filteredEmpty ? (
             <FilteredEmptyState
               title="No matching notifications"
               description="Try another status or purpose filter."
+              hasOtherFilters={filtersActive}
               onClear={clearAllFilters}
             />
           ) : null}
 
           {items.length > 0 ? (
-            <>
+            <DirectoryTableBusy isBusy={tableBusy}>
               <Table aria-label="Notifications">
                 <Table.Header>
                   <Table.Head id="customer" isRowHeader label="Customer" />
@@ -339,13 +373,11 @@ function NotificationsListBody({ canRetry }: { canRetry: boolean }) {
                 page={page}
                 totalPages={totalPages}
                 pageSize={pageSize}
+                total={total}
                 onPageChange={setPage}
-                onPageSizeChange={(next) => {
-                  setPageSize(next);
-                  setPage(1);
-                }}
+                onPageSizeChange={setPageSize}
               />
-            </>
+            </DirectoryTableBusy>
           ) : null}
         </TableCard.Root>
       ) : null}

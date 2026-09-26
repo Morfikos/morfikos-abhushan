@@ -71,12 +71,24 @@ export const metalRateSchema = z.object({
   created_at: z.string().datetime({ offset: true }),
 });
 
+const ratePerGramField = decimalString.refine(
+  (value) => value !== "0" && !/^0+(\.0+)?$/.test(value),
+  "Rate per gram must be greater than zero.",
+);
+
 export const metalRateCreateSchema = z
   .object({
     metal: metalSchema,
     purity: z.string().trim().min(1).max(40),
-    rate_per_gram: decimalString.refine((value) => value !== "0" && !/^0+(\.0+)?$/.test(value), "Rate per gram must be greater than zero."),
+    rate_per_gram: ratePerGramField,
     effective_business_date: businessDateSchema.optional(),
+  })
+  .strict();
+
+/** Same-day correction of rate_per_gram only; past and future rows stay immutable. */
+export const metalRatePatchSchema = z
+  .object({
+    rate_per_gram: ratePerGramField,
   })
   .strict();
 
@@ -158,6 +170,7 @@ export type ShopProfilePatch = z.infer<typeof shopProfilePatchSchema>;
 export type ShopBrandingPublic = z.infer<typeof shopBrandingPublicSchema>;
 export type MetalRate = z.infer<typeof metalRateSchema>;
 export type MetalRateCreate = z.infer<typeof metalRateCreateSchema>;
+export type MetalRatePatch = z.infer<typeof metalRatePatchSchema>;
 export type MetalRateList = z.infer<typeof metalRateListSchema>;
 export type MetalRatesCoverage = z.infer<typeof metalRatesCoverageSchema>;
 export type DocumentSequence = z.infer<typeof documentSequenceSchema>;

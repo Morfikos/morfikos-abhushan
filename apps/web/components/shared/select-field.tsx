@@ -1,52 +1,55 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, type FC, type ReactNode, type Ref } from "react";
 import type { Key } from "react-aria-components";
 import { Select } from "@/components/base/select/select";
 import { cx } from "@/utils/cx";
 
-const EMPTY_KEY = "__all__";
+/** Internal list id for empty-string option values; must not appear as a real option value. */
+const EMPTY_VALUE_SENTINEL = "__select_field_empty__";
 
-export type SelectFieldOption = {
+export type SelectFieldOption<T extends string = string> = {
   label: string;
-  value: string;
+  value: T;
   disabled?: boolean;
+  supportingText?: string;
+  icon?: FC | ReactNode;
 };
 
-export type SelectFieldProps = {
+export type SelectFieldProps<T extends string = string> = {
   label?: string;
   hint?: string;
+  error?: string;
   tooltip?: string;
   placeholder?: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: SelectFieldOption[];
+  value: T;
+  onChange: (value: T) => void;
+  options: SelectFieldOption<T>[];
   size?: "sm" | "md" | "lg";
   isDisabled?: boolean;
+  isLoading?: boolean;
   isRequired?: boolean;
   isInvalid?: boolean;
   className?: string;
+  name?: string;
+  popoverClassName?: string;
+  ref?: Ref<HTMLDivElement>;
   "aria-label"?: string;
 };
 
 function toItemId(value: string): string {
-  return value === "" ? EMPTY_KEY : value;
+  return value === "" ? EMPTY_VALUE_SENTINEL : value;
 }
 
 function fromItemId(id: Key): string {
   const key = String(id);
-  return key === EMPTY_KEY ? "" : key;
+  return key === EMPTY_VALUE_SENTINEL ? "" : key;
 }
 
-const triggerHeight = {
-  sm: "h-9",
-  md: "h-10",
-  lg: "h-11",
-} as const;
-
-export function SelectField({
+export function SelectField<T extends string = string>({
   label,
   hint,
+  error,
   tooltip,
   placeholder = "Select",
   value,
@@ -54,68 +57,88 @@ export function SelectField({
   options,
   size = "md",
   isDisabled,
+  isLoading,
   isRequired,
   isInvalid,
   className,
+  name,
+  popoverClassName,
+  ref,
   "aria-label": ariaLabel,
-}: SelectFieldProps) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const hasEmptyOption = options.some((option) => option.value === "");
-  const items = options.map((option) => ({
-    id: toItemId(option.value),
-    label: option.label,
-    isDisabled: option.disabled,
-  }));
-
-  const selectedKey = value === "" ? (hasEmptyOption ? EMPTY_KEY : null) : value;
-  const selectedLabel = options.find((option) => option.value === value)?.label;
-
-  if (!mounted) {
-    return (
-      <div className={cx("flex w-full flex-col gap-1.5", className)}>
-        {label ? <span className="text-sm font-medium text-secondary">{label}</span> : null}
-        <div
-          aria-hidden="true"
-          className={cx(
-            "flex w-full items-center rounded-lg bg-primary px-3 shadow-xs ring-1 ring-primary ring-inset",
-            triggerHeight[size],
-            isDisabled && "opacity-50",
-          )}
-        >
-          <span className="truncate text-md font-medium text-primary">{selectedLabel ?? placeholder}</span>
-        </div>
-        {hint ? <span className="text-sm text-tertiary">{hint}</span> : null}
-      </div>
-    );
+}: SelectFieldProps<T>) {
+  if (process.env.NODE_ENV !== "production") {
+    for (const option of options) {
+      if (option.value === EMPTY_VALUE_SENTINEL) {
+        console.warn(
+          `SelectField: option value "${EMPTY_VALUE_SENTINEL}" collides with the empty-value sentinel. Choose a different value.`,
+        );
+      }
+    }
   }
+
+  const isEmpty = !isLoading && options.length === 0;
+  const hasEmptyOption = options.some((option) => option.value === "");
+  const valueInOptions = options.some((option) => option.value === value);
+
+  const items = useMemo(
+    () =>
+      options.map((option) => ({
+        id: toItemId(option.value),
+        label: option.label,
+        isDisabled: option.disabled,
+        supportingText: option.supportingText,
+        icon: option.icon,
+      })),
+    [options],
+  );
+
+  const selectedKey =
+    value === ""
+      ? hasEmptyOption
+        ? EMPTY_VALUE_SENTINEL
+        : null
+      : valueInOptions
+        ? value
+        : null;
+
+  const resolvedPlaceholder = isLoading && !valueInOptions ? "Loading…" : isEmpty ? "No options yet" : placeholder;
+  const resolvedHint = hint ?? (isEmpty ? "No options yet" : undefined);
+  const disabled = Boolean(isDisabled || isLoading || isEmpty);
 
   return (
     <Select
+      ref={ref}
+      name={name}
       label={label}
-      hint={hint}
+      hint={resolvedHint}
+      error={error}
       tooltip={tooltip}
-      placeholder={placeholder}
+      placeholder={resolvedPlaceholder}
       size={size}
-      isDisabled={isDisabled}
+      isDisabled={disabled}
+      isLoading={isLoading}
       isRequired={isRequired}
       isInvalid={isInvalid}
       aria-label={ariaLabel}
       className={cx("w-full", className)}
+      popoverClassName={popoverClassName}
       value={selectedKey}
       onChange={(key) => {
         if (key == null) {
           return;
         }
-        onChange(fromItemId(key));
+        onChange(fromItemId(key) as T);
       }}
       items={items}
     >
       {(item) => (
-        <Select.Item id={item.id} label={item.label} isDisabled={item.isDisabled}>
+        <Select.Item
+          id={item.id}
+          label={item.label}
+          isDisabled={item.isDisabled}
+          supportingText={item.supportingText}
+          icon={item.icon}
+        >
           {item.label}
         </Select.Item>
       )}

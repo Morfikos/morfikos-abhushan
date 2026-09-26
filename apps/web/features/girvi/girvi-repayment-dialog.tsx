@@ -249,6 +249,14 @@ export function GirviRepaymentDialog({
                   isDisabled={mutation.isPending}
                   isInvalid={isOverPayoff}
                   hint={`of ${formatInr(payoff)} payable`}
+                  onFill={
+                    statement.data
+                      ? () => {
+                          setAmount(payoff);
+                          setLocalError(null);
+                        }
+                      : undefined
+                  }
                 />
 
                 <MethodSelect

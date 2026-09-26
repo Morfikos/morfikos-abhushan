@@ -90,7 +90,7 @@ const TableCardHeader = ({ title, badge, description, contentTrailing, className
                         isValidElement(badge) ? (
                             badge
                         ) : (
-                            <Badge color="gray" size="sm" type="modern">
+                            <Badge color="gray" size="sm">
                                 {badge}
                             </Badge>
                         )
@@ -240,7 +240,7 @@ const TableRow = <T extends object>({ columns, children, className, highlightSel
             {...props}
             className={(state) =>
                 cx(
-                    "relative h-12 outline-focus-ring transition-colors after:pointer-events-none hover:bg-secondary focus-visible:outline-2 focus-visible:-outline-offset-2",
+                    "relative h-[68px] min-h-[68px] max-h-[68px] outline-focus-ring transition-colors after:pointer-events-none hover:bg-secondary focus-visible:outline-2 focus-visible:-outline-offset-2",
                     highlightSelectedRow && "selected:bg-secondary",
 
                     // Row border—using an "after" pseudo-element to avoid the border taking up space.
@@ -252,7 +252,7 @@ const TableRow = <T extends object>({ columns, children, className, highlightSel
         >
             {selectionBehavior === "toggle" && (
                 <AriaCell className={cx("relative py-0 pr-0 pl-4", size === "sm" ? "md:pl-5" : "md:pl-6")}>
-                    <div className="flex h-12 items-center">
+                    <div className="flex h-[68px] min-h-[68px] max-h-[68px] items-center">
                         <Checkbox slot="selection" size="md" />
                     </div>
                 </AriaCell>

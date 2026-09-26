@@ -121,3 +121,52 @@ export function useSyncedListFilters<T>(pathname: string, codec: ListFilterCodec
     hasActiveFilters,
   };
 }
+
+/**
+ * Local search text with a 300ms debounce into the applied `q` filter.
+ * Resets the field when URL/`appliedQ` changes (browser back, chip remove, Clear).
+ */
+export function useDebouncedListQuery({
+  appliedQ,
+  onCommit,
+  delayMs = 300,
+}: {
+  appliedQ: string;
+  /** Called with the trimmed query when debounce fires and the value differs from `appliedQ`. */
+  onCommit: (next: string) => void;
+  delayMs?: number;
+}) {
+  const [search, setSearch] = useState(appliedQ);
+  const onCommitRef = useRef(onCommit);
+  onCommitRef.current = onCommit;
+
+  useEffect(() => {
+    setSearch(appliedQ);
+  }, [appliedQ]);
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      const next = search.trim();
+      if (next === appliedQ) {
+        return;
+      }
+      onCommitRef.current(next);
+    }, delayMs);
+    return () => window.clearTimeout(handle);
+  }, [search, appliedQ, delayMs]);
+
+  return { search, setSearch };
+}
+
+/** Page + page-size state; changing page size always resets to page 1. */
+export function useListPagination(initialPageSize = 10) {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSizeState] = useState(initialPageSize);
+
+  const setPageSize = useCallback((next: number) => {
+    setPageSizeState(next);
+    setPage(1);
+  }, []);
+
+  return { page, setPage, pageSize, setPageSize };
+}

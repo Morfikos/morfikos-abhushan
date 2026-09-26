@@ -21,6 +21,8 @@ export type SelectItemType = {
 export interface CommonProps {
     /** Helper text displayed below the input. */
     hint?: string;
+    /** Error message displayed below the input (and below hint when both are set). */
+    error?: string;
     /** Field label displayed above the input. */
     label?: string;
     /** Tooltip text for the help icon next to the label. */

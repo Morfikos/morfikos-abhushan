@@ -49,19 +49,19 @@ export const NavList = ({ activeUrl, items, className, collapsed = false }: NavL
     });
 
     return (
-        <ul className={cx("flex flex-col pt-5", collapsed ? "items-center px-2" : "px-4", className)}>
+        <ul className={cx("flex flex-col gap-0.5 pt-5", collapsed ? "items-center px-2" : "px-4", className)}>
             {items.map((item, index) => {
                 if (item.divider) {
                     return (
-                        <li key={index} className="w-full px-0.5 py-2">
-                            <hr className="h-px w-full border-none bg-border-secondary" />
+                        <li key={index} className="w-full px-0.5 py-2.5">
+                            <hr className="h-px w-full border-none bg-border-sidebar" />
                         </li>
                     );
                 }
 
                 if (item.items?.length) {
                     return (
-                        <details key={item.label} open={activeItem?.href === item.href} className="appearance-none py-px">
+                        <details key={item.label} open={activeItem?.href === item.href} className="appearance-none py-0.5">
                             <NavItemBase href={item.href} badge={item.badge} icon={item.icon} type="collapsible">
                                 {item.label}
                             </NavItemBase>
@@ -69,7 +69,7 @@ export const NavList = ({ activeUrl, items, className, collapsed = false }: NavL
                             <dd>
                                 <ul className="pb-1">
                                     {item.items.map((childItem) => (
-                                        <li key={childItem.label} className="py-px">
+                                        <li key={childItem.label} className="py-0.5">
                                             <NavItemBase
                                                 href={childItem.href}
                                                 badge={childItem.badge}
@@ -92,7 +92,7 @@ export const NavList = ({ activeUrl, items, className, collapsed = false }: NavL
 
                 if (collapsed) {
                     return (
-                        <li key={item.label} className="py-px">
+                        <li key={item.label} className="py-0.5">
                             <NavButton
                                 label={item.label}
                                 icon={item.icon}
@@ -106,7 +106,7 @@ export const NavList = ({ activeUrl, items, className, collapsed = false }: NavL
                 }
 
                 return (
-                    <li key={item.label} className="py-px">
+                    <li key={item.label} className="py-0.5">
                         <NavItemBase type="link" badge={item.badge} icon={item.icon} href={item.href} current={current}>
                             {item.label}
                         </NavItemBase>

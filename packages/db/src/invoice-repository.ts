@@ -69,6 +69,7 @@ type ListRow = {
   invoice_number: string | null;
   customer_id: string;
   customer_display_name: string;
+  customer_phone_display: string | null;
   status: string;
   business_date: Date | string;
   grand_total_inr: string | number;
@@ -196,6 +197,7 @@ function mapListItem(row: ListRow): InvoiceListItem {
     invoice_number: row.invoice_number,
     customer_id: row.customer_id,
     customer_display_name: row.customer_display_name,
+    customer_phone_display: row.customer_phone_display,
     status: asStatus(row.status),
     business_date: asBusinessDate(row.business_date),
     grand_total_inr: money(row.grand_total_inr),
@@ -335,11 +337,13 @@ export function createInvoiceRepository(
       if (input.q) {
         params.push(`%${input.q}%`);
         filters.push(
-          `(c.display_name ILIKE $${String(params.length)} OR COALESCE(i.invoice_number, '') ILIKE $${String(params.length)})`,
+          `(c.display_name ILIKE $${String(params.length)} OR COALESCE(i.invoice_number, '') ILIKE $${String(params.length)} OR COALESCE(c.phone_display, '') ILIKE $${String(params.length)} OR COALESCE(c.phone_normalized, '') ILIKE $${String(params.length)})`,
         );
       }
-      if (input.hasDue) {
+      if (input.hasDue === true) {
         filters.push("i.amount_due_inr > 0");
+      } else if (input.hasDue === false) {
+        filters.push("i.amount_due_inr = 0");
       }
 
       const where = filters.join(" AND ");
@@ -362,6 +366,7 @@ export function createInvoiceRepository(
         `
         SELECT
           i.id, i.invoice_number, i.customer_id, c.display_name AS customer_display_name,
+          c.phone_display AS customer_phone_display,
           i.status, i.business_date, i.grand_total_inr, i.amount_paid_inr, i.amount_due_inr,
           i.quote_version, COALESCE(lc.line_count, 0)::int AS line_count,
           i.finalized_at, i.updated_at

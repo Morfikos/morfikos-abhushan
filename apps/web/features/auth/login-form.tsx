@@ -61,7 +61,7 @@ export function LoginForm() {
         isRequired
         autoComplete="current-password"
         isInvalid={Boolean(error)}
-        hint={error}
+        error={error}
       />
       <div className="mt-1 flex flex-col gap-3">
         <Button type="submit" color="primary" size="md" className="w-full" isLoading={loading} isDisabled={loading}>

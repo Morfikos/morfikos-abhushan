@@ -46,17 +46,21 @@ export function PosCustomerCreateDialog({ isOpen, onClose, onCreated }: PosCusto
     setApiError(null);
   }, [isOpen]);
 
-  const phoneField = useMemo(() => {
+  const phoneField = useMemo((): {
+    hint?: string;
+    error?: string;
+    isInvalid: boolean;
+  } => {
     const apiPhone = fieldError(apiError, "phone");
     if (apiPhone) {
-      return { hint: apiPhone, isInvalid: true };
+      return { error: apiPhone, isInvalid: true };
     }
     const parsed = normalizeShopPhone(phone);
     if (parsed.kind === "ok") {
       return { hint: `Stored as ${parsed.normalized}.`, isInvalid: false };
     }
     if (parsed.kind === "invalid") {
-      return { hint: parsed.message, isInvalid: true };
+      return { error: parsed.message, isInvalid: true };
     }
     return {
       hint: "Optional. Required for WhatsApp invoice. 10-digit Indian numbers are stored as +91.",
@@ -145,6 +149,7 @@ export function PosCustomerCreateDialog({ isOpen, onClose, onCreated }: PosCusto
               value={phone}
               onChange={setPhone}
               hint={phoneField.hint}
+              error={phoneField.error}
               isInvalid={phoneField.isInvalid}
               isDisabled={busy}
             />

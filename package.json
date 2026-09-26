@@ -25,6 +25,8 @@
     "verify:documents": "pnpm --filter @aabhushan/db verify:documents",
     "verify:notifications": "pnpm --filter @aabhushan/db verify:notifications",
     "verify:reports": "pnpm --filter @aabhushan/db verify:reports",
+    "verify:money-format": "pnpm --filter @aabhushan/domain verify:money-format",
+    "verify:money-input": "pnpm --filter @aabhushan/web verify:money-input",
     "seed:calculation-policy": "pnpm --filter @aabhushan/db seed:calculation-policy",
     "seed:girvi-calculation-policy": "pnpm --filter @aabhushan/db seed:girvi-calculation-policy",
     "repair:girvi-policy-snapshots": "pnpm --filter @aabhushan/db repair:girvi-policy-snapshots",

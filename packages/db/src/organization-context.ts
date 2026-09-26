@@ -1,13 +1,42 @@
 import { Pool, type PoolClient, type PoolConfig } from "pg";
 
+function guardCheckedOutClient(client: PoolClient): PoolClient {
+  const onError = () => {
+    // A dropped socket also rejects the in-flight query. This listener keeps that drop from exiting the process.
+  };
+  client.on("error", onError);
+  const release = client.release.bind(client);
+  client.release = (err?: Error | boolean) => {
+    client.removeListener("error", onError);
+    release(err);
+  };
+  return client;
+}
+
 export function createPool(databaseUrl: string, config: Omit<PoolConfig, "connectionString"> = {}): Pool {
-  return new Pool({
+  // Session-mode pooler allows 15 clients total. API + worker + pg-boss must stay under that.
+  const pool = new Pool({
     connectionString: databaseUrl,
-    max: config.max ?? 10,
+    max: config.max ?? 4,
     idleTimeoutMillis: config.idleTimeoutMillis ?? 10_000,
     connectionTimeoutMillis: config.connectionTimeoutMillis ?? 8_000,
+    keepAlive: config.keepAlive ?? true,
     ...config,
   });
+
+  pool.on("error", () => {
+    // Idle clients emit error when the pooler closes the socket. Handling it keeps the API and worker alive.
+  });
+
+  const connect = pool.connect.bind(pool) as Pool["connect"];
+  pool.connect = ((...args: Parameters<Pool["connect"]>) => {
+    if (typeof args[0] === "function") {
+      return connect(...args);
+    }
+    return Promise.resolve(connect()).then((client) => guardCheckedOutClient(client as PoolClient));
+  }) as Pool["connect"];
+
+  return pool;
 }
 
 export type RuntimeDbRole = "app_api" | "app_worker";

@@ -35,19 +35,25 @@ export type DocumentLabelKey =
   | "round_off"
   | "grand_total"
   | "paid"
+  | "paid_in_full"
   | "due"
   | "collections"
   | "amount_in_words"
+  | "weight_total"
   | "customer_signature"
   | "authorized_signatory"
   | "issued"
   | "method"
   | "invoices"
+  | "reference"
+  | "applied"
+  | "received_by"
   | "account"
   | "released"
   | "recipient"
   | "packets_verified"
-  | "reverses_receipt";
+  | "reverses_receipt"
+  | "thank_you";
 
 export type PrintLabelLanguage = "en" | "hi" | "both";
 
@@ -83,19 +89,26 @@ const LABELS: Record<DocumentLabelKey, { en: string; hi: string }> = {
   round_off: { en: "Round off", hi: "राउंड ऑफ" },
   grand_total: { en: "Grand total", hi: "कुल योग" },
   paid: { en: "Paid", hi: "भुगतान" },
+  // Hindi strings below need owner/linguist review before pilot printouts.
+  paid_in_full: { en: "Paid in full", hi: "पूर्ण भुगतान" },
   due: { en: "Due", hi: "बकाया" },
   collections: { en: "Collections", hi: "वसूली" },
   amount_in_words: { en: "Amount in words", hi: "शब्दों में राशि" },
+  weight_total: { en: "Weight total", hi: "कुल वजन" },
   customer_signature: { en: "Customer signature", hi: "ग्राहक हस्ताक्षर" },
   authorized_signatory: { en: "Authorized signatory", hi: "अधिकृत हस्ताक्षरकर्ता" },
   issued: { en: "Issued", hi: "जारी" },
   method: { en: "Method", hi: "विधि" },
   invoices: { en: "Invoices", hi: "चालान" },
+  reference: { en: "Reference", hi: "संदर्भ" },
+  applied: { en: "Applied to", hi: "आवंटित" },
+  received_by: { en: "Received by", hi: "प्राप्तकर्ता स्टाफ" },
   account: { en: "Account", hi: "खाता" },
   released: { en: "Released", hi: "रिहा" },
   recipient: { en: "Recipient", hi: "प्राप्तकर्ता" },
   packets_verified: { en: "Packets verified", hi: "सत्यापित पैकेट" },
   reverses_receipt: { en: "Reverses receipt", hi: "पूर्व रसीद" },
+  thank_you: { en: "Thank you", hi: "धन्यवाद" },
 };
 
 export function documentLabelPair(key: DocumentLabelKey): { en: string; hi: string } {

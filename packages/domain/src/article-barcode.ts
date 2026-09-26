@@ -2,22 +2,22 @@
  * Permanent article barcode payloads. Code 128 subset B, ASCII A–Z / 0–9 / hyphen.
  * The payload is deterministic from the article number and is never rotated on reprint.
  */
-export const TAG_TEMPLATE_VERSION = "tag-v2";
+export const TAG_TEMPLATE_VERSION = "tag-v4";
 
 /** Minimum scannable bar height on jewellery tags (mm). */
 export const TAG_BARCODE_MIN_HEIGHT_MM = 8;
 
-/** Thin header for logo or shop name + metal/purity (mm). */
-export const TAG_HEADER_HEIGHT_MM = 3.5;
+/** Left rail for vertical shop legal name (mm). */
+export const TAG_NAME_RAIL_WIDTH_MM = 5;
 
-/** Footer for HRI + weight (mm). */
-export const TAG_FOOTER_HEIGHT_MM = 3;
+/** Gap between name rail and barcode column (mm). */
+export const TAG_RAIL_GAP_MM = 0.75;
+
+/** Footer for HRI + metal/purity + Gross/Net (mm). */
+export const TAG_FOOTER_HEIGHT_MM = 5.75;
 
 /** Card inset on each side (mm). */
 export const TAG_INSET_MM = 1;
-
-/** Max logo box when the tag is tall enough (mm). */
-export const TAG_LOGO_MAX_MM = 4;
 
 const CODE128_SAFE = /^[A-Z0-9-]{1,80}$/;
 
@@ -38,19 +38,18 @@ export function tagUsableHeightMm(tagHeightMm: number): number {
 }
 
 /**
- * Barcode band height after reserving header and footer. Floored at TAG_BARCODE_MIN_HEIGHT_MM
- * when the stamp is tall enough; otherwise returns the leftover (may be below the floor).
+ * Barcode band height after reserving the three-line footer. Floored leftover may be
+ * below TAG_BARCODE_MIN_HEIGHT_MM on very short stamps; callers still render at the floor.
  */
 export function tagBarcodeHeightMm(tagHeightMm: number): number {
-  const usable = tagUsableHeightMm(tagHeightMm);
-  const leftover = usable - TAG_HEADER_HEIGHT_MM - TAG_FOOTER_HEIGHT_MM;
+  const leftover = tagUsableHeightMm(tagHeightMm) - TAG_FOOTER_HEIGHT_MM;
   if (leftover <= 0) {
     return 0;
   }
   return leftover;
 }
 
-/** Logo only when leftover barcode band would still meet the scannable floor. */
-export function tagCanShowLogo(tagHeightMm: number): boolean {
-  return tagBarcodeHeightMm(tagHeightMm) >= TAG_BARCODE_MIN_HEIGHT_MM;
+/** Tags use vertical shop name only; logos stay on invoices/receipts. */
+export function tagCanShowLogo(_tagHeightMm: number): boolean {
+  return false;
 }

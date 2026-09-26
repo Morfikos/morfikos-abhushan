@@ -56,6 +56,8 @@ interface TextFieldProps extends AriaTextFieldProps {
     label?: string;
     /** Helper text displayed below the textarea */
     hint?: ReactNode;
+    /** Error message displayed below the textarea (and below hint when both are set) */
+    error?: ReactNode;
     /** Tooltip message displayed after the label. */
     tooltip?: string;
     /** Textarea size. */
@@ -79,6 +81,7 @@ interface TextFieldProps extends AriaTextFieldProps {
 export const TextArea = ({
     label,
     hint,
+    error,
     tooltip,
     textAreaRef,
     hideRequiredIndicator,
@@ -88,11 +91,13 @@ export const TextArea = ({
     rows,
     cols,
     size = "md",
+    validationBehavior = "aria",
     ...props
 }: TextFieldProps) => {
     return (
         <AriaTextField
             {...props}
+            validationBehavior={validationBehavior}
             className={(state) =>
                 cx("group flex h-max w-full flex-col items-start justify-start gap-1.5", typeof className === "function" ? className(state) : className)
             }
@@ -100,18 +105,23 @@ export const TextArea = ({
             {({ isInvalid, isRequired }) => (
                 <>
                     {label && (
-                        <Label isRequired={hideRequiredIndicator ? !hideRequiredIndicator : isRequired} tooltip={tooltip}>
+                        <Label isRequired={!hideRequiredIndicator && isRequired} isInvalid={isInvalid} tooltip={tooltip}>
                             {label}
                         </Label>
                     )}
 
                     <TextAreaBase placeholder={placeholder} className={textAreaClassName} ref={textAreaRef} rows={rows} cols={cols} size={size} />
 
-                    {hint && (
-                        <HintText isInvalid={isInvalid} size={size}>
+                    {hint ? (
+                        <HintText slot="description" size={size}>
                             {hint}
                         </HintText>
-                    )}
+                    ) : null}
+                    {error ? (
+                        <HintText slot="errorMessage" size={size}>
+                            {error}
+                        </HintText>
+                    ) : null}
                 </>
             )}
         </AriaTextField>

@@ -34,14 +34,24 @@ export function girviStatusLabel(status: string, isOverdue: boolean): string {
 export function girviStatusBadgeColor(
   status: string,
   isOverdue: boolean,
-): "success" | "gray" | "warning" {
+): "success" | "gray" | "error" | "blue" {
   if (isOverdue) {
-    return "warning";
+    return "error";
   }
   if (status === "draft") {
     return "gray";
   }
+  if (status === "settled") {
+    return "blue";
+  }
+  if (status === "released") {
+    return "blue";
+  }
   return "success";
+}
+
+export function custodyBadgeColor(status: "in_custody" | "released" | string): "orange" | "blue" {
+  return status === "released" ? "blue" : "orange";
 }
 
 export const GIRVI_RATE_PERIOD_LABEL = "per 30 days" as const;

@@ -375,6 +375,37 @@ export function createShopSettingsRepository(client: PoolClient, organizationId:
       return mapRate(row);
     },
 
+    async getRate(id: string) {
+      const result = await client.query<RateRow>(
+        `
+        SELECT id, metal, purity, rate_per_gram, effective_business_date, created_by_staff_user_id, created_at
+        FROM app.metal_rates
+        WHERE organization_id = $1 AND id = $2
+        LIMIT 1
+        `,
+        [organizationId, id],
+      );
+      const row = result.rows[0];
+      return row ? mapRate(row) : null;
+    },
+
+    async updateRate(input) {
+      const result = await client.query<RateRow>(
+        `
+        UPDATE app.metal_rates
+        SET rate_per_gram = $3::numeric
+        WHERE organization_id = $1 AND id = $2
+        RETURNING id, metal, purity, rate_per_gram, effective_business_date, created_by_staff_user_id, created_at
+        `,
+        [organizationId, input.id, input.ratePerGram],
+      );
+      const row = result.rows[0];
+      if (!row) {
+        throw new Error("Metal rate update returned no row.");
+      }
+      return mapRate(row);
+    },
+
     async activePurityLabelExists(label: string) {
       const result = await client.query<{ exists: boolean }>(
         `

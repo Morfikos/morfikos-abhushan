@@ -29,7 +29,7 @@ export interface InputDateBaseProps extends Omit<AriaDateInputProps, "children">
     tooltip?: string;
     /**
      * Input size.
-     * @default "sm"
+     * @default "md"
      */
     size?: "sm" | "md" | "lg";
     /** Placeholder text. */
@@ -198,6 +198,8 @@ interface InputProps
     label?: string;
     /** Helper text displayed below the input */
     hint?: ReactNode;
+    /** Error message displayed below the input (and below hint when both are set) */
+    error?: ReactNode;
     /** Whether to hide required indicator from label */
     hideRequiredIndicator?: boolean;
     /** Class name for the input. */
@@ -210,6 +212,7 @@ export const InputDate = ({
     icon: Icon,
     label,
     hint,
+    error,
     shortcut,
     hideRequiredIndicator,
     className,
@@ -220,11 +223,16 @@ export const InputDate = ({
     inputClassName,
     wrapperClassName,
     tooltipClassName,
+    validationBehavior = "aria",
     ...props
 }: InputProps) => {
+    const labelTooltip = label ? tooltip : undefined;
+    const fieldTooltip = label ? undefined : tooltip;
+
     return (
         <AriaDateField
             {...props}
+            validationBehavior={validationBehavior}
             className={(state) =>
                 cx("group flex h-max w-full flex-col items-start justify-start gap-1.5", typeof className === "function" ? className(state) : className)
             }
@@ -232,7 +240,7 @@ export const InputDate = ({
             {({ isInvalid, state }) => (
                 <>
                     {label && (
-                        <Label isRequired={hideRequiredIndicator ? !hideRequiredIndicator : state.isRequired} isInvalid={isInvalid}>
+                        <Label isRequired={!hideRequiredIndicator && state.isRequired} isInvalid={isInvalid} tooltip={labelTooltip}>
                             {label}
                         </Label>
                     )}
@@ -249,15 +257,20 @@ export const InputDate = ({
                             iconClassName,
                             wrapperClassName,
                             tooltipClassName,
-                            tooltip,
+                            tooltip: fieldTooltip,
                         }}
                     />
 
-                    {hint && (
-                        <HintText isInvalid={isInvalid} className={cx(size === "sm" && "text-xs")}>
+                    {hint ? (
+                        <HintText slot="description" className={cx(size === "sm" && "text-xs")}>
                             {hint}
                         </HintText>
-                    )}
+                    ) : null}
+                    {error ? (
+                        <HintText slot="errorMessage" className={cx(size === "sm" && "text-xs")}>
+                            {error}
+                        </HintText>
+                    ) : null}
                 </>
             )}
         </AriaDateField>

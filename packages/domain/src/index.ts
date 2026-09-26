@@ -28,9 +28,9 @@ export type { ArticleStatus, InventoryMovementType } from "./article-inventory";
 export {
   TAG_BARCODE_MIN_HEIGHT_MM,
   TAG_FOOTER_HEIGHT_MM,
-  TAG_HEADER_HEIGHT_MM,
   TAG_INSET_MM,
-  TAG_LOGO_MAX_MM,
+  TAG_NAME_RAIL_WIDTH_MM,
+  TAG_RAIL_GAP_MM,
   TAG_TEMPLATE_VERSION,
   articleBarcodePayload,
   isCode128SafePayload,
@@ -77,6 +77,7 @@ export {
   roundDecimal,
 } from "./decimal";
 export type { DecimalRoundingMode } from "./decimal";
+export { formatInr, formatMoneyInputDisplay, groupIndianInteger } from "./money-format";
 export {
   APPROVED_DISCOUNT_METHODS,
   APPROVED_MAKING_CHARGE_METHODS,

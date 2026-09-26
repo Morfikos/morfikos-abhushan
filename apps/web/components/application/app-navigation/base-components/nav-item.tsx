@@ -10,8 +10,8 @@ import { isSameOriginAppPath } from "@/lib/client-navigation";
 import { cx, sortCx } from "@/utils/cx";
 
 const styles = sortCx({
-    root: "group relative flex min-h-9 max-h-9 w-full cursor-pointer items-center rounded-lg bg-transparent outline-focus-ring transition duration-100 ease-linear select-none hover:bg-primary/70 focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2",
-    rootSelected: "bg-primary shadow-xs ring-1 ring-secondary hover:bg-primary",
+    root: "group relative flex min-h-11 max-h-11 w-full cursor-pointer items-center rounded-lg bg-transparent outline-focus-ring transition duration-100 ease-linear select-none hover:bg-sidebar-item-hover focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2",
+    rootSelected: "bg-sidebar-item-active hover:bg-brand-solid_hover",
 });
 
 interface NavItemBaseProps {
@@ -42,15 +42,15 @@ export const NavItemBase = ({ current, type, badge, href, icon: Icon, children, 
         <Icon
             aria-hidden="true"
             className={cx(
-                "mr-2 size-5 shrink-0 text-fg-quaternary transition-inherit-all group-hover/item:text-fg-quaternary_hover",
-                current && "text-primary stroke-[2.25px]",
+                "mr-2.5 size-6 shrink-0 text-sidebar-muted transition-inherit-all group-hover/item:text-sidebar",
+                current && "text-white stroke-[2.25px]",
             )}
         />
     );
 
     const badgeElement =
         badge && (typeof badge === "string" || typeof badge === "number") ? (
-            <Badge className="ml-3" color="gray" type="pill-color" size="sm">
+            <Badge className="ml-3" color="brand" type="pill-color" size="md">
                 {badge}
             </Badge>
         ) : (
@@ -60,9 +60,9 @@ export const NavItemBase = ({ current, type, badge, href, icon: Icon, children, 
     const labelElement = (
         <span
             className={cx(
-                "flex-1 text-sm font-medium text-tertiary transition-inherit-all group-hover/item:text-secondary",
+                "flex-1 text-md font-medium text-sidebar-muted transition-inherit-all group-hover/item:text-sidebar",
                 truncate && "truncate",
-                current && "font-bold text-primary",
+                current && "font-semibold text-white",
             )}
         >
             {children}
@@ -71,24 +71,24 @@ export const NavItemBase = ({ current, type, badge, href, icon: Icon, children, 
 
     const isExternal = Boolean(href && href.startsWith("http"));
     const useAppLink = Boolean(href && !isExternal && isSameOriginAppPath(href));
-    const externalIcon = isExternal && <Share04 className="size-4 stroke-[2.5px] text-fg-quaternary" />;
+    const externalIcon = isExternal && <Share04 className="size-5 stroke-[2.5px] text-sidebar-muted" />;
 
     if (type === "collapsible") {
         return (
-            <summary className={cx("p-2", styles.root, current && styles.rootSelected)} onClick={onClick}>
+            <summary className={cx("px-3 py-2.5", styles.root, current && styles.rootSelected)} onClick={onClick}>
                 {iconElement}
 
                 {labelElement}
 
                 {badgeElement}
 
-                <ChevronDown aria-hidden="true" className="ml-3 size-4 shrink-0 stroke-[2.5px] text-fg-quaternary in-open:-scale-y-100" />
+                <ChevronDown aria-hidden="true" className="ml-3 size-5 shrink-0 stroke-[2.5px] text-sidebar-muted in-open:-scale-y-100" />
             </summary>
         );
     }
 
     if (type === "collapsible-child") {
-        const childClassName = cx("py-2 pr-3 pl-10", styles.root, current && styles.rootSelected);
+        const childClassName = cx("py-2.5 pr-3 pl-11", styles.root, current && styles.rootSelected);
         if (useAppLink && href) {
             return (
                 <NextLink
@@ -118,7 +118,7 @@ export const NavItemBase = ({ current, type, badge, href, icon: Icon, children, 
         );
     }
 
-    const linkClassName = cx("group/item p-2", styles.root, current && styles.rootSelected);
+    const linkClassName = cx("group/item px-3 py-2.5", styles.root, current && styles.rootSelected);
     if (useAppLink && href) {
         return (
             <NextLink href={href} className={linkClassName} onClick={onClick} aria-current={current ? "page" : undefined}>

@@ -63,11 +63,12 @@ Billing staff may also create the same kind of minimal `available`+`receipt` art
 
 ### Edit an article
 
-1. Authorized staff open an unsold article and choose **Edit article** (`/inventory/:id/edit`).
-2. They may change category, metal, purity, weights, HUID, supplier/karigar, location, and photograph. Article number, barcode, and receipt date stay immutable. Stones and acquisition cost stay receive-only (not on PATCH).
-3. Photograph on detail: if a photo already exists, show the image only (no dropzone). First photo can be uploaded on detail when missing. On edit, show **Replace photograph** to reveal the dropzone; **Cancel replace** restores the current image. Save uploads the staged file.
-4. Save calls `PATCH /api/v1/articles/:id` with `row_version`. A new photograph uses the spec 13 grant → upload → confirm path and **replaces** the previous `article_files` row (one current photo).
-5. After save, staff may **Print tag** (no barcode yet) or **Reprint tag** (same barcode, reason required). Skip returns to detail. Sold articles have no Edit control; identity/weights stay locked (API rejects those patches).
+1. Authorized staff open an unsold article and choose **Edit article** (`/inventory/:id/edit`). Sold articles redirect to detail on load; no edit UI.
+2. The form mirrors receive: numbered Identification / Weights / Source and photograph, sticky preview/checklist rail (no rates strip). Article number and barcode are read-only. Prefill sets `metalTouched` so category changes do not overwrite metal.
+3. They may change category, metal, purity, weights, HUID, supplier/karigar, location, and photograph. Article number, barcode, and receipt date stay immutable. Stones and acquisition cost stay receive-only (not on PATCH).
+4. Photograph on detail: if a photo already exists, show the image only (no dropzone). First photo can be uploaded on detail when missing. On edit, show **Replace photograph** to reveal the dropzone; **Cancel replace** restores the current image. Save uploads the staged file.
+5. Save calls `PATCH /api/v1/articles/:id` with `row_version`. A new photograph uses the spec 13 grant → upload → confirm path and **replaces** the previous `article_files` row (one current photo). Dirty leave uses a discard confirm on back.
+6. After save, if metal/purity/weights changed vs stamp baseline, the rail becomes a receipt card with **Print tag** (no barcode yet) or **Reprint tag** (same barcode, reason required), then **Open article**. Otherwise navigate to detail immediately. Sold articles have no Edit control; identity/weights stay locked (API rejects those patches).
 
 ### Adjust or count
 
@@ -195,19 +196,21 @@ Hard-delete is limited to mistaken receipts: status `available`, movements are o
 
 ## UI/UX Requirements
 
-- Search/scan + local filter row above `table/table.tsx` and shared list-table footer (`Page X of Y`, rows-per-page select, Previous/Next)
+- Inventory list: merged scan/search lookup (two fields when scan terminator is `None`), status tabs (counts only when the API provides them), compact metal/category/purity·weight filters, `ActiveFiltersBar` chips, table with Metal · purity column and row `⋯` menu, bulk action bar replacing the filter row when rows are selected, shared `ListTableFooter`
 - Status badges with labels: Available, Sold, Under review, Unavailable
-- Row and bulk delete for `inventory.write`, always behind a confirmation modal; disable delete when the article is not a mistaken receipt
-- Article detail is a full page grouped as identification, weights, source, location, photographs, history
+- Row and bulk delete for `inventory.write`, always behind a confirmation modal; disable delete when the article is not a mistaken receipt (reason in the row menu)
+- Receive article: rates strip, numbered Identification / Weights / More details, preview + checklist rail (desktop sticky column; mobile sticky is the checklist/action card only); compact Add photograph row that scrolls to the dropzone; “Assigned when received” until create; optional detail line and gross − non-metal when non-metal > 0; checklist collapses to Ready to receive when gates pass; stay on page after success for Print tag / Receive another
+- Edit article: same two-column chrome without rates strip (numbered Identification / Weights / Source and photograph); shared `inventory-form-chrome`; preview with real article number + compact No photograph empty + detail/equation lines; checklist Ready to save; sticky preview + checklist + Save/Cancel (mobile sticky = action card); stamp-field save → success rail (Print/Reprint + Open article); non-stamp save → detail
+- Article detail: fact band, photo+tag / specification / history columns; Adjust stock and inspection release in a dialog with Now/After preview; sold lock note under the header
 - Unsold articles with `inventory.write` offer **Edit article** (full page, not a modal)
 - Photograph on detail and edit uses private signed URLs; re-upload replaces the current file
-- Detail hides the dropzone when a photograph already exists; first upload remains on detail when missing
+- Detail empty photo state is the dropzone; dropzone hides when a photograph already exists
 - Edit uses **Replace photograph** / **Cancel replace** before showing the dropzone; upload still commits on save
-- After edit save, offer Print tag or Reprint tag; never auto-print
-- Weights right-aligned with g units and tabular numerals
+- After edit save with stamp-field changes, offer Print tag or Reprint tag on the success rail; never auto-print; otherwise navigate to detail
+- Weights right-aligned with g units and tabular numerals; weight equation row shared with receive
 - File upload uses public `file-upload-base.tsx`
 - Empty state uses free empty-state foundation
-- Loading uses free loading indicator
+- Loading uses structure-matched skeletons (`InventoryFilterStripSkeleton`, `FormSkeleton layout="form-rail"`, `ArticleDetailSkeleton`)
 - Do not use a marketing card as the tag preview; preview arrives in spec 05
 
 ## Edge Cases & Error Handling

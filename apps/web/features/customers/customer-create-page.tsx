@@ -87,7 +87,6 @@ export function CustomerCreatePage() {
         submitLabel="Save customer"
         isSubmitting={mutation.isPending}
         error={mutation.error}
-        actionsClassName="md:-mx-6 md:px-6"
         onSubmit={(values) => mutation.mutate(values)}
         onCancel={requestCancel}
         onDirtyChange={setFormDirty}

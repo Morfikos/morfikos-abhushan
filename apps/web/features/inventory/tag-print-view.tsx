@@ -2,13 +2,23 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { TAG_LOGO_MAX_MM, TAG_TEMPLATE_VERSION } from "@aabhushan/domain";
+import {
+  TAG_FOOTER_HEIGHT_MM,
+  TAG_INSET_MM,
+  TAG_NAME_RAIL_WIDTH_MM,
+  TAG_RAIL_GAP_MM,
+  TAG_TEMPLATE_VERSION,
+} from "@aabhushan/domain";
 import type { TagPreview, TagPrintKind } from "@aabhushan/contracts";
 
 import { TagPrintSkeleton } from "@/components/application/skeleton/skeleton";
 import { Button } from "@/components/base/buttons/button";
 import { PrintPreviewChrome, PrintPreviewPill } from "@/features/documents/print-preview-chrome";
-import { inventoryAccessToken, inventoryErrorMessage } from "@/features/inventory/inventory-shared";
+import {
+  formatGrams,
+  inventoryAccessToken,
+  inventoryErrorMessage,
+} from "@/features/inventory/inventory-shared";
 import {
   assignArticleBarcodesBatchRequest,
   fetchTagPreview,
@@ -23,42 +33,63 @@ function parseKind(value: string | null): TagPrintKind {
   return "initial";
 }
 
+function metalDisplay(metal: string): string {
+  return metal.charAt(0).toUpperCase() + metal.slice(1);
+}
+
+/** Two-decimal grams for the stamp (avoids raw DB scale like 10.0000). */
+function stampGrams(value: string): string {
+  const n = Number.parseFloat(value);
+  if (!Number.isFinite(n)) {
+    return formatGrams(value);
+  }
+  return formatGrams(n.toFixed(2));
+}
+
 function TagStamp({ tag }: { tag: TagPreview }) {
-  const showLogo = Boolean(tag.logo_data_uri);
   const barcodeMaxHeight = `${tag.barcode_height_mm}mm`;
+  const purityLine = `${metalDisplay(tag.metal)} ${tag.purity}`;
+  const weightsLine = `Gross ${stampGrams(tag.gross_weight_grams)} · Net ${stampGrams(tag.net_metal_weight_grams)}`;
 
   return (
     <article
-      className="tag-print-card flex flex-col overflow-visible border border-black bg-white text-black shadow-xs"
-      style={{ width: `${tag.tag_width_mm}mm`, height: `${tag.tag_height_mm}mm`, padding: "1mm" }}
+      className="tag-print-card flex overflow-visible border border-black bg-white text-black shadow-xs"
+      style={{
+        width: `${tag.tag_width_mm}mm`,
+        height: `${tag.tag_height_mm}mm`,
+        padding: `${TAG_INSET_MM}mm`,
+        gap: `${TAG_RAIL_GAP_MM}mm`,
+      }}
     >
-      <div className="flex h-[3.5mm] shrink-0 items-center justify-between gap-1 overflow-visible">
-        {showLogo ? (
-          <img
-            src={tag.logo_data_uri!}
-            alt=""
-            className="object-contain"
-            style={{ width: `${TAG_LOGO_MAX_MM}mm`, height: `${TAG_LOGO_MAX_MM}mm`, maxHeight: "3.5mm" }}
-          />
-        ) : (
-          <p className="max-w-[62%] truncate text-[6px] font-semibold leading-none tracking-tight text-black">
-            {tag.legal_name}
-          </p>
-        )}
-        <p className="shrink-0 text-[6px] capitalize leading-none text-neutral-700">
-          {tag.metal} {tag.purity}
+      <div
+        className="tag-print-name-rail flex shrink-0 items-center justify-center overflow-hidden border-r border-black"
+        style={{ width: `${TAG_NAME_RAIL_WIDTH_MM}mm` }}
+      >
+        <p
+          className="max-h-full truncate text-[7.5px] font-bold leading-none tracking-[0.12em] text-black"
+          style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+        >
+          {tag.legal_name}
         </p>
       </div>
-      <div
-        className="tag-print-barcode flex min-h-0 flex-1 items-center justify-center overflow-visible px-0.5"
-        style={{ ["--tag-barcode-max" as string]: barcodeMaxHeight }}
-        dangerouslySetInnerHTML={{ __html: tag.barcode_svg }}
-      />
-      <div className="flex h-[3mm] shrink-0 items-end justify-between gap-1">
-        <p className="font-mono text-[7px] leading-none text-neutral-800">{tag.barcode}</p>
-        <p className="text-[6px] font-medium tabular-nums leading-none text-neutral-800">
-          {tag.net_metal_weight_grams} g
-        </p>
+      <div className="flex min-w-0 flex-1 flex-col overflow-visible">
+        <div
+          className="tag-print-barcode flex min-h-0 flex-1 items-center justify-center overflow-visible"
+          style={{ ["--tag-barcode-max" as string]: barcodeMaxHeight }}
+          dangerouslySetInnerHTML={{ __html: tag.barcode_svg }}
+        />
+        <div
+          className="flex shrink-0 flex-col items-center justify-center gap-px overflow-hidden border-t border-black pt-px"
+          style={{ height: `${TAG_FOOTER_HEIGHT_MM}mm` }}
+        >
+          <p className="font-mono text-[7.5px] font-semibold leading-none tracking-tight text-black">
+            {tag.barcode}
+          </p>
+          <p className="truncate text-[6px] font-medium leading-none tracking-wide text-neutral-800">
+            {purityLine}
+          </p>
+          <p className="truncate text-[5.5px] tabular-nums leading-none text-neutral-700">{weightsLine}</p>
+        </div>
       </div>
     </article>
   );
@@ -147,7 +178,6 @@ export function TagPrintView() {
         ? "Print tag"
         : `Print tags (${tagCount})`;
   const countLabel = tagCount === 1 ? "1 tag" : `${tagCount} tags`;
-  const logoOmitted = previews.some((tag) => tag.logo_omitted_for_height);
   const returnHref = ids.length === 1 ? `/inventory/${ids[0]}` : "/inventory";
   const returnLabel = ids.length === 1 ? "Back to article" : "Back to inventory";
   const successMessage = isReprint
@@ -244,6 +274,14 @@ export function TagPrintView() {
           .tag-print-frame {
             display: contents;
           }
+          .tag-print-stamp-enlarge-slot {
+            width: auto !important;
+            height: auto !important;
+            display: contents;
+          }
+          .tag-print-stamp-enlarge {
+            transform: none !important;
+          }
           .tag-print-card {
             width: 100% !important;
             height: 100vh !important;
@@ -263,8 +301,8 @@ export function TagPrintView() {
             break-after: auto;
           }
           .tag-print-barcode {
-            padding-left: 0.5mm !important;
-            padding-right: 0.5mm !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
           }
           .tag-print-barcode svg {
             max-height: var(--tag-barcode-max, ${barcodeMaxMm}mm) !important;
@@ -290,28 +328,23 @@ export function TagPrintView() {
         }
         helpers={
           <>
-            <p className="text-sm text-tertiary">
+            <p className="text-md text-tertiary">
               {isReprint
                 ? "Same barcode as before. Printer not confirmed — a preview is not proof that the physical tag is readable."
                 : "Printer not confirmed. A preview is not proof that the physical tag is readable."}
             </p>
-            <p className="text-xs text-tertiary">
+            <p className="text-sm text-tertiary">
               In the print dialog, turn off “Headers and footers” so date, title, and URL are not printed.
             </p>
-            {logoOmitted ? (
-              <p className="text-sm text-warning-primary">
-                Tag too short for logo + scannable barcode; shop name is used instead.
-              </p>
-            ) : null}
           </>
         }
         primaryAction={
-          <Button color="primary" size="md" isDisabled={loading || tagCount === 0} onPress={openPrintDialog}>
+          <Button color="primary" size="lg" isDisabled={loading || tagCount === 0} onPress={openPrintDialog}>
             {printLabel}
           </Button>
         }
         secondaryAction={
-          <Button color="secondary" size="md" href={returnHref}>
+          <Button color="secondary" size="lg" href={returnHref}>
             {returnLabel}
           </Button>
         }
@@ -323,16 +356,16 @@ export function TagPrintView() {
             {awaitingPhysical && !recorded ? (
               <div className="flex flex-col gap-2 rounded-xl bg-secondary px-3 py-3 ring-1 ring-secondary">
                 <div>
-                  <p className="text-sm font-semibold text-primary">Did the physical tag print?</p>
-                  <p className="mt-0.5 text-xs text-tertiary">
+                  <p className="text-md font-semibold text-primary">Did the physical tag print?</p>
+                  <p className="mt-0.5 text-sm text-tertiary">
                     If nothing printed (including Cancel), choose No, print failed.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button color="primary" size="sm" isLoading={recording} onPress={() => void confirmPrinted()}>
+                  <Button color="primary" size="md" isLoading={recording} onPress={() => void confirmPrinted()}>
                     Yes, record print
                   </Button>
-                  <Button color="secondary" size="sm" isDisabled={recording} onPress={markPrintFailed}>
+                  <Button color="secondary" size="md" isDisabled={recording} onPress={markPrintFailed}>
                     No, print failed
                   </Button>
                 </div>
@@ -345,13 +378,33 @@ export function TagPrintView() {
           <TagPrintSkeleton showChrome={false} className="tag-print-stage-chrome print:hidden" label="Preparing tags…" />
         ) : null}
 
-        <div className="tag-print-list mx-auto grid max-w-5xl grid-cols-1 justify-items-center gap-6 sm:grid-cols-2 xl:grid-cols-3">
+        <div
+          className={
+            tagCount > 1
+              ? "tag-print-list mx-auto grid max-w-5xl grid-cols-2 justify-items-center gap-6"
+              : "tag-print-list mx-auto flex max-w-5xl flex-col items-center gap-6"
+          }
+        >
           {previews.map((tag) => (
             <div key={tag.article_id} className="tag-print-frame flex flex-col items-center gap-2">
-              <p className="tag-print-frame-caption text-xs text-tertiary print:hidden">
+              <p className="tag-print-frame-caption text-sm text-tertiary print:hidden">
                 {tag.article_number} · {tag.tag_width_mm} × {tag.tag_height_mm} mm
               </p>
-              <TagStamp tag={tag} />
+              {tagCount === 1 ? (
+                <div
+                  className="tag-print-stamp-enlarge-slot flex items-center justify-center"
+                  style={{
+                    width: `calc(${tag.tag_width_mm}mm * 2)`,
+                    height: `calc(${tag.tag_height_mm}mm * 2)`,
+                  }}
+                >
+                  <div className="tag-print-stamp-enlarge origin-center scale-200">
+                    <TagStamp tag={tag} />
+                  </div>
+                </div>
+              ) : (
+                <TagStamp tag={tag} />
+              )}
             </div>
           ))}
         </div>

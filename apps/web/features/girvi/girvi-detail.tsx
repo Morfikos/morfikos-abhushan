@@ -28,6 +28,7 @@ import { GirviRepaymentDialog } from "@/features/girvi/girvi-repayment-dialog";
 import { GirviSettleDialog } from "@/features/girvi/girvi-settle-dialog";
 import {
   GIRVI_RATE_PERIOD_LABEL,
+  custodyBadgeColor,
   girviAccessToken,
   girviErrorMessage,
   girviOverdueHint,
@@ -57,9 +58,6 @@ const MONEY_EVENT_LABELS: Record<string, string> = {
 };
 
 /** Ledger deltas are signed; screens show the money the customer paid or received. */
-function absoluteMoney(amount: string): string {
-  return amount.startsWith("-") ? amount.slice(1) : amount;
-}
 
 export function GirviDetail() {
   const staff = useStaff();
@@ -311,7 +309,7 @@ export function GirviDetail() {
                       )}
                     </Table.Cell>
                     <Table.Cell>
-                      <Badge color="gray" size="sm">
+                      <Badge color={custodyBadgeColor(item.status)} size="sm">
                         {item.status === "in_custody" ? "In custody" : "Released"}
                       </Badge>
                     </Table.Cell>
@@ -512,7 +510,7 @@ export function GirviDetail() {
               {statementQuery.data ? (
                 <div className="flex flex-col gap-6">
                   <div className="grid max-w-3xl gap-3 sm:grid-cols-3">
-                    <SectionCard className="gap-1 p-4 md:p-4">
+                    <SectionCard tone="metric">
                       <p className="text-sm text-tertiary">Principal outstanding</p>
                       <MoneyText
                         amount={statementQuery.data.principal_outstanding_inr}
@@ -520,7 +518,7 @@ export function GirviDetail() {
                         className="text-right text-display-xs font-semibold text-primary"
                       />
                     </SectionCard>
-                    <SectionCard className="gap-1 p-4 md:p-4">
+                    <SectionCard tone="metric">
                       <p className="text-sm text-tertiary">Interest outstanding</p>
                       <MoneyText
                         amount={statementQuery.data.interest_outstanding_inr}
@@ -528,7 +526,7 @@ export function GirviDetail() {
                         className="text-right text-display-xs font-semibold text-primary"
                       />
                     </SectionCard>
-                    <SectionCard className="gap-1 bg-secondary p-4 md:p-4">
+                    <SectionCard tone="metric" className="bg-secondary">
                       <p className="text-sm text-tertiary">Settlement payable</p>
                       <MoneyText
                         amount={statementQuery.data.payoff_inr}
@@ -630,10 +628,10 @@ export function GirviDetail() {
                         <MoneyText amount={event.amount_inr} className="text-right" />
                       </Table.Cell>
                       <Table.Cell className="text-right">
-                        <MoneyText amount={absoluteMoney(event.interest_delta_inr)} className="text-right" />
+                        <MoneyText amount={event.interest_delta_inr} sign="absolute" className="text-right" />
                       </Table.Cell>
                       <Table.Cell className="text-right">
-                        <MoneyText amount={absoluteMoney(event.principal_delta_inr)} className="text-right" />
+                        <MoneyText amount={event.principal_delta_inr} sign="absolute" className="text-right" />
                       </Table.Cell>
                     </Table.Row>
                   )}

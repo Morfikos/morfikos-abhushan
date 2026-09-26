@@ -21,6 +21,8 @@ export interface SelectProps extends Omit<AriaSelectProps<SelectItemType>, "chil
     items?: SelectItemType[];
     popoverClassName?: string;
     icon?: FC | ReactNode;
+    /** Shows a spinner in the trigger and keeps the control disabled. */
+    isLoading?: boolean;
     children: ReactNode | ((item: SelectItemType) => ReactNode);
 }
 
@@ -29,18 +31,43 @@ interface SelectValueProps {
     size: "sm" | "md" | "lg";
     isFocused: boolean;
     isDisabled: boolean;
+    isInvalid: boolean;
+    isLoading?: boolean;
     placeholder?: string;
     ref?: Ref<HTMLButtonElement>;
     icon?: FC | ReactNode;
 }
 
-const SelectValue = ({ isOpen, isFocused, isDisabled, size, placeholder, icon, ref }: SelectValueProps) => {
+const SelectLoadingIcon = ({ size }: { size: "sm" | "md" | "lg" }) => (
+    <svg
+        fill="none"
+        aria-hidden="true"
+        viewBox="0 0 20 20"
+        className={cx("ml-auto shrink-0 text-fg-quaternary", size === "lg" ? "size-5" : "size-4")}
+    >
+        <circle className="stroke-current opacity-30" cx="10" cy="10" r="8" fill="none" strokeWidth="2" />
+        <circle
+            className="origin-center animate-spin stroke-current"
+            cx="10"
+            cy="10"
+            r="8"
+            fill="none"
+            strokeWidth="2"
+            strokeDasharray="12.5 50"
+            strokeLinecap="round"
+        />
+    </svg>
+);
+
+const SelectValue = ({ isOpen, isFocused, isDisabled, isInvalid, isLoading, size, placeholder, icon, ref }: SelectValueProps) => {
     return (
         <AriaButton
             ref={ref}
             className={cx(
                 "relative flex w-full cursor-pointer items-center rounded-lg bg-primary shadow-xs ring-1 ring-primary outline-hidden transition duration-100 ease-linear ring-inset",
-                (isFocused || isOpen) && "ring-2 ring-brand",
+                isInvalid && "ring-error_subtle",
+                (isFocused || isOpen) && !isInvalid && "ring-2 ring-brand",
+                (isFocused || isOpen) && isInvalid && "ring-2 ring-error",
                 isDisabled && "cursor-not-allowed opacity-50",
             )}
         >
@@ -82,10 +109,18 @@ const SelectValue = ({ isOpen, isFocused, isDisabled, size, placeholder, icon, r
                                 <p className={cx("text-placeholder", sizes[size].text)}>{placeholder}</p>
                             )}
 
-                            <ChevronDown
-                                aria-hidden="true"
-                                className={cx("ml-auto shrink-0 text-fg-quaternary", size === "lg" ? "size-5" : "size-4 stroke-[2.25px]")}
-                            />
+                            {isLoading ? (
+                                <SelectLoadingIcon size={size} />
+                            ) : (
+                                <ChevronDown
+                                    aria-hidden="true"
+                                    className={cx(
+                                        "ml-auto shrink-0 text-fg-quaternary transition-transform duration-100",
+                                        size === "lg" ? "size-5" : "size-4 stroke-[2.25px]",
+                                        isOpen && "rotate-180",
+                                    )}
+                                />
+                            )}
                         </>
                     );
                 }}
@@ -102,9 +137,11 @@ const Select = ({
     items,
     label,
     hint,
+    error,
     tooltip,
     hideRequiredIndicator,
     className,
+    isLoading,
     ...rest
 }: SelectProps) => {
     return (
@@ -113,12 +150,12 @@ const Select = ({
                 {(state) => (
                     <>
                         {label && (
-                            <Label isRequired={hideRequiredIndicator ? false : state.isRequired} tooltip={tooltip}>
+                            <Label isRequired={!hideRequiredIndicator && state.isRequired} isInvalid={state.isInvalid} tooltip={tooltip}>
                                 {label}
                             </Label>
                         )}
 
-                        <SelectValue {...state} {...{ size, placeholder }} icon={icon} />
+                        <SelectValue {...state} {...{ size, placeholder, isLoading }} icon={icon} />
 
                         <Popover size={size} className={rest.popoverClassName}>
                             <AriaListBox items={items} className="size-full outline-hidden">
@@ -126,11 +163,16 @@ const Select = ({
                             </AriaListBox>
                         </Popover>
 
-                        {hint && (
-                            <HintText isInvalid={state.isInvalid} className={cx(size === "sm" && "text-xs")}>
+                        {hint ? (
+                            <HintText slot="description" className={cx(size === "sm" && "text-xs")}>
                                 {hint}
                             </HintText>
-                        )}
+                        ) : null}
+                        {error ? (
+                            <HintText slot="errorMessage" className={cx(size === "sm" && "text-xs")}>
+                                {error}
+                            </HintText>
+                        ) : null}
                     </>
                 )}
             </AriaSelect>

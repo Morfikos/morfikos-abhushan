@@ -9,6 +9,7 @@ import {
   makingChargeDefaultListSchema,
   makingChargeDefaultSchema,
   reminderSettingsSchema,
+  collectionsReportSchema,
   dashboardReportSchema,
   exportResultSchema,
   shopBrandingPublicSchema,
@@ -50,6 +51,7 @@ import {
   type MetalRate,
   type MetalRateCreate,
   type MetalRateList,
+  type MetalRatePatch,
   type PurityLabel,
   type PurityLabelCreate,
   type PurityLabelList,
@@ -98,6 +100,7 @@ import {
   paymentListSchema,
   paymentSchema,
   type CustomerSalesStatement,
+  type CollectionsReport,
   type DailyCollections,
   type InvoiceCorrections,
   type InvoicePayments,
@@ -326,6 +329,18 @@ export async function fetchMetalRatesCoverage(
 
 export async function createMetalRateRequest(accessToken: string, input: MetalRateCreate): Promise<MetalRate> {
   return staffRequest(accessToken, "/api/v1/shop/rates", { method: "POST", body: input, schema: metalRateSchema });
+}
+
+export async function patchMetalRateRequest(
+  accessToken: string,
+  rateId: string,
+  input: MetalRatePatch,
+): Promise<MetalRate> {
+  return staffRequest(accessToken, `/api/v1/shop/rates/${rateId}`, {
+    method: "PATCH",
+    body: input,
+    schema: metalRateSchema,
+  });
 }
 
 export async function fetchMakingChargeDefaults(
@@ -851,8 +866,10 @@ export async function fetchInvoices(
   if (query.q) {
     params.set("q", query.q);
   }
-  if (query.hasDue) {
+  if (query.hasDue === true) {
     params.set("has_due", "1");
+  } else if (query.hasDue === false) {
+    params.set("has_due", "0");
   }
   return staffRequest(accessToken, `/api/v1/invoices?${params.toString()}`, { schema: invoiceListSchema });
 }
@@ -1019,6 +1036,16 @@ export async function fetchDailyCollections(
   const query = params.toString();
   return staffRequest(accessToken, `/api/v1/collections/daily${query ? `?${query}` : ""}`, {
     schema: dailyCollectionsSchema,
+  });
+}
+
+/** Net collections (in minus refunds/reversals) for a period, by method and business date. */
+export async function fetchCollectionsReport(
+  accessToken: string,
+  range: { from?: string; to?: string },
+): Promise<CollectionsReport> {
+  return staffRequest(accessToken, `/api/v1/reports/collections${reportRangeQuery(range)}`, {
+    schema: collectionsReportSchema,
   });
 }
 

@@ -5,6 +5,7 @@ import type {
   DocumentSequence,
   MetalRate,
   MetalRateCreate,
+  MetalRatePatch,
   MakingCharge,
   MakingChargeDefault,
   MakingChargeDefaultUpsert,
@@ -105,6 +106,7 @@ export type ShopSettingsRepository = {
   clearLogo(): Promise<ShopProfileRecord>;
   listRates(input: PaginationInput): Promise<PaginatedRows<MetalRate>>;
   ratesCoverageForBusinessDate(businessDate: string): Promise<{ gold: boolean; silver: boolean }>;
+  getRate(id: string): Promise<MetalRate | null>;
   insertRate(input: {
     metal: MetalRateCreate["metal"];
     purity: string;
@@ -112,6 +114,7 @@ export type ShopSettingsRepository = {
     effectiveBusinessDate: string;
     createdByStaffUserId: string;
   }): Promise<MetalRate>;
+  updateRate(input: { id: string; ratePerGram: string }): Promise<MetalRate>;
   activePurityLabelExists(label: string): Promise<boolean>;
   listMakingChargeDefaults(input: PaginationInput): Promise<PaginatedRows<MakingChargeDefault>>;
   upsertMakingChargeDefault(input: {
@@ -344,13 +347,52 @@ export async function createMetalRate(
     return rate;
   } catch (error) {
     if (isUniqueViolation(error)) {
+      const today = kolkataBusinessDate(now);
       throw conflictError(
         "RATE_DATE_CONFLICT",
-        "A rate already exists for this metal, purity, and business date. Insert a new dated row instead of editing history.",
+        effectiveBusinessDate === today
+          ? "A rate already exists for this metal, purity, and business date. Edit today’s row instead."
+          : "A rate already exists for this metal, purity, and business date. Insert a new dated row instead of editing history.",
       );
     }
     throw error;
   }
+}
+
+export async function updateMetalRate(
+  repository: ShopSettingsRepository,
+  access: ResolvedStaffAccess,
+  rateId: string,
+  input: MetalRatePatch,
+  now: Date = new Date(),
+): Promise<MetalRate> {
+  assertPermission(access, "rates.write");
+  const existing = await repository.getRate(rateId);
+  if (!existing) {
+    throw notFoundError("Metal rate was not found.");
+  }
+  const today = kolkataBusinessDate(now);
+  if (existing.effective_business_date !== today) {
+    throw conflictError(
+      "RATE_NOT_TODAY",
+      "Only today’s rate can be edited. Add a new dated row for other days.",
+    );
+  }
+  const rate = await repository.updateRate({ id: rateId, ratePerGram: input.rate_per_gram });
+  await repository.writeAudit({
+    actorStaffUserId: access.staff_user_id,
+    action: "shop.rate.update",
+    entityType: "metal_rate",
+    entityId: rate.id,
+    payload: {
+      metal: rate.metal,
+      purity: rate.purity,
+      effective_business_date: rate.effective_business_date,
+      previous_rate_per_gram: existing.rate_per_gram,
+      rate_per_gram: rate.rate_per_gram,
+    },
+  });
+  return rate;
 }
 
 export async function listMakingChargeDefaults(

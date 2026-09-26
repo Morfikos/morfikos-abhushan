@@ -98,7 +98,7 @@ export function TableSkeleton({
           ))}
         </div>
         {Array.from({ length: rows }, (_, row) => (
-          <div key={`r-${String(row)}`} className="flex h-12 items-center gap-3 border-b border-secondary px-4 last:border-b-0 md:px-5">
+          <div key={`r-${String(row)}`} className="flex h-[68px] items-center gap-3 border-b border-secondary px-4 last:border-b-0 md:px-5">
             {showSelectionColumn ? <Skeleton className="size-4 shrink-0" /> : null}
             {Array.from({ length: columns }, (_, col) => (
               <Skeleton
@@ -195,6 +195,7 @@ export function FormSkeleton({
   sections = 3,
   fieldsPerSection = 4,
   showStickyActions = false,
+  layout = "stack",
   className,
   label = "Loading…",
 }: {
@@ -202,9 +203,67 @@ export function FormSkeleton({
   fieldsPerSection?: number;
   /** Matches StickyFormActions bar under SectionCard forms. */
   showStickyActions?: boolean;
+  /** Receive / edit article: form column + sticky preview rail. */
+  layout?: "stack" | "form-rail" | "receive-rail";
   className?: string;
   label?: string;
 }): ReactNode {
+  if (layout === "form-rail" || layout === "receive-rail") {
+    return (
+      <div
+        className={cx("flex w-full flex-col gap-8", className)}
+        aria-busy="true"
+        aria-live="polite"
+      >
+        <LoadingLabel label={label} />
+        <div className="grid gap-7 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className={cx(sectionCardClass, "gap-7 p-6 md:p-7")}>
+            {Array.from({ length: 3 }, (_, section) => (
+              <div
+                key={section}
+                className={cx(
+                  "flex flex-col gap-6",
+                  section > 0 && "border-t border-secondary pt-6",
+                )}
+              >
+                <div className="flex items-baseline gap-2.5">
+                  <Skeleton className="h-4 w-6" />
+                  <Skeleton className="h-6 w-40" />
+                </div>
+                <div className="grid gap-6 sm:grid-cols-2">
+                  {Array.from({ length: section === 1 ? 3 : 4 }, (_, field) => (
+                    <div key={field} className="flex flex-col gap-2">
+                      <Skeleton className="h-3 w-20" />
+                      <Skeleton className="h-10 w-full rounded-lg" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <aside className="flex flex-col gap-6">
+            <div className={cx(sectionCardClass, "p-6")}>
+              <Skeleton className="h-5 w-20" />
+              <Skeleton className="aspect-[4/3] w-full rounded-lg" />
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-6 w-36" />
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-8 w-24" />
+            </div>
+            <div className={cx(sectionCardClass, "p-6")}>
+              <Skeleton className="h-6 w-40" />
+              <Skeleton className="h-5 w-full" />
+              <Skeleton className="h-5 w-full" />
+              <Skeleton className="h-5 w-3/4" />
+              <Skeleton className="mt-2 h-11 w-full rounded-lg" />
+              <Skeleton className="mx-auto h-4 w-16" />
+            </div>
+          </aside>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={cx("mx-auto flex w-full max-w-3xl flex-col gap-4", className)} aria-busy="true" aria-live="polite">
       <LoadingLabel label={label} />
@@ -334,16 +393,24 @@ export function DirectoryFilterStripSkeleton({
   );
 }
 
-/** Inventory filter toolbar: scan + labeled search/status/metal/category. */
+/** Inventory filter toolbar: merged lookup, status tabs, compact metal/category/purity. */
 export function InventoryFilterStripSkeleton(): ReactNode {
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-end gap-3">
-        <LabeledControlSkeleton controlWidth="w-44" />
-        <LabeledControlSkeleton className="min-w-0 max-w-md flex-1" controlWidth="w-full" />
-        <LabeledControlSkeleton controlWidth="w-36" />
-        <LabeledControlSkeleton controlWidth="w-32" />
-        <LabeledControlSkeleton controlWidth="w-40" />
+    <div className="flex flex-col gap-5">
+      <Skeleton className="h-12 w-full rounded-lg" />
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex min-w-0 flex-1 gap-6 overflow-hidden">
+          <Skeleton className="h-11 w-14 shrink-0" />
+          <Skeleton className="h-11 w-24 shrink-0" />
+          <Skeleton className="h-11 w-16 shrink-0" />
+          <Skeleton className="h-11 w-28 shrink-0" />
+          <Skeleton className="h-11 w-32 shrink-0" />
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-3">
+          <Skeleton className="h-11 w-44 rounded-lg" />
+          <Skeleton className="h-11 w-52 rounded-lg" />
+          <Skeleton className="h-11 w-40 rounded-lg" />
+        </div>
       </div>
     </div>
   );
@@ -509,47 +576,110 @@ export function DefinitionListSkeleton({
   );
 }
 
-/** Dashboard in-feature / Suspense body: tiles → export strip → dues → charts → tables → ops. */
+/** Dashboard in-feature / Suspense body: checklist → totals → 2×2 or chart. */
 export function DashboardBodySkeleton({
   className,
   label = "Loading dashboard…",
+  layout = "today",
 }: {
   className?: string;
   label?: string;
+  layout?: "today" | "period";
 }): ReactNode {
   return (
-    <div className={cx("flex flex-col gap-6", className)} aria-busy="true" aria-live="polite">
+    <div className={cx("flex flex-col gap-3.5", className)} aria-busy="true" aria-live="polite">
       <LoadingLabel label={label} />
-      <MetricTilesSkeleton count={5} label="" />
-      <div className="flex flex-col gap-2">
-        <Skeleton className="h-4 w-36" />
-        <div className="flex flex-wrap gap-2">
-          <Skeleton className="h-8 w-32 rounded-lg" />
-          <Skeleton className="h-8 w-40 rounded-lg" />
-          <Skeleton className="h-8 w-36 rounded-lg" />
-          <Skeleton className="h-8 w-36 rounded-lg" />
-          <Skeleton className="h-8 w-32 rounded-lg" />
+      <div className="overflow-hidden border-2 border-primary bg-primary">
+        <Skeleton className="h-7 w-full rounded-none bg-primary-solid/80" />
+        <div className="flex flex-col gap-0">
+          {Array.from({ length: 3 }, (_, index) => (
+            <div
+              key={index}
+              className="grid grid-cols-[14px_2.5rem_minmax(0,1fr)_auto] items-center gap-3 border-b border-secondary px-3 py-2 last:border-b-0"
+            >
+              <Skeleton className="size-3 rounded-none" />
+              <Skeleton className="h-4 w-6" />
+              <Skeleton className="h-3 w-48 max-w-full" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+          ))}
         </div>
       </div>
-      <div className={sectionCardClass}>
-        <Skeleton className="h-5 w-40" />
-        <Skeleton className="h-3 w-48 max-w-full" />
-        <TableSkeleton columns={4} rows={4} label="" />
+      <div className="grid grid-cols-2 border-2 border-primary bg-primary lg:grid-cols-5">
+        {Array.from({ length: 5 }, (_, index) => (
+          <div
+            key={index}
+            className="flex flex-col gap-1.5 border-b border-secondary p-2.5 last:border-b-0 sm:border-r sm:border-b-0 sm:last:border-r-0"
+          >
+            <Skeleton className="h-2.5 w-14" />
+            <Skeleton className="h-6 w-24" />
+            <Skeleton className="h-2.5 w-20" />
+            <Skeleton className="h-2.5 w-12" />
+          </div>
+        ))}
       </div>
-      <ChartSkeleton label="" />
-      <div className="flex flex-wrap gap-4 border-t border-transparent pt-1">
-        <Skeleton className="h-3 w-20" />
-        <Skeleton className="h-3 w-24" />
-        <Skeleton className="h-3 w-20" />
-        <Skeleton className="h-3 w-28" />
-      </div>
-      <div className={sectionCardClass}>
-        <Skeleton className="h-5 w-44" />
-        <Skeleton className="h-3 w-56 max-w-full" />
-        <TableSkeleton columns={5} rows={4} label="" />
-      </div>
-      <TableSkeleton columns={5} rows={5} label="" />
-      <MetricTilesSkeleton count={3} label="" />
+      {layout === "period" ? (
+        <div className="border-2 border-primary bg-primary p-3">
+          <div className="mb-3 flex justify-between gap-2">
+            <Skeleton className="h-4 w-56" />
+            <Skeleton className="h-3 w-32" />
+          </div>
+          <Skeleton className="h-56 w-full rounded-none" />
+          <div className="mt-3 flex flex-col gap-2 border-t border-secondary pt-2">
+            <Skeleton className="h-3 w-40" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-3.5 lg:grid-cols-2">
+          <div className="border-2 border-primary bg-primary">
+            <div className="border-b-2 border-primary px-3 py-2">
+              <Skeleton className="h-4 w-40" />
+            </div>
+            {Array.from({ length: 3 }, (_, index) => (
+              <div key={index} className="flex justify-between gap-2 border-b border-secondary px-3 py-2.5 last:border-b-0">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-3 w-28" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+            ))}
+          </div>
+          <div className="border-2 border-primary bg-primary">
+            <div className="border-b-2 border-primary px-3 py-2">
+              <Skeleton className="h-4 w-48" />
+            </div>
+            <div className="flex flex-col gap-3 p-3">
+              <Skeleton className="h-8 w-32" />
+              <Skeleton className="h-24 w-full rounded-none" />
+              <Skeleton className="h-2.5 w-full rounded-none" />
+            </div>
+          </div>
+          <div className="border-2 border-primary bg-primary">
+            <div className="border-b-2 border-primary px-3 py-2">
+              <Skeleton className="h-4 w-44" />
+            </div>
+            {Array.from({ length: 2 }, (_, index) => (
+              <div key={index} className="flex justify-between gap-2 border-b border-secondary px-3 py-2.5 last:border-b-0">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-3 w-12" />
+                <Skeleton className="h-3 w-14" />
+              </div>
+            ))}
+          </div>
+          <div className="border-2 border-primary bg-primary">
+            <div className="border-b-2 border-primary px-3 py-2">
+              <Skeleton className="h-4 w-24" />
+            </div>
+            <div className="grid grid-cols-3 gap-2 p-3">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -566,25 +696,25 @@ export function PrintDocumentSkeleton({
     <div className={cx("min-h-screen bg-secondary", className)} aria-busy="true" aria-live="polite">
       <LoadingLabel label={label} />
       <div className="sticky top-0 z-10 border-b border-secondary bg-primary">
-        <div className="mx-auto flex max-w-5xl flex-col gap-3 px-4 py-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="mx-auto flex max-w-5xl flex-col gap-3 px-5 py-5 md:px-7">
+          <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex min-w-0 flex-col gap-2">
-              <Skeleton className="h-5 w-40" />
-              <div className="flex flex-wrap gap-2">
-                <Skeleton className="h-6 w-24 rounded-md" />
-                <Skeleton className="h-6 w-20 rounded-md" />
-                <Skeleton className="h-6 w-14 rounded-md" />
+              <Skeleton className="h-8 w-48" />
+              <div className="flex flex-wrap items-center gap-2">
+                <Skeleton className="h-5 w-28" />
+                <Skeleton className="h-7 w-36 rounded-md" />
               </div>
-              <Skeleton className="h-3 w-72 max-w-full" />
+              <Skeleton className="h-4 w-72 max-w-full" />
+              <Skeleton className="h-3.5 w-96 max-w-full" />
             </div>
-            <div className="flex gap-2">
-              <Skeleton className="h-10 w-20 rounded-lg" />
-              <Skeleton className="h-10 w-32 rounded-lg" />
+            <div className="flex flex-wrap gap-3">
+              <Skeleton className="h-11 w-24 rounded-lg" />
+              <Skeleton className="h-11 w-36 rounded-lg" />
             </div>
           </div>
-          <div className="flex flex-wrap gap-4">
-            <Skeleton className="h-10 w-48 rounded-lg" />
-            <Skeleton className="h-10 w-40 rounded-lg" />
+          <div className="flex flex-wrap items-center gap-3">
+            <Skeleton className="h-11 w-48 rounded-lg" />
+            <Skeleton className="h-11 w-36 rounded-lg" />
           </div>
         </div>
       </div>
@@ -624,19 +754,19 @@ export function StaffShellSkeleton({
   label?: string;
 }): ReactNode {
   return (
-    <div className={cx("bg-primary flex min-h-screen", className)} aria-busy="true" aria-live="polite">
+    <div className={cx("bg-secondary flex min-h-screen", className)} aria-busy="true" aria-live="polite">
       <LoadingLabel label={label} />
-      <aside className="bg-secondary hidden w-70 shrink-0 flex-col gap-4 border-r border-secondary p-4 lg:flex lg:pt-5">
-        <Skeleton className="h-8 w-36" />
-        <div className="flex flex-col gap-2 pt-4">
+      <aside className="bg-sidebar hidden w-70 shrink-0 flex-col gap-4 p-4 shadow-(--shadow-sidebar-rail) lg:flex lg:pt-5">
+        <Skeleton className="h-8 w-36 bg-white/10" />
+        <div className="flex flex-col gap-1.5 pt-4">
           {Array.from({ length: 8 }, (_, index) => (
-            <Skeleton key={index} className="h-9 w-full rounded-lg" />
+            <Skeleton key={index} className="h-11 w-full rounded-lg bg-white/10" />
           ))}
         </div>
-        <div className="mt-auto flex flex-col gap-2 border-t border-secondary pt-4">
-          <Skeleton className="h-4 w-28" />
-          <Skeleton className="h-3 w-40" />
-          <Skeleton className="h-9 w-full rounded-lg" />
+        <div className="mt-auto flex flex-col gap-2 border-t border-sidebar pt-4">
+          <Skeleton className="h-4 w-28 bg-white/10" />
+          <Skeleton className="h-3 w-40 bg-white/10" />
+          <Skeleton className="h-9 w-full rounded-lg bg-white/10" />
         </div>
       </aside>
       <div className="min-w-0 flex-1 px-4 py-6 lg:px-8">{staffGateMainSkeleton(pathname)}</div>
@@ -746,44 +876,57 @@ export function SettingsPageSkeleton({
 }
 
 /**
- * Inventory article detail: StaffPageHeader (badges + Edit) → xl Piece / Spec / Movement
- * → optional Adjustment SectionCard. Prefer over StaffDetailPageSkeleton layout="split3".
+ * Inventory article detail: header → fact band → photo / spec / history.
+ * Adjustment lives in a dialog (no body SectionCard).
  */
 export function ArticleDetailSkeleton({
-  showAdjustment = true,
   className,
   label = "Loading article…",
 }: {
-  /** Gate on inventory.write when known from useStaff (avoid late insert for writers). */
+  /** @deprecated Adjustment is dialog-only; ignored. */
   showAdjustment?: boolean;
   className?: string;
   label?: string;
 }): ReactNode {
   return (
-    <div className={cx("flex w-full flex-col gap-6", className)} aria-busy="true" aria-live="polite">
+    <div className={cx("flex w-full flex-col gap-8", className)} aria-busy="true" aria-live="polite">
       <LoadingLabel label={label} />
       <div className="flex flex-col gap-3">
         <Skeleton className="h-4 w-28" />
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-2">
-            <Skeleton className="h-7 w-48" />
-            <Skeleton className="h-4 w-64 max-w-full" />
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Skeleton className="h-8 w-40" />
               <Skeleton className="h-6 w-20 rounded-full" />
               <Skeleton className="h-6 w-24 rounded-full" />
             </div>
+            <Skeleton className="h-4 w-64 max-w-full" />
           </div>
-          <Skeleton className="h-9 w-28 rounded-lg" />
+          <div className="flex flex-wrap gap-2">
+            <Skeleton className="h-9 w-28 rounded-lg" />
+            <Skeleton className="h-9 w-28 rounded-lg" />
+            <Skeleton className="h-9 w-28 rounded-lg" />
+          </div>
         </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(16rem,20rem)_1fr_minmax(16rem,20rem)]">
+      <div className="grid grid-cols-2 overflow-hidden rounded-xl ring-1 ring-secondary lg:grid-cols-6">
+        {Array.from({ length: 6 }, (_, index) => (
+          <div key={index} className="border-b border-secondary px-5 py-5 lg:border-r lg:border-b-0 last:border-0">
+            <Skeleton className="h-3.5 w-16" />
+            <Skeleton className="mt-2 h-6 w-24" />
+          </div>
+        ))}
+      </div>
+
+      <div className="grid gap-7 xl:grid-cols-[280px_minmax(0,1fr)_280px]">
         <div className={sectionCardClass}>
-          <Skeleton className="aspect-4/5 w-full rounded-lg" />
+          <Skeleton className="aspect-[4/3] w-full rounded-lg" />
           <Skeleton className="h-3 w-40" />
-          <div className="flex flex-wrap gap-2 border-t border-secondary pt-3">
-            <Skeleton className="h-8 w-24 rounded-lg" />
-            <Skeleton className="h-8 w-28 rounded-lg" />
+          <div className="border-t border-secondary pt-4">
+            <Skeleton className="h-3.5 w-24" />
+            <Skeleton className="mt-2.5 h-20 w-full rounded-lg" />
+            <Skeleton className="mt-2.5 h-3 w-48" />
           </div>
         </div>
         <div className={sectionCardClass}>
@@ -792,24 +935,11 @@ export function ArticleDetailSkeleton({
         </div>
         <PanelSkeleton rows={4} chrome="card" label="" />
       </div>
-
-      {showAdjustment ? (
-        <div className={sectionCardClass}>
-          <div>
-            <Skeleton className="h-5 w-32" />
-            <Skeleton className="mt-2 h-3 w-72 max-w-full" />
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <LabeledControlSkeleton controlWidth="w-full" />
-            <LabeledControlSkeleton controlWidth="w-full" />
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
 
-/** Finalized invoice detail: header + lines / collections / corrections + snapshot. */
+/** Finalized invoice detail: comfort header + money band + lines / collections / corrections + documents rail. */
 export function InvoiceFinalizedDetailSkeleton({
   className,
   label = "Loading invoice…",
@@ -820,48 +950,64 @@ export function InvoiceFinalizedDetailSkeleton({
   return (
     <div className={cx("flex flex-col gap-6", className)} aria-busy="true" aria-live="polite">
       <LoadingLabel label={label} />
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex flex-col gap-2">
-          <Skeleton className="h-4 w-24" />
-          <div className="flex flex-wrap items-center gap-2">
-            <Skeleton className="h-7 w-40" />
-            <Skeleton className="h-6 w-20 rounded-full" />
+      <div className="flex flex-col gap-3">
+        <Skeleton className="h-5 w-24" />
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <Skeleton className="h-9 w-44" />
+              <Skeleton className="h-7 w-28 rounded-full" />
+            </div>
+            <Skeleton className="h-6 w-72 max-w-full" />
           </div>
-          <Skeleton className="h-4 w-56 max-w-full" />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Skeleton className="h-9 w-32 rounded-lg" />
-          <Skeleton className="h-9 w-24 rounded-lg" />
+          <div className="flex flex-wrap gap-3">
+            <Skeleton className="h-11 w-20 rounded-lg" />
+            <Skeleton className="h-11 w-24 rounded-lg" />
+            <Skeleton className="h-11 w-36 rounded-lg" />
+          </div>
         </div>
       </div>
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
-        <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-2 overflow-hidden rounded-xl ring-1 ring-secondary lg:grid-cols-4">
+        {Array.from({ length: 4 }, (_, index) => (
+          <div key={index} className="border-b border-secondary px-5 py-4 lg:border-r lg:border-b-0">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="mt-2 h-7 w-28" />
+          </div>
+        ))}
+      </div>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
+        <div className="flex flex-col gap-6">
           <TableCard.Root>
-            <TableSkeleton columns={5} rows={6} showCard={false} showHeader={false} label="" />
+            <Skeleton className="mx-4 my-3 h-5 w-28 md:mx-6" />
+            <TableSkeleton columns={5} rows={4} showCard={false} showHeader={false} label="" />
           </TableCard.Root>
           <div className={sectionCardClass}>
             <Skeleton className="h-5 w-36" />
-            <PanelSkeleton rows={3} showTitle={false} chrome="bare" label="" />
+            <PanelSkeleton rows={2} showTitle={false} chrome="bare" label="" />
           </div>
           <div className={sectionCardClass}>
-            <Skeleton className="h-5 w-36" />
-            <PanelSkeleton rows={3} showTitle={false} chrome="bare" label="" />
+            <Skeleton className="h-5 w-40" />
+            <PanelSkeleton rows={2} showTitle={false} chrome="bare" label="" />
           </div>
         </div>
-        <div className="flex flex-col gap-3 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary">
-          <Skeleton className="h-5 w-28" />
-          <DefinitionListSkeleton rows={5} label="" />
-          <div className="border-t border-secondary pt-3">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="mt-2 h-8 w-full rounded-lg" />
+        <aside className="flex flex-col gap-4">
+          <div className="overflow-hidden rounded-xl ring-1 ring-secondary">
+            <div className="border-b border-secondary px-5 py-3.5">
+              <Skeleton className="h-4 w-24" />
+            </div>
+            <div className="flex flex-col gap-2.5 px-5 py-4">
+              <Skeleton className="h-5 w-28" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-11 w-full rounded-lg" />
+            </div>
           </div>
-        </div>
+        </aside>
       </div>
     </div>
   );
 }
 
-/** POS billing: Sale card + sticky Totals rail matching PosWorkspace / PosTotalsPanel. */
+/** POS billing: customer/scan + lines + sticky totals rail matching PosWorkspace. */
 export function PosWorkspaceSkeleton({
   className,
   label = "Preparing draft…",
@@ -872,54 +1018,77 @@ export function PosWorkspaceSkeleton({
   return (
     <div
       className={cx(
-        "flex flex-col gap-6 md:gap-5 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(300px,340px)] lg:items-start",
+        "flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-6",
         className,
       )}
       aria-busy="true"
       aria-live="polite"
     >
       <LoadingLabel label={label} />
-      <div className="flex min-w-0 flex-col gap-4">
-        <div className="flex flex-col gap-2">
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-7 w-36" />
-          <Skeleton className="h-4 w-72 max-w-full" />
+      <div className="flex min-w-0 flex-col gap-6">
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-5 w-24" />
+            <Skeleton className="h-8 w-40" />
+          </div>
+          <Skeleton className="ml-auto h-5 w-28" />
+          <Skeleton className="h-11 w-28 shrink-0 rounded-lg" />
         </div>
-        <TableCard.Root>
-          <TableCard.Header title="Sale" badge={<Skeleton className="h-5 w-8 rounded-full" />} description={label} />
-          <div className="flex flex-col gap-3 border-b border-secondary px-4 py-4 md:px-6">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-              <LabeledControlSkeleton className="min-w-0 flex-1" controlWidth="w-full" />
-              <Skeleton className="h-10 w-24 shrink-0 rounded-lg" />
-              <Skeleton className="h-10 w-32 shrink-0 rounded-lg" />
-            </div>
-            <div className="flex flex-col gap-2 lg:flex-row lg:items-end">
-              <LabeledControlSkeleton className="min-w-0 flex-1" controlWidth="w-full" />
-              <Skeleton className="h-10 w-36 shrink-0 rounded-lg" />
-              <Skeleton className="h-10 w-32 shrink-0 rounded-lg" />
+        <Skeleton className="h-20 w-full rounded-xl" />
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+            <Skeleton className="h-16 min-w-0 flex-1 rounded-lg" />
+            <div className="flex shrink-0 flex-col gap-1.5">
+              <Skeleton className="h-5 w-24" />
+              <Skeleton className="h-11 w-28 rounded-lg" />
             </div>
           </div>
+          <Skeleton className="h-11 w-40 rounded-lg" />
+        </div>
+        <TableCard.Root>
           <TableSkeleton columns={6} rows={5} showCard={false} label="" />
         </TableCard.Root>
       </div>
-      <aside className="sticky top-4 flex flex-col gap-4 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary">
-        <Skeleton className="h-5 w-20" />
-        <div className="rounded-lg bg-secondary px-3 py-3">
-          <Skeleton className="h-3 w-24" />
-          <Skeleton className="mt-2 h-8 w-40" />
-        </div>
-        <div className="flex flex-col gap-2">
-          {Array.from({ length: 6 }, (_, index) => (
-            <div key={index} className="flex justify-between gap-3">
-              <Skeleton className="h-3 w-16" />
-              <Skeleton className="h-3 w-20" />
+      <aside className="sticky top-4 flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden rounded-xl shadow-xs ring-1 ring-secondary lg:w-[320px]">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-primary">
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="flex flex-col items-center gap-2 px-5 py-4">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-4 w-24" />
             </div>
-          ))}
-        </div>
-        <div className="flex flex-col gap-3 border-t border-secondary pt-4">
-          <LabeledControlSkeleton controlWidth="w-full" />
-          <LabeledControlSkeleton controlWidth="w-full" />
-          <Skeleton className="h-11 w-full rounded-lg" />
+            <div className="flex flex-col gap-3 border-t border-dashed border-secondary px-5 py-4">
+              {Array.from({ length: 2 }, (_, index) => (
+                <div key={index} className="flex justify-between gap-3">
+                  <div className="flex min-w-0 flex-col gap-1.5">
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-4 w-36" />
+                  </div>
+                  <Skeleton className="h-4 w-16 shrink-0" />
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-col gap-3 border-t border-dashed border-secondary px-5 py-4">
+              {Array.from({ length: 3 }, (_, index) => (
+                <div key={index} className="flex justify-between gap-3">
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-4 w-20" />
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-col gap-3 border-t border-dashed border-secondary px-5 py-4">
+              <Skeleton className="h-5 w-24" />
+              <Skeleton className="h-20 w-full rounded-lg" />
+              <Skeleton className="h-11 w-full rounded-lg" />
+              <Skeleton className="h-24 w-full rounded-lg" />
+            </div>
+          </div>
+          <div className="mt-auto flex flex-col gap-3 border-t-2 border-primary px-5 py-4">
+            <div className="flex flex-col gap-1">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-8 w-36" />
+            </div>
+            <Skeleton className="h-11 w-full rounded-lg" />
+          </div>
         </div>
       </aside>
     </div>

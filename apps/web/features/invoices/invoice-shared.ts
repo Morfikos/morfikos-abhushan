@@ -1,10 +1,11 @@
 import type { InvoiceLinePricing } from "@aabhushan/contracts";
 
 import { formatInr, isZeroMoney } from "@/lib/money";
+import { compareMoney, subtractMoney } from "@/lib/money";
 import { StaffApiError } from "@/lib/staff-api";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
-export { formatInr, isZeroMoney };
+export { formatInr, isZeroMoney, compareMoney, subtractMoney };
 
 export async function invoiceAccessToken(): Promise<string> {
   const supabase = createBrowserSupabaseClient();
@@ -18,6 +19,19 @@ export async function invoiceAccessToken(): Promise<string> {
 
 export function formatGrams(value: string): string {
   return `${value} g`;
+}
+
+/** Counter display: two decimal grams, independent of stored precision. */
+export function formatGramsDisplay(value: string): string {
+  const grams = Number.parseFloat(value);
+  if (!Number.isFinite(grams)) {
+    return formatGrams(value);
+  }
+  return `${grams.toFixed(2)} g`;
+}
+
+export function invoiceStatusColor(status: "draft" | "finalized" | string): "success" | "gray" {
+  return status === "finalized" ? "success" : "gray";
 }
 
 /** Strip trailing ` · ART…` when description already embeds the article number (display only). */
@@ -52,25 +66,29 @@ export function makingValueFieldMeta(method: MakingMethod): {
   ariaLabel: string;
   placeholder: string;
   label: string;
+  unit: "money" | "per_gram" | "percent";
 } {
   if (method === "fixed") {
     return {
-      ariaLabel: "Making amount (INR)",
+      ariaLabel: "Making amount",
       placeholder: "0.00",
-      label: "Making amount (INR)",
+      label: "Making",
+      unit: "money",
     };
   }
   if (method === "per_gram") {
     return {
-      ariaLabel: "Making rate (₹/g)",
+      ariaLabel: "Making rate per gram",
       placeholder: "0",
-      label: "Making rate (₹/g)",
+      label: "Making",
+      unit: "per_gram",
     };
   }
   return {
     ariaLabel: "Making percent",
     placeholder: "0",
-    label: "Making percent",
+    label: "Making",
+    unit: "percent",
   };
 }
 
@@ -145,4 +163,55 @@ export function newIdempotencyKey(): string {
     return crypto.randomUUID();
   }
   return `pos-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+/** Preview credit for a return line — mirrors server `creditAmountForReturnedLine`. */
+export function previewReturnCreditAmount(input: {
+  lineTotalInr: string;
+  grandTotalInr: string;
+  alreadyCreditedInr: string;
+  remainingUnreturnedCount: number;
+}): string {
+  const remaining = subtractMoney(input.grandTotalInr, input.alreadyCreditedInr);
+  if (isZeroMoney(remaining) || remaining.startsWith("-")) {
+    return "0.00";
+  }
+  if (input.remainingUnreturnedCount <= 1) {
+    return remaining;
+  }
+  return compareMoney(input.lineTotalInr, remaining) <= 0 ? input.lineTotalInr : remaining;
+}
+
+export function formatMetalPurityLabel(metal: string, purity: string): string {
+  const metalLabel = metal ? metal.charAt(0).toUpperCase() + metal.slice(1).toLowerCase() : metal;
+  return `${metalLabel} ${purity}`;
+}
+
+export function invoicePaymentBadge(input: {
+  amountDueInr: string;
+  returnedLineCount: number;
+  lineCount: number;
+}): { label: string; color: "gray" | "error"; appearance?: "soft" | "solid" | "outline" } {
+  if (input.returnedLineCount > 0) {
+    if (input.returnedLineCount >= input.lineCount) {
+      return {
+        label: "Returned",
+        color: "gray",
+        appearance: "outline",
+      };
+    }
+    return {
+      label: "Partially returned",
+      color: "gray",
+      appearance: "outline",
+    };
+  }
+  if (!isZeroMoney(input.amountDueInr)) {
+    return { label: "Partially paid", color: "error" };
+  }
+  return {
+    label: "Paid",
+    color: "gray",
+    appearance: "solid",
+  };
 }

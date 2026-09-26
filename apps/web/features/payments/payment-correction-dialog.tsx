@@ -17,10 +17,13 @@ import { refundPaymentRequest, reversePaymentRequest } from "@/lib/staff-api";
 export function PaymentCorrectionDialog({
   payment,
   action,
+  initialRefundAmount,
   onClose,
 }: {
   payment: Payment | null;
   action: "refund" | "reverse" | null;
+  /** When refunding from invoice credit strip, seed amount to the credit (capped by collection). */
+  initialRefundAmount?: string;
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
@@ -34,10 +37,14 @@ export function PaymentCorrectionDialog({
       return;
     }
     setReason("");
-    setAmount(payment.amount_inr);
+    if (action === "refund" && initialRefundAmount) {
+      setAmount(initialRefundAmount);
+    } else {
+      setAmount(payment.amount_inr);
+    }
     setMethod(payment.method);
     setIdempotencyKey(newPaymentIdempotencyKey());
-  }, [payment, action]);
+  }, [payment, action, initialRefundAmount]);
 
   const mutation = useMutation({
     mutationFn: async () => {

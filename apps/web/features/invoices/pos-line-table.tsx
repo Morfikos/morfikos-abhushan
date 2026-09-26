@@ -1,27 +1,33 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState } from "react";
+import {
+  Dialog as AriaDialog,
+  DialogTrigger as AriaDialogTrigger,
+  Popover as AriaPopover,
+} from "react-aria-components";
 import type { Invoice, InvoiceLine, InvoiceLinePricing } from "@aabhushan/contracts";
 import { DEFAULT_INVOICE_LINE_PRICING } from "@aabhushan/contracts";
-import { Receipt, Sliders04, Trash01 } from "@untitledui/icons";
+import { Receipt, Trash01 } from "@untitledui/icons";
 
 import { EmptyState } from "@/components/application/empty-state/empty-state";
-import { Table, TableCard } from "@/components/application/table/table";
+import { Table } from "@/components/application/table/table";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
-import { Tooltip } from "@/components/base/tooltip/tooltip";
+import { MoneyInput } from "@/components/shared/money-input";
 import { MoneyText } from "@/components/shared/money-text";
-import { SelectField } from "@/components/shared/select-field";
+import { SegmentedField } from "@/components/shared/segmented-field";
 import {
   defaultMakingValue,
-  formatGrams,
+  formatGramsDisplay,
   formatInr,
+  isZeroMoney,
   lineArticleTitle,
-  lineHasExtraPricing,
   makingValueFieldMeta,
   validateMakingValue,
 } from "@/features/invoices/invoice-shared";
+import { cx } from "@/utils/cx";
 
 type MakingMethod = InvoiceLinePricing["making_charge"]["method"];
 
@@ -49,6 +55,19 @@ function makingIsDirty(line: InvoiceLine, state: InlineMakingState): boolean {
   return state.method !== makingMethodOf(line) || state.value !== makingValueOf(line);
 }
 
+function makingDisplayLabel(line: InvoiceLine, state?: InlineMakingState): string {
+  const method = state?.method ?? makingMethodOf(line);
+  const value = state?.value ?? makingValueOf(line);
+  if (method === "fixed") {
+    const shaped = /^\d+(\.\d{1,2})?$/.test(value.trim());
+    return `${shaped ? formatInr(value) : value} making`;
+  }
+  if (method === "per_gram") {
+    return `₹${value}/g`;
+  }
+  return `${value}% metal`;
+}
+
 function pricingBadges(line: InvoiceLine) {
   const pricing = line.pricing;
   const badges: Array<{ key: string; label: string }> = [];
@@ -64,27 +83,195 @@ function pricingBadges(line: InvoiceLine) {
   return badges;
 }
 
+function formatMetalLabel(metal: string): string {
+  if (!metal) {
+    return metal;
+  }
+  return metal.charAt(0).toUpperCase() + metal.slice(1).toLowerCase();
+}
+
+function netMetalFooter(lines: InvoiceLine[]): string | null {
+  const byMetal = new Map<string, number>();
+  for (const line of lines) {
+    const n = Number.parseFloat(line.net_metal_weight_grams);
+    if (!Number.isFinite(n)) {
+      continue;
+    }
+    const key = line.metal.toLowerCase();
+    byMetal.set(key, (byMetal.get(key) ?? 0) + n);
+  }
+  if (byMetal.size === 0) {
+    return null;
+  }
+  const parts = [...byMetal.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([metal, grams]) => `${grams.toFixed(2)} g ${metal}`);
+  return parts.join(" · ");
+}
+
+function weightsDiffer(gross: string, net: string): boolean {
+  const grossGrams = Number.parseFloat(gross);
+  const netGrams = Number.parseFloat(net);
+  if (!Number.isFinite(grossGrams) || !Number.isFinite(netGrams)) {
+    return false;
+  }
+  return Math.abs(grossGrams - netGrams) > 0.00005;
+}
+
+function MakingPopoverCell({
+  line,
+  makingState,
+  patchPending,
+  onInlineMakingChange,
+  onApplyMaking,
+}: {
+  line: InvoiceLine;
+  makingState: InlineMakingState;
+  patchPending: boolean;
+  onInlineMakingChange: (articleId: string, next: InlineMakingState) => void;
+  onApplyMaking: (line: InvoiceLine) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const dirty = makingIsDirty(line, makingState);
+  const makingCheck = validateMakingValue(makingState.method, makingState.value);
+  const makingValid = makingCheck.valid;
+  const makingMeta = makingValueFieldMeta(makingState.method);
+  const label = makingDisplayLabel(line, makingState);
+
+  function applyAndClose() {
+    if (patchPending || !dirty || !makingValid) {
+      return;
+    }
+    onApplyMaking(line);
+    setOpen(false);
+  }
+
+  return (
+    <AriaDialogTrigger isOpen={open} onOpenChange={setOpen}>
+      <Button
+        color="secondary"
+        size="lg"
+        className="justify-start"
+        aria-label={`Edit making for ${line.article_number}`}
+      >
+        {dirty ? "Unsaved" : label}
+      </Button>
+      <AriaPopover
+        placement="bottom start"
+        className={({ isEntering, isExiting }) =>
+          cx(
+            "w-96 origin-(--trigger-anchor-point) rounded-lg bg-primary p-4 shadow-lg ring-1 ring-secondary_alt outline-hidden",
+            isEntering && "duration-150 ease-out animate-in fade-in",
+            isExiting && "duration-100 ease-in animate-out fade-out",
+          )
+        }
+      >
+        <AriaDialog className="outline-hidden">
+          <div className="flex flex-col gap-3">
+            <SegmentedField
+              label="Making method"
+              size="md"
+              selection="quiet"
+              value={makingState.method}
+              onChange={(method) => {
+                onInlineMakingChange(line.article_id, {
+                  method,
+                  value: defaultMakingValue(method),
+                });
+              }}
+              options={[
+                { label: "Fixed ₹", value: "fixed" },
+                { label: "₹/g", value: "per_gram" },
+                { label: "% metal", value: "percent_of_metal" },
+              ]}
+            />
+            {makingMeta.unit === "money" ? (
+              <MoneyInput
+                label={makingMeta.label}
+                size="md"
+                placeholder={makingMeta.placeholder}
+                value={makingState.value}
+                isInvalid={!makingValid}
+                error={makingCheck.hint ?? undefined}
+                onChange={(value) =>
+                  onInlineMakingChange(line.article_id, {
+                    method: makingState.method,
+                    value,
+                  })
+                }
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    applyAndClose();
+                  }
+                }}
+              />
+            ) : (
+              <Input
+                label={makingMeta.label}
+                aria-label={makingMeta.ariaLabel}
+                placeholder={makingMeta.placeholder}
+                size="md"
+                value={makingState.value}
+                isInvalid={!makingValid}
+                error={makingCheck.hint ?? undefined}
+                inputMode="decimal"
+                suffix={makingMeta.unit === "per_gram" ? "₹/g" : "%"}
+                onChange={(value) =>
+                  onInlineMakingChange(line.article_id, {
+                    method: makingState.method,
+                    value,
+                  })
+                }
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    applyAndClose();
+                  }
+                }}
+              />
+            )}
+            <Button
+              color="primary"
+              size="lg"
+              isDisabled={patchPending || !dirty || !makingValid}
+              onPress={applyAndClose}
+            >
+              Apply
+            </Button>
+          </div>
+        </AriaDialog>
+      </AriaPopover>
+    </AriaDialogTrigger>
+  );
+}
+
 export function PosLineTable({
   invoice,
   lines,
   inlineMaking,
   patchPending,
+  readOnly,
   onInlineMakingChange,
   onApplyMaking,
   onOpenPricing,
   onRemoveLine,
+  onSetRate,
 }: {
   invoice: Invoice | null;
   lines: InvoiceLine[];
   inlineMaking: Record<string, InlineMakingState>;
   patchPending: boolean;
+  readOnly?: boolean;
   onInlineMakingChange: (articleId: string, next: InlineMakingState) => void;
   onApplyMaking: (line: InvoiceLine) => void;
   onOpenPricing: (line: InvoiceLine) => void;
   onRemoveLine: (articleId: string) => void;
+  onSetRate?: () => void;
 }) {
-  const isDraft = invoice?.status === "draft";
-  // Include making drafts on each item so Aria Table Collection re-renders rows when edits change.
+  const isDraft = !readOnly && invoice?.status === "draft";
   const lineRows = lines.map((line) => {
     const draft = inlineMaking[line.article_id];
     return {
@@ -93,6 +280,7 @@ export function PosLineTable({
       making_draft_value: draft?.value ?? makingValueOf(line),
     };
   });
+  const metalFooter = netMetalFooter(lines);
 
   return (
     <>
@@ -105,191 +293,144 @@ export function PosLineTable({
             <EmptyState.Content>
               <p className="text-lg font-semibold text-primary">No lines yet</p>
               <EmptyState.Description>
-                Select a customer, then scan a tag or search an available article.
+                Select a customer, then scan a tag or browse available stock.
               </EmptyState.Description>
             </EmptyState.Content>
           </EmptyState.Header>
         </EmptyState>
       ) : (
-        <Table aria-label="Invoice lines" size="sm">
-          <Table.Header>
-            <Table.Head id="article" label="Article" isRowHeader />
-            <Table.Head id="net" label="Net" className="w-24 text-right" />
-            <Table.Head id="rate" label="Rate/g" className="w-28 text-right" />
-            <Table.Head id="making" label="Making" className="min-w-64" />
-            <Table.Head id="line" label="Line total" className="w-28 text-right" />
-            <Table.Head id="actions" label="" className="w-24" />
-          </Table.Header>
-          <Table.Body items={lineRows}>
-            {(line) => {
-              const makingState: InlineMakingState = {
-                method: line.making_draft_method,
-                value: line.making_draft_value,
-              };
-              const dirty = makingIsDirty(line, makingState);
-              const makingCheck = validateMakingValue(makingState.method, makingState.value);
-              const makingValid = makingCheck.valid;
-              const makingHint = makingCheck.hint;
-              const makingMeta = makingValueFieldMeta(makingState.method);
-              const badges = pricingBadges(line);
-              const extraPricing = lineHasExtraPricing(line.pricing);
-              const title = lineArticleTitle(line.description, line.article_number);
+        <>
+          <Table aria-label="Invoice lines" size="md">
+            <Table.Header>
+              <Table.Head id="article" isRowHeader>
+                <span className="text-sm font-semibold whitespace-nowrap text-quaternary">
+                  Article · {lines.length}
+                </span>
+              </Table.Head>
+              <Table.Head id="net" className="text-right">
+                <span className="text-sm font-semibold whitespace-nowrap text-quaternary">Net</span>
+              </Table.Head>
+              <Table.Head id="rate" className="text-right">
+                <span className="text-sm font-semibold whitespace-nowrap text-quaternary">Rate/g</span>
+              </Table.Head>
+              <Table.Head id="making">
+                <span className="text-sm font-semibold whitespace-nowrap text-quaternary">Making</span>
+              </Table.Head>
+              <Table.Head id="line" className="text-right">
+                <span className="text-sm font-semibold whitespace-nowrap text-quaternary">
+                  Line total
+                </span>
+              </Table.Head>
+              {isDraft ? <Table.Head id="actions" /> : null}
+            </Table.Header>
+            <Table.Body items={lineRows}>
+              {(line) => {
+                const makingState: InlineMakingState = {
+                  method: line.making_draft_method,
+                  value: line.making_draft_value,
+                };
+                const badges = pricingBadges(line);
+                const category = lineArticleTitle(line.description, line.article_number);
+                const missingRate = !line.rate_per_gram;
+                const lineTotalMissing = missingRate || isZeroMoney(line.line_total_inr);
 
-              return (
-                <Table.Row id={line.id}>
-                  <Table.Cell className="font-medium text-primary">
-                    <span
-                      title={`${line.article_number} · ${line.metal} · ${line.purity}${badges.length ? ` · ${badges.map((b) => b.label).join(", ")}` : ""}`}
-                    >
-                      {title}
-                    </span>
-                  </Table.Cell>
-                  <Table.Cell className="text-right font-medium tabular-nums">
-                    {formatGrams(line.net_metal_weight_grams)}
-                  </Table.Cell>
-                  <Table.Cell className="text-right">
-                    {line.rate_per_gram ? (
-                      <span className="tabular-nums">₹{line.rate_per_gram}</span>
-                    ) : (
-                      <Badge color="warning" size="sm">
-                        No rate
-                      </Badge>
-                    )}
-                  </Table.Cell>
-                  <Table.Cell truncate={false}>
+                return (
+                  <Table.Row
+                    id={line.id}
+                    className={missingRate ? "bg-error-primary hover:bg-error-primary" : undefined}
+                  >
+                    <Table.Cell className="font-medium text-primary" truncate={false}>
+                      <span className="flex h-full flex-col justify-center gap-0.5 overflow-hidden">
+                        <span className="flex flex-wrap items-center gap-2">
+                          <span className="truncate text-md font-bold text-primary">{category}</span>
+                          {badges.map((badge) => (
+                            <Badge key={badge.key} color="gray" size="md">
+                              {badge.label}
+                            </Badge>
+                          ))}
+                        </span>
+                        <span className="truncate font-mono text-sm font-normal text-tertiary">
+                          {line.article_number} · {formatMetalLabel(line.metal)} {line.purity}
+                        </span>
+                      </span>
+                    </Table.Cell>
+                    <Table.Cell className="text-right text-md font-semibold tabular-nums" truncate={false}>
+                      <span className="flex h-full flex-col items-end justify-center gap-0.5 overflow-hidden">
+                        <span>{formatGramsDisplay(line.net_metal_weight_grams)}</span>
+                        {weightsDiffer(line.gross_weight_grams, line.net_metal_weight_grams) ? (
+                          <span className="text-sm font-normal text-tertiary">
+                            Gross {formatGramsDisplay(line.gross_weight_grams)}
+                          </span>
+                        ) : null}
+                      </span>
+                    </Table.Cell>
+                    <Table.Cell className="text-right text-md">
+                      {line.rate_per_gram ? (
+                        <span className="tabular-nums">{formatInr(line.rate_per_gram)}</span>
+                      ) : isDraft && onSetRate ? (
+                        <Button color="secondary" size="lg" onPress={onSetRate}>
+                          Set rate
+                        </Button>
+                      ) : (
+                        <span className="text-sm font-medium text-error-primary">No rate</span>
+                      )}
+                    </Table.Cell>
+                    <Table.Cell truncate={false}>
+                      {isDraft ? (
+                        <MakingPopoverCell
+                          line={line}
+                          makingState={makingState}
+                          patchPending={patchPending}
+                          onInlineMakingChange={onInlineMakingChange}
+                          onApplyMaking={onApplyMaking}
+                        />
+                      ) : (
+                        <span className="text-md font-medium text-primary">
+                          {makingDisplayLabel(line)}
+                        </span>
+                      )}
+                    </Table.Cell>
+                    <Table.Cell className="text-right text-md font-bold tabular-nums">
+                      {lineTotalMissing && missingRate ? (
+                        <span className="text-quaternary">—</span>
+                      ) : (
+                        <MoneyText amount={line.line_total_inr} />
+                      )}
+                    </Table.Cell>
                     {isDraft ? (
-                      <div
-                        className="flex items-center gap-1.5"
-                        title={
-                          makingHint
-                            ? makingHint
-                            : `Quoted ${formatInr(line.making_charge_inr)}`
-                        }
-                      >
-                          <SelectField
-                            aria-label="Making method"
-                            size="sm"
-                            className="w-28 shrink-0"
-                            value={makingState.method}
-                            onChange={(value) => {
-                              const method = value as MakingMethod;
-                              onInlineMakingChange(line.article_id, {
-                                method,
-                                value: defaultMakingValue(method),
-                              });
-                            }}
-                            options={[
-                              { label: "Fixed ₹", value: "fixed" },
-                              { label: "₹/g", value: "per_gram" },
-                              { label: "% metal", value: "percent_of_metal" },
-                            ]}
-                          />
-                          <Input
-                            aria-label={makingMeta.ariaLabel}
-                            placeholder={makingMeta.placeholder}
-                            size="sm"
-                            className="min-w-0 flex-1"
-                            value={makingState.value}
-                            isInvalid={!makingValid}
-                            onChange={(value) =>
-                              onInlineMakingChange(line.article_id, {
-                                method: makingState.method,
-                                value,
-                              })
-                            }
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter") {
-                                event.preventDefault();
-                                if (!patchPending && dirty && makingValid) {
-                                  onApplyMaking(line);
-                                }
-                              }
-                            }}
-                          />
+                      <Table.Cell truncate={false}>
+                        <div className="flex flex-nowrap items-center justify-end gap-2">
                           <Button
-                            color={dirty && makingValid ? "primary" : "secondary"}
-                            size="sm"
-                            className="shrink-0"
-                            isDisabled={patchPending || !dirty || !makingValid}
-                            onPress={() => onApplyMaking(line)}
+                            color="secondary"
+                            size="lg"
+                            onPress={() => onOpenPricing(line)}
                           >
-                            Apply
+                            Pricing
                           </Button>
-                      </div>
-                    ) : (
-                      <MoneyText amount={line.making_charge_inr} className="text-sm" />
-                    )}
-                  </Table.Cell>
-                  <Table.Cell className="text-right font-medium tabular-nums">
-                    <MoneyText amount={line.line_total_inr} />
-                  </Table.Cell>
-                  <Table.Cell truncate={false}>
-                    {isDraft ? (
-                      <div className="flex items-center justify-end gap-1">
-                        <div className="relative">
-                          <Tooltip title="Line pricing">
-                            <Button
-                              color="secondary"
-                              size="sm"
-                              iconLeading={Sliders04}
-                              aria-label={`Line pricing for ${line.article_number}`}
-                              onPress={() => onOpenPricing(line)}
-                            />
-                          </Tooltip>
-                          {extraPricing ? (
-                            <span
-                              className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-brand-solid ring-2 ring-primary"
-                              aria-hidden="true"
-                            />
-                          ) : null}
-                        </div>
-                        <Tooltip title="Remove line">
                           <Button
                             color="tertiary-destructive"
-                            size="sm"
+                            size="lg"
                             iconLeading={Trash01}
-                            aria-label={`Remove ${line.article_number}`}
                             isDisabled={patchPending}
+                            aria-label={`Remove ${line.article_number}`}
                             onPress={() => onRemoveLine(line.article_id)}
                           />
-                        </Tooltip>
-                      </div>
+                        </div>
+                      </Table.Cell>
                     ) : null}
-                  </Table.Cell>
-                </Table.Row>
-              );
-            }}
-          </Table.Body>
-        </Table>
+                  </Table.Row>
+                );
+              }}
+            </Table.Body>
+          </Table>
+          {metalFooter ? (
+            <p className="border-t border-secondary px-5 py-4 text-sm text-tertiary">
+              Net metal: <span className="font-semibold text-primary">{metalFooter}</span>
+            </p>
+          ) : null}
+        </>
       )}
     </>
-  );
-}
-
-export function PosSaleCard({
-  lineCount,
-  toolbar,
-  alerts,
-  children,
-}: {
-  lineCount: number;
-  toolbar: ReactNode;
-  alerts?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <TableCard.Root>
-      <TableCard.Header
-        title="Sale"
-        badge={String(lineCount)}
-        description="Scan a tag or search available stock."
-      />
-      <div className="border-b border-secondary px-4 py-4 md:px-6">
-        {toolbar}
-        {alerts}
-      </div>
-      {children}
-    </TableCard.Root>
   );
 }
 

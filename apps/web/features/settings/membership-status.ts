@@ -10,12 +10,16 @@ export function membershipStatusLabel(status: StaffMembershipStatus): string {
   return "Active";
 }
 
-export function membershipStatusColor(status: StaffMembershipStatus): "success" | "warning" | "gray" {
+export function membershipStatusColor(status: StaffMembershipStatus): "success" | "blue" | "orange" {
   if (status === "active") {
     return "success";
   }
   if (status === "invited") {
-    return "warning";
+    return "blue";
   }
-  return "gray";
+  return "orange";
+}
+
+export function catalogueActiveBadgeColor(isActive: boolean): "success" | "gray" {
+  return isActive ? "success" : "gray";
 }

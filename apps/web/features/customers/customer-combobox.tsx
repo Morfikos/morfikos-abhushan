@@ -42,6 +42,8 @@ export function CustomerCombobox({
   isDisabled = false,
   autoFocus = false,
   excludeWalkIn = false,
+  warnIfWalkInMissing = false,
+  size = "md",
 }: {
   label?: string;
   selected: CustomerListItem | Customer | null;
@@ -51,6 +53,9 @@ export function CustomerCombobox({
   autoFocus?: boolean;
   /** When true, omit the Walk-in pin and filter walk-in rows out of search results. */
   excludeWalkIn?: boolean;
+  /** POS: explain when the pinned walk-in customer is not seeded. */
+  warnIfWalkInMissing?: boolean;
+  size?: "sm" | "md" | "lg";
 }) {
   const staff = useStaff();
   const [inputValue, setInputValue] = useState(selected?.display_name ?? "");
@@ -217,7 +222,7 @@ export function CustomerCombobox({
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm font-medium text-secondary">{label}</span>
         {selected?.is_walk_in ? (
-          <Badge color="gray" size="sm" type="modern">
+          <Badge color="blue" size="sm">
             Walk-in
           </Badge>
         ) : null}
@@ -225,6 +230,7 @@ export function CustomerCombobox({
       <div className={cx("relative", selected && onClear && !isDisabled && "[&_input]:pr-9")}>
         <ComboBox
           aria-label={label}
+          size={size}
           placeholder="Search by name or phone"
           shortcut={false}
           selectedKey={selected?.id ?? null}
@@ -265,7 +271,10 @@ export function CustomerCombobox({
           <button
             type="button"
             aria-label="Clear customer"
-            className="absolute top-0 right-1.5 z-20 flex h-10 items-center justify-center rounded-md p-1.5 text-fg-quaternary outline-focus-ring hover:text-fg-quaternary_hover focus-visible:outline-2 focus-visible:outline-offset-2"
+            className={cx(
+              "absolute top-0 right-1.5 z-20 flex items-center justify-center rounded-md p-1.5 text-fg-quaternary outline-focus-ring hover:text-fg-quaternary_hover focus-visible:outline-2 focus-visible:outline-offset-2",
+              size === "lg" ? "h-11" : "h-10",
+            )}
             onMouseDown={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -282,7 +291,12 @@ export function CustomerCombobox({
         ) : null}
       </div>
       {selected && !selected.is_walk_in && selected.phone_display ? (
-        <p className="text-xs text-tertiary">{selected.phone_display}</p>
+        <p className="text-sm text-tertiary">{selected.phone_display}</p>
+      ) : null}
+      {warnIfWalkInMissing && walkInQuery.isSuccess && (walkInQuery.data?.items.length ?? 0) === 0 ? (
+        <p className="text-sm text-error-primary" role="status">
+          Walk-in customer is not set up. Run seed:sample-customers or ask an admin.
+        </p>
       ) : null}
     </div>
   );

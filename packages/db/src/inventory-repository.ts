@@ -596,14 +596,31 @@ export function createInventoryRepository(
       if (!row) {
         throw new Error("Article document sequence is missing.");
       }
-      const articleNumber = `${row.prefix}${String(row.next_value).padStart(row.padding, "0")}`;
+
+      // Seeded or imported articles can sit ahead of next_value; never reissue an existing number.
+      const maxExisting = await client.query<{ max_n: number | null }>(
+        `
+        SELECT MAX(
+          CASE
+            WHEN a.article_number ~ ('^' || $2 || '[0-9]+$')
+            THEN SUBSTRING(a.article_number FROM (char_length($2) + 1))::integer
+            ELSE NULL
+          END
+        ) AS max_n
+        FROM app.articles a
+        WHERE a.organization_id = $1
+        `,
+        [organizationId, row.prefix],
+      );
+      const next = Math.max(row.next_value, (maxExisting.rows[0]?.max_n ?? 0) + 1);
+      const articleNumber = `${row.prefix}${String(next).padStart(row.padding, "0")}`;
       await client.query(
         `
         UPDATE app.document_sequences
-        SET next_value = next_value + 1, updated_at = timezone('utc', now())
+        SET next_value = $3, updated_at = timezone('utc', now())
         WHERE organization_id = $1 AND branch_id = $2 AND document_type = 'article'
         `,
-        [organizationId, branchId],
+        [organizationId, branchId, next + 1],
       );
       return articleNumber;
     },

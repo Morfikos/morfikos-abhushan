@@ -10,7 +10,6 @@ import {
   netMetalWeightIsPositive,
   netMetalWeightMatches,
   tagBarcodeHeightMm,
-  tagCanShowLogo,
   type ShopLogoContentType,
 } from "@aabhushan/domain";
 import type {
@@ -484,10 +483,6 @@ export async function getArticleTagPreview(
   access: ResolvedStaffAccess,
   articleId: string,
   renderSvg: (payload: string, options?: { heightMm?: number }) => string,
-  loadLogoDataUri: (
-    objectKey: string,
-    contentType: ShopLogoContentType,
-  ) => Promise<string | null>,
 ): Promise<TagPreview> {
   assertPermission(access, "inventory.read");
   const article = await repository.getArticle(articleId);
@@ -508,17 +503,6 @@ export async function getArticleTagPreview(
 
   const tagHeight = Number.parseFloat(layout.tagHeightMm);
   const barcodeHeight = tagBarcodeHeightMm(tagHeight);
-  const canShowLogo = tagCanShowLogo(tagHeight);
-  let logoDataUri: string | null = null;
-  let logoOmittedForHeight = false;
-  if (branding.logoObjectKey && branding.logoContentType) {
-    if (canShowLogo) {
-      logoDataUri = await loadLogoDataUri(branding.logoObjectKey, branding.logoContentType);
-    } else {
-      logoOmittedForHeight = true;
-    }
-  }
-
   const renderHeight = Math.max(TAG_BARCODE_MIN_HEIGHT_MM, barcodeHeight);
 
   return {
@@ -535,8 +519,8 @@ export async function getArticleTagPreview(
     barcode_svg: renderSvg(article.barcode, { heightMm: renderHeight }),
     barcode_height_mm: String(renderHeight),
     legal_name: branding.legalName,
-    logo_data_uri: logoDataUri,
-    logo_omitted_for_height: logoOmittedForHeight,
+    logo_data_uri: null,
+    logo_omitted_for_height: false,
     hardware_validated: false,
   };
 }

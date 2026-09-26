@@ -330,7 +330,7 @@ export const PaginationButtonGroup = ({ align = "left", page = 1, total = 10, ..
             <Pagination.Root {...props} page={page} total={total}>
                 <Pagination.Context>
                     {({ pages }) => (
-                        <ButtonGroup size="sm">
+                        <ButtonGroup size="sm" selection="quiet">
                             <Pagination.PrevTrigger asChild>
                                 <ButtonGroupItem iconLeading={ArrowLeft}>{isDesktop ? "Previous" : undefined}</ButtonGroupItem>
                             </Pagination.PrevTrigger>

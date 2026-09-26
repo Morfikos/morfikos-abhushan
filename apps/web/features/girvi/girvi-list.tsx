@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { CalendarDate, DateValue } from "@internationalized/date";
@@ -19,14 +19,24 @@ import { ButtonGroup, ButtonGroupItem } from "@/components/base/button-group/but
 import { ActiveFiltersBar } from "@/components/shared/active-filters-bar";
 import {
   DirectoryEmptyState,
+  DirectoryError,
+  DirectoryTableBusy,
   DirectoryTableSkeleton,
   FilteredEmptyState,
+  directoryListFlags,
 } from "@/components/shared/directory-states";
-import { ListSearchToolbar } from "@/components/shared/list-search-toolbar";
+import { ListSearchField } from "@/components/shared/list-search-field";
 import { ListTableFooter } from "@/components/shared/list-table-footer";
+import { SegmentedField } from "@/components/shared/segmented-field";
 import { SelectField } from "@/components/shared/select-field";
 import { StaffPageHeader } from "@/components/shared/staff-page-header";
-import { type ListFilterCodec, useSyncedListFilters } from "@/lib/list-search-params";
+import {
+  type ListFilterChip,
+  type ListFilterCodec,
+  useDebouncedListQuery,
+  useListPagination,
+  useSyncedListFilters,
+} from "@/lib/list-search-params";
 import { staffHasPermission, useStaff } from "@/features/auth/staff-shell";
 import {
   girviAccessToken,
@@ -78,11 +88,6 @@ export function GirviListBodyLoading() {
   );
 }
 
-/** @deprecated Prefer GirviListBodyLoading — alias kept for call-site clarity. */
-export function GirviDirectoryLoading() {
-  return <GirviListBodyLoading />;
-}
-
 const DEFAULT_STATUS: GirviAccountStatus = "active";
 const GIRVI_STATUSES: GirviAccountStatus[] = ["draft", "active", "settled", "released"];
 
@@ -106,6 +111,7 @@ function asCalendarDate(value: DateValue | null | undefined): CalendarDate | nul
 }
 
 type GirviListFilters = {
+  appliedQ: string;
   status: "" | GirviAccountStatus;
   overdueOnly: boolean;
   periodPreset: PeriodPreset;
@@ -115,6 +121,7 @@ type GirviListFilters = {
 };
 
 const girviListDefaults: GirviListFilters = {
+  appliedQ: "",
   status: DEFAULT_STATUS,
   overdueOnly: false,
   periodPreset: "all",
@@ -124,12 +131,13 @@ const girviListDefaults: GirviListFilters = {
 };
 
 const girviListCodec: ListFilterCodec<GirviListFilters> = {
-  ownedKeys: ["status", "overdue", "from", "to"],
+  ownedKeys: ["q", "status", "overdue", "from", "to"],
   defaults: girviListDefaults,
   parse(params) {
     const drilledPeriod = customPeriodFromParams(params.get("from"), params.get("to"));
     const drilledStatus = girviStatusFromParam(params.get("status"));
     return {
+      appliedQ: params.get("q")?.trim() ?? "",
       status: drilledStatus ?? DEFAULT_STATUS,
       overdueOnly: params.get("overdue") === "1",
       periodPreset: drilledPeriod?.preset ?? "all",
@@ -150,6 +158,7 @@ const girviListCodec: ListFilterCodec<GirviListFilters> = {
             clampEndToToday: false,
           });
     return {
+      q: value.appliedQ || undefined,
       status: value.status || undefined,
       overdue: value.overdueOnly ? "1" : undefined,
       from: period.from,
@@ -157,15 +166,9 @@ const girviListCodec: ListFilterCodec<GirviListFilters> = {
     };
   },
   chips(value) {
-    const chips = [];
-    if (value.status !== DEFAULT_STATUS) {
-      chips.push({
-        id: "status",
-        label: value.status ? `Status: ${girviStatusLabel(value.status, false)}` : "Status: All",
-      });
-    }
-    if (value.overdueOnly) {
-      chips.push({ id: "overdue", label: "Overdue" });
+    const chips: ListFilterChip[] = [];
+    if (value.appliedQ) {
+      chips.push({ id: "q", label: `“${value.appliedQ}”` });
     }
     if (value.periodPreset !== "all") {
       const bounds = boundsForPeriod({
@@ -226,12 +229,26 @@ export function GirviList() {
 function GirviListBody() {
   const staff = useStaff();
   const { filters, setFilters, chips } = useSyncedListFilters("/girvi", girviListCodec);
-  const { status: statusFilter, overdueOnly, periodPreset, dayDate, customStart, customEnd } = filters;
+  const {
+    appliedQ,
+    status: statusFilter,
+    overdueOnly,
+    periodPreset,
+    dayDate,
+    customStart,
+    customEnd,
+  } = filters;
   const overdueFilter = overdueOnly ? "overdue" : "";
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [search, setSearch] = useState("");
-  const [appliedQ, setAppliedQ] = useState("");
+  const { page, setPage, pageSize, setPageSize } = useListPagination(10);
+
+  const commitQuery = useCallback(
+    (next: string) => {
+      setPage(1);
+      setFilters((current) => ({ ...current, appliedQ: next }));
+    },
+    [setFilters, setPage],
+  );
+  const { search, setSearch } = useDebouncedListQuery({ appliedQ, onCommit: commitQuery });
 
   const periodBounds = useMemo(
     () =>
@@ -282,27 +299,61 @@ function GirviListBody() {
   const total = query.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const filtersActive =
-    Boolean(appliedQ) ||
-    statusFilter !== DEFAULT_STATUS ||
-    overdueFilter === "overdue" ||
-    periodActive;
-  const directoryEmpty = !query.isLoading && total === 0 && !filtersActive;
-  const filteredEmpty = !query.isLoading && items.length === 0 && filtersActive;
-  const showInitialLoading = query.isLoading && !query.data;
-  const showDirectoryCard = !directoryEmpty && !showInitialLoading;
+    Boolean(appliedQ) || statusFilter !== DEFAULT_STATUS || overdueFilter === "overdue" || periodActive;
+  const { showInitialLoading, directoryEmpty, filteredEmpty, showDirectoryCard } = directoryListFlags({
+    isLoading: query.isLoading,
+    hasData: Boolean(query.data),
+    total,
+    itemCount: items.length,
+    filtersActive,
+  });
   const customRangeValue: DateRange | null =
     customStart && customEnd ? { start: customStart, end: customEnd } : null;
 
-  function applySearch() {
-    setPage(1);
-    setAppliedQ(search.trim());
-  }
+  const searchPending =
+    search.trim() !== appliedQ || (query.isFetching && !query.isLoading && Boolean(query.data));
+  const tableBusy = query.isFetching && Boolean(query.data);
+  const hasOtherFilters = statusFilter !== DEFAULT_STATUS || overdueFilter === "overdue";
 
-  function clearFilters() {
+  const clearSearch = useCallback(() => {
     setSearch("");
-    setAppliedQ("");
-    setFilters({ ...girviListDefaults, dayDate: kolkataTodayCalendar() });
     setPage(1);
+    setFilters((current) => ({ ...current, appliedQ: "" }));
+  }, [setFilters, setPage, setSearch]);
+
+  const clearAll = useCallback(() => {
+    setSearch("");
+    setPage(1);
+    setFilters({ ...girviListDefaults, dayDate: kolkataTodayCalendar() });
+  }, [setFilters, setPage, setSearch]);
+
+  const searchAllTime = useCallback(() => {
+    setPage(1);
+    setFilters((current) => ({
+      ...current,
+      periodPreset: "all",
+      dayDate: kolkataTodayCalendar(),
+      customStart: null,
+      customEnd: null,
+    }));
+  }, [setFilters, setPage]);
+
+  function removeChip(id: string) {
+    setPage(1);
+    if (id === "q") {
+      setSearch("");
+      setFilters((current) => ({ ...current, appliedQ: "" }));
+      return;
+    }
+    if (id === "period") {
+      setFilters((current) => ({
+        ...current,
+        periodPreset: "all",
+        dayDate: kolkataTodayCalendar(),
+        customStart: null,
+        customEnd: null,
+      }));
+    }
   }
 
   function selectPeriod(next: PeriodPreset) {
@@ -325,10 +376,8 @@ function GirviListBody() {
     <>
       {showInitialLoading ? <GirviListBodyLoading /> : null}
 
-      {query.isError ? (
-        <p className="text-sm text-error-primary" role="alert">
-          {girviErrorMessage(query.error)}
-        </p>
+      {query.isError && !showDirectoryCard ? (
+        <DirectoryError message={girviErrorMessage(query.error)} />
       ) : null}
 
       {directoryEmpty ? (
@@ -347,11 +396,17 @@ function GirviListBody() {
       {showDirectoryCard ? (
         <TableCard.Root>
           <TableCard.Header title="Accounts" badge={String(total)} />
+          {query.isError ? (
+            <div className="border-b border-secondary px-4 py-3 md:px-6">
+              <DirectoryError message={girviErrorMessage(query.error)} />
+            </div>
+          ) : null}
           <div className="flex flex-col gap-3 border-b border-secondary px-4 py-4 md:px-6">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-medium text-secondary">Maturity</span>
               <ButtonGroup
                 size="sm"
+                selection="filter"
                 selectedKeys={new Set([periodPreset])}
                 disallowEmptySelection
                 onSelectionChange={(keys) => {
@@ -394,14 +449,12 @@ function GirviListBody() {
               ) : null}
             </div>
             <div className="flex flex-wrap items-end gap-3">
-              <div className="min-w-0 flex-1">
-                <ListSearchToolbar
+              <div className="min-w-0 max-w-md flex-1">
+                <ListSearchField
                   value={search}
                   onChange={setSearch}
-                  onSearch={applySearch}
-                  onClear={clearFilters}
-                  filtersActive={filtersActive}
                   placeholder="Account or customer"
+                  isPending={searchPending}
                 />
               </div>
               <div className="w-40">
@@ -430,37 +483,40 @@ function GirviListBody() {
                   ]}
                 />
               </div>
-              <div className="w-36">
-                <SelectField
+              <div className="min-w-40">
+                <SegmentedField
                   label="Overdue"
-                  value={overdueFilter}
+                  selection="filter"
+                  value={overdueFilter === "" ? "all" : overdueFilter}
                   onChange={(value) => {
                     setPage(1);
                     setFilters((current) => ({ ...current, overdueOnly: value === "overdue" }));
                   }}
                   options={[
-                    { label: "All", value: "" },
+                    { label: "All", value: "all" },
                     { label: "Overdue", value: "overdue" },
                   ]}
                 />
               </div>
             </div>
-            <ActiveFiltersBar
-              chips={chips}
-              onClear={() => setFilters({ ...girviListDefaults, dayDate: kolkataTodayCalendar() })}
-            />
+            <ActiveFiltersBar chips={chips} onClear={clearAll} onRemove={removeChip} />
           </div>
 
           {filteredEmpty ? (
             <FilteredEmptyState
               title="No matching accounts"
               description="Try another account, customer, status, overdue, or maturity period."
-              onClear={clearFilters}
+              hasSearch={Boolean(appliedQ)}
+              hasPeriod={periodActive}
+              hasOtherFilters={hasOtherFilters}
+              onClear={clearAll}
+              onClearSearch={appliedQ ? clearSearch : undefined}
+              onSearchAllTime={periodActive ? searchAllTime : undefined}
             />
           ) : null}
 
           {items.length > 0 ? (
-            <>
+            <DirectoryTableBusy isBusy={tableBusy}>
               <Table aria-label="Girvi accounts">
                 <Table.Header>
                   <Table.Head id="account" label="Account" isRowHeader />
@@ -511,13 +567,11 @@ function GirviListBody() {
                 page={page}
                 totalPages={totalPages}
                 pageSize={pageSize}
+                total={total}
                 onPageChange={setPage}
-                onPageSizeChange={(size) => {
-                  setPageSize(size);
-                  setPage(1);
-                }}
+                onPageSizeChange={setPageSize}
               />
-            </>
+            </DirectoryTableBusy>
           ) : null}
         </TableCard.Root>
       ) : null}

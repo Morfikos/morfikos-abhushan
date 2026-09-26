@@ -195,13 +195,24 @@ export type DocumentsRepository = {
     receiptNumber: string;
     issuedAt: string;
     customerDisplayName: string;
+    customerPhone: string | null;
     paymentMethod: string;
     amountInr: string;
-    invoiceNumbers: string[];
+    reference: string | null;
+    receivedBusinessDate: string;
+    receivedByDisplayName: string;
+    allocations: Array<{
+      invoice_number: string;
+      business_date: string;
+      invoice_total_inr: string;
+      applied_inr: string;
+      amount_due_inr: string;
+    }>;
     shop: {
       legal_name: string;
       address_line: string | null;
       phone: string | null;
+      invoice_footer: string | null;
       logo_object_key: string | null;
       logo_content_type: string | null;
     };
@@ -633,13 +644,18 @@ export async function getReceiptPrintDto(
     receipt_number: source.receiptNumber,
     issued_at: source.issuedAt,
     customer_display_name: source.customerDisplayName,
+    customer_phone: source.customerPhone,
     payment_method: source.paymentMethod,
     amount_inr: source.amountInr,
-    invoice_numbers: source.invoiceNumbers,
+    reference: source.reference,
+    received_business_date: source.receivedBusinessDate,
+    received_by_display_name: source.receivedByDisplayName,
+    allocations: source.allocations,
     shop_legal_name: source.shop.legal_name,
     shop_address_line: source.shop.address_line,
     shop_phone: source.shop.phone,
     shop_logo_data_uri,
+    invoice_footer: source.shop.invoice_footer,
     invoice_paper_size: source.invoice_paper_size,
     document: docs.items[0] ?? null,
   };

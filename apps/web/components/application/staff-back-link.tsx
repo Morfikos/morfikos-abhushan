@@ -8,6 +8,7 @@ type StaffBackLinkProps = {
   label: string;
   href?: string;
   onPress?: () => void;
+  size?: "sm" | "md" | "lg";
 };
 
 /**
@@ -15,10 +16,10 @@ type StaffBackLinkProps = {
  * Prefer `href` for predictable list/parent navigation; use `onPress` when
  * leaving must run discard confirmation first.
  */
-export function StaffBackLink({ label, href, onPress }: StaffBackLinkProps) {
+export function StaffBackLink({ label, href, onPress, size = "sm" }: StaffBackLinkProps) {
   if (onPress) {
     return (
-      <Button color="link-gray" size="sm" iconLeading={ArrowLeft} className="self-start px-0" onPress={onPress}>
+      <Button color="link-gray" size={size} iconLeading={ArrowLeft} className="self-start px-0" onPress={onPress}>
         {label}
       </Button>
     );
@@ -29,7 +30,7 @@ export function StaffBackLink({ label, href, onPress }: StaffBackLinkProps) {
   }
 
   return (
-    <Button color="link-gray" size="sm" iconLeading={ArrowLeft} className="self-start px-0" href={href}>
+    <Button color="link-gray" size={size} iconLeading={ArrowLeft} className="self-start px-0" href={href}>
       {label}
     </Button>
   );

@@ -296,18 +296,7 @@ export function registerInventoryRoutes(
     handle(async (req, res) => {
       const articleId = parsePathUuid(req.params.id, "id");
       const preview = await withInventoryRepo(pool, req, (repo) =>
-        getArticleTagPreview(
-          repo,
-          req.staffAccess,
-          articleId,
-          renderCode128Svg,
-          async (objectKey, contentType) => {
-            if (!storage) {
-              return null;
-            }
-            return storage.downloadAsDataUri(objectKey, contentType);
-          },
-        ),
+        getArticleTagPreview(repo, req.staffAccess, articleId, renderCode128Svg),
       );
       res.status(200).json(preview);
     }),

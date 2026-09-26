@@ -7,7 +7,8 @@
     "lint": "eslint app features lib middleware.ts --max-warnings=0",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "build": "next build",
-    "start": "next start --port 3000"
+    "start": "next start --port 3000",
+    "verify:money-input": "tsx ./scripts/verify-money-input.ts"
   },
   "dependencies": {
     "@aabhushan/config": "workspace:*",
@@ -36,6 +37,7 @@
     "tailwindcss": "^4.1.13",
     "tailwindcss-animate": "^1.0.7",
     "tailwindcss-react-aria-components": "^2.0.1",
+    "tsx": "^4.20.5",
     "typescript": "^5.9.2"
   }
 }

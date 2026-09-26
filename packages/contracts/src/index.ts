@@ -97,7 +97,10 @@ export const apiVersionDocument = {
     },
     "/shop/rates": {
       get: { summary: "Paginated metal rates" },
-      post: { summary: "Insert a dated metal rate; never rewrite a previous row" },
+      post: { summary: "Insert a dated metal rate; never rewrite a past row" },
+    },
+    "/shop/rates/{id}": {
+      patch: { summary: "Correct today’s metal rate only; past and future rows stay immutable" },
     },
     "/shop/rates/coverage": {
       get: {
@@ -427,6 +430,7 @@ export {
   metalRateCreateSchema,
   metalRateListQuerySchema,
   metalRateListSchema,
+  metalRatePatchSchema,
   metalRateSchema,
   metalRatesCoverageQuerySchema,
   metalRatesCoverageSchema,
@@ -451,6 +455,7 @@ export type {
   MetalRate,
   MetalRateCreate,
   MetalRateList,
+  MetalRatePatch,
   MetalRatesCoverage,
   ReminderLanguage,
   ReminderSettings,
@@ -786,6 +791,7 @@ export {
   fileUploadGrantResponseSchema,
   invoicePrintSchema,
   ownerDocumentsQuerySchema,
+  receiptPrintAllocationSchema,
   receiptPrintSchema,
   storedObjectOwnerTypeSchema,
   storedObjectSchema,
@@ -802,6 +808,7 @@ export type {
   InvoicePrint,
   OwnerDocumentsQuery,
   ReceiptPrint,
+  ReceiptPrintAllocation,
   StoredObject,
   StoredObjectOwnerType,
 } from "./documents";

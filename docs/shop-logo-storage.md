@@ -40,6 +40,6 @@ Object key shapes (in addition to logo / Girvi multipart fallback):
 - Generated PDFs: `{organization_id}/documents/{document_type}/{owner_id}.pdf`
   - Types: `invoice_pdf`, `receipt_pdf`, `girvi_ack_pdf`, `credit_note_pdf`, `refund_pdf`
 
-Template versions: `invoice.pdf.v2`, `receipt.pdf.v2`, `girvi_ack.pdf.v2`, `credit_note.pdf.v2`, `refund.pdf.v2` (bilingual EN+HI; page size from `device_settings.invoice_paper_size`).
+Template versions: `invoice.pdf.v2`, `receipt.pdf.v3`, `girvi_ack.pdf.v2`, `credit_note.pdf.v2`, `refund.pdf.v2` (bilingual EN+HI; page size from `device_settings.invoice_paper_size`).
 
 Signed `upload_url` / `download_url` / `signed_url` values must never appear in API or worker logs (pino redact paths). Request access logs omit response bodies.

@@ -140,7 +140,7 @@ export const ComboBox = ({
                 {(state) => (
                     <div className="flex flex-col gap-1.5">
                         {otherProps.label && (
-                            <Label isRequired={hideRequiredIndicator ? false : state.isRequired} tooltip={otherProps.tooltip}>
+                            <Label isRequired={!hideRequiredIndicator && state.isRequired} isInvalid={state.isInvalid} tooltip={otherProps.tooltip}>
                                 {otherProps.label}
                             </Label>
                         )}
@@ -164,11 +164,16 @@ export const ComboBox = ({
                             </AriaListBox>
                         </Popover>
 
-                        {otherProps.hint && (
-                            <HintText isInvalid={state.isInvalid} className={cx(size === "sm" && "text-xs")}>
+                        {otherProps.hint ? (
+                            <HintText slot="description" className={cx(size === "sm" && "text-xs")}>
                                 {otherProps.hint}
                             </HintText>
-                        )}
+                        ) : null}
+                        {otherProps.error ? (
+                            <HintText slot="errorMessage" className={cx(size === "sm" && "text-xs")}>
+                                {otherProps.error}
+                            </HintText>
+                        ) : null}
                     </div>
                 )}
             </AriaComboBox>

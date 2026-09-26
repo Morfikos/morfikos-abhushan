@@ -118,7 +118,7 @@ Barcode payload must be deterministic and collision-checked inside the organizat
 - Dedicated scan input, visually separate from ordinary text fields
 - Tag preview uses actual configured dimensions, not a decorative card
 - Print view strips navigation, sticky actions, shadows, and dashboard colors
-- **Tag template `tag-v2`:** barcode is the visual highlight. Thin header shows shop logo **or** shop legal name (not both) plus metal/purity. Article number appears once under the bars (human-readable), not in the header. Supporting type is small (~6–7px). Bar height is computed from leftover millimetres with an 8 mm floor; if the stamp is too short for logo + floor, omit the logo and use the shop name.
+- **Tag template `tag-v4`:** barcode is the visual highlight. Left rail shows shop legal name vertically (no logo on tags; logos stay on invoices/receipts) with a hairline separating the rail. Under the bars: article number (HRI), metal/purity, then `Gross … g · Net … g`. Hairline under the barcode. Supporting type is small (~5.5–7.5px). Bar height is leftover millimetres after the three-line footer, with an 8 mm floor.
 - Monospace only for the article/barcode identifier
 - Free buttons labeled Print tag and Reprint tag — icons never replace those labels
 - Detail shows **Print tag** only when barcode is null, and **Reprint tag** only when barcode is set

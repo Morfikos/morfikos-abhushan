@@ -52,7 +52,7 @@ export function RecoveryRequestForm() {
         isRequired
         autoComplete="username"
         isInvalid={Boolean(error)}
-        hint={error}
+        error={error}
       />
       <Button type="submit" color="primary" size="md" className="w-full" isLoading={loading} isDisabled={loading}>
         Send reset instructions

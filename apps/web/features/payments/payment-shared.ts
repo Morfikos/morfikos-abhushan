@@ -43,6 +43,25 @@ export function paymentKindLabel(kind: "collection" | "refund" | "reversal"): st
   }
   return "Collection";
 }
+
+export function paymentKindBadgeColor(kind: "collection" | "refund" | "reversal"): "blue" | "purple" | "orange" {
+  if (kind === "refund") {
+    return "purple";
+  }
+  if (kind === "reversal") {
+    return "orange";
+  }
+  return "blue";
+}
+
+export function paymentStatusBadgeColor(status: "posted" | "reversed" | string): "success" | "orange" {
+  return status === "posted" ? "success" : "orange";
+}
+
+export function dueSettledBadgeColor(amountDueInr: string): "success" | "orange" {
+  return amountDueInr === "0.00" ? "success" : "orange";
+}
+
 export function newPaymentIdempotencyKey(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();

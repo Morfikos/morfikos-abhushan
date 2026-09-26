@@ -44,16 +44,16 @@ export function PrintPreviewChrome({
           headerClassName,
         )}
       >
-        <div className="mx-auto flex max-w-5xl flex-col gap-3 px-4 py-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex min-w-0 flex-col gap-1">
-              <h1 className="text-lg font-semibold text-primary">{title}</h1>
+        <div className="mx-auto flex max-w-5xl flex-col gap-3 px-5 py-5 md:px-7">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex min-w-0 flex-col gap-2">
+              <h1 className="text-display-xs font-semibold text-primary">{title}</h1>
               {metadata ? (
-                <div className="flex flex-wrap items-center gap-2 text-sm text-tertiary">{metadata}</div>
+                <div className="flex flex-wrap items-center gap-2 text-md text-tertiary">{metadata}</div>
               ) : null}
               {helpers}
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-3">
               {primaryAction}
               {secondaryAction}
             </div>
@@ -70,7 +70,7 @@ export function PrintPreviewChrome({
 
 export function PrintPreviewPill({ children }: { children: ReactNode }) {
   return (
-    <span className="rounded-md bg-secondary px-2 py-0.5 font-medium text-secondary ring-1 ring-inset ring-secondary">
+    <span className="rounded-md bg-secondary px-2.5 py-1 font-medium text-secondary ring-1 ring-inset ring-secondary">
       {children}
     </span>
   );

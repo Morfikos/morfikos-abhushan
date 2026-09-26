@@ -4,7 +4,10 @@ import type { InvoicePaperSize, PrintLabelLanguage } from "@aabhushan/contracts"
 import type { ReactNode } from "react";
 
 import { Button } from "@/components/base/buttons/button";
-import { PrintPreviewChrome, PrintPreviewPill } from "@/features/documents/print-preview-chrome";
+import {
+  PrintPreviewChrome,
+  PrintPreviewPill,
+} from "@/features/documents/print-preview-chrome";
 import { printMaxWidthClass } from "@/features/documents/print-paper";
 import { cx } from "@/utils/cx";
 
@@ -12,7 +15,10 @@ import { formatLabel, languageLabel, PRINT_FORMATS, PRINT_LANGUAGES } from "./pr
 
 type PrintDocumentChromeProps = {
   title: string;
+  /** Mono document id shown in the metadata row (invoice / receipt number). */
   documentId?: string;
+  /** Optional customer (or other) name as a metadata pill. */
+  documentSubject?: string;
   backHref: string;
   backLabel?: string;
   format: InvoicePaperSize;
@@ -23,9 +29,20 @@ type PrintDocumentChromeProps = {
   className?: string;
 };
 
+function formatCaption(format: InvoicePaperSize): string {
+  if (format === "80mm") {
+    return "Thermal · counter receipt printer, 80 mm";
+  }
+  if (format === "A5") {
+    return "A5 · half sheet, compact bill";
+  }
+  return "A4 · full tax invoice with item table";
+}
+
 export function PrintDocumentChrome({
   title,
   documentId,
+  documentSubject,
   backHref,
   backLabel = "Back",
   format,
@@ -41,20 +58,24 @@ export function PrintDocumentChrome({
       title={title}
       metadata={
         <>
-          {documentId ? <PrintPreviewPill>{documentId}</PrintPreviewPill> : null}
-          <PrintPreviewPill>{formatLabel(format)}</PrintPreviewPill>
-          <PrintPreviewPill>{languageLabel(language)}</PrintPreviewPill>
+          {documentId ? <span className="font-mono font-semibold">{documentId}</span> : null}
+          {documentSubject ? <PrintPreviewPill>{documentSubject}</PrintPreviewPill> : null}
         </>
       }
       helpers={
-        <p className="text-xs text-tertiary">
-          In the print dialog, turn off “Headers and footers” so date, title, and URL are not printed.
-        </p>
+        <>
+          <p className="text-md text-tertiary">
+            {formatCaption(format)}. Remembered on this device.
+          </p>
+          <p className="text-sm text-tertiary">
+            In the print dialog, turn off “Headers and footers” so date, title, and URL are not printed.
+          </p>
+        </>
       }
       primaryAction={
         <Button
           color="primary"
-          size="md"
+          size="lg"
           onPress={() => {
             window.print();
           }}
@@ -63,61 +84,55 @@ export function PrintDocumentChrome({
         </Button>
       }
       secondaryAction={
-        <Button color="secondary" size="md" href={backHref}>
+        <Button color="secondary" size="lg" href={backHref}>
           {backLabel}
         </Button>
       }
       controls={
-        <div className="flex flex-col gap-2">
-          <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
-            <div className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-tertiary">Format</span>
-              <div className="flex overflow-hidden rounded-lg ring-1 ring-secondary" role="group" aria-label="Print format">
-                {PRINT_FORMATS.map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    className={cx(
-                      "px-3 py-2 text-sm font-semibold transition",
-                      format === option
-                        ? "bg-brand-solid text-white"
-                        : "bg-primary text-secondary hover:bg-primary_hover",
-                    )}
-                    onClick={() => onFormatChange(option)}
-                  >
-                    {formatLabel(option)}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-tertiary">Language</span>
-              <div
-                className="flex overflow-hidden rounded-lg ring-1 ring-secondary"
-                role="group"
-                aria-label="Print language"
+        <div className="flex flex-wrap items-center gap-3">
+          <div
+            className="flex overflow-hidden rounded-lg ring-1 ring-secondary"
+            role="group"
+            aria-label="Print format"
+          >
+            {PRINT_FORMATS.map((option) => (
+              <button
+                key={option}
+                type="button"
+                className={cx(
+                  "h-11 px-3.5 text-sm font-semibold transition",
+                  format === option
+                    ? "bg-brand-solid text-white"
+                    : "bg-primary text-secondary hover:bg-primary_hover",
+                )}
+                onClick={() => onFormatChange(option)}
               >
-                {PRINT_LANGUAGES.map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    className={cx(
-                      "px-3 py-2 text-sm font-semibold transition",
-                      language === option
-                        ? "bg-brand-solid text-white"
-                        : "bg-primary text-secondary hover:bg-primary_hover",
-                    )}
-                    onClick={() => onLanguageChange(option)}
-                  >
-                    {languageLabel(option)}
-                  </button>
-                ))}
-              </div>
-            </div>
+                {formatLabel(option)}
+              </button>
+            ))}
           </div>
-          <p className="text-xs text-tertiary">
-            {formatLabel(format)} · {languageLabel(language)} — remembered on this device
-          </p>
+
+          <div
+            className="flex overflow-hidden rounded-lg ring-1 ring-secondary"
+            role="group"
+            aria-label="Print language"
+          >
+            {PRINT_LANGUAGES.map((option) => (
+              <button
+                key={option}
+                type="button"
+                className={cx(
+                  "h-11 px-3.5 text-sm font-semibold transition",
+                  language === option
+                    ? "bg-brand-solid text-white"
+                    : "bg-primary text-secondary hover:bg-primary_hover",
+                )}
+                onClick={() => onLanguageChange(option)}
+              >
+                {languageLabel(option)}
+              </button>
+            ))}
+          </div>
         </div>
       }
     >
@@ -126,7 +141,7 @@ export function PrintDocumentChrome({
           {children}
         </div>
         <p className="mt-3 text-center text-xs text-tertiary print:hidden">
-          Preview — Print uses this size. Does not change Settings.
+          {formatLabel(format)} · Print uses this size. Does not change Settings.
         </p>
       </div>
     </PrintPreviewChrome>

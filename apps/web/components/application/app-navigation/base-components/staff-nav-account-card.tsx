@@ -88,20 +88,29 @@ export function StaffNavAccountCard({
               "focus-visible:outline-2 focus-visible:outline-offset-2",
             )}
           >
-            <Avatar size="sm" initials={initials} alt="" border />
+            <Avatar size="sm" initials={initials} alt="" border className="ring-white/20" />
           </AriaButton>
         ) : (
           <AriaButton
             aria-label={`${name}. Account menu`}
             className={cx(
-              "relative flex w-full cursor-pointer items-center gap-3 rounded-xl p-3 text-left ring-1 ring-secondary ring-inset outline-focus-ring",
-              "bg-primary transition duration-100 ease-linear hover:bg-primary_hover",
+              "relative flex w-full cursor-pointer items-center gap-3 rounded-xl p-3 text-left ring-1 ring-sidebar ring-inset outline-focus-ring",
+              "bg-white/5 transition duration-100 ease-linear hover:bg-sidebar-item-hover",
               "focus-visible:outline-2 focus-visible:outline-offset-2",
-              "pressed:bg-primary_hover",
+              "pressed:bg-sidebar-item-hover",
             )}
           >
-            <AvatarLabelGroup size="md" initials={initials} title={name} subtitle={subtitle} alt="" />
-            <ChevronSelectorVertical className="size-4 shrink-0 stroke-[2.25px] text-fg-quaternary" aria-hidden />
+            <AvatarLabelGroup
+              size="md"
+              initials={initials}
+              title={name}
+              subtitle={subtitle}
+              alt=""
+              avatarClassName="ring-white/20"
+              titleClassName="text-sidebar"
+              subtitleClassName="text-sidebar-muted"
+            />
+            <ChevronSelectorVertical className="size-4 shrink-0 stroke-[2.25px] text-sidebar-muted" aria-hidden />
           </AriaButton>
         )}
         <AriaPopover

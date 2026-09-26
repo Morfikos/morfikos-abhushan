@@ -9,6 +9,7 @@ import { PrintDocumentSkeleton } from "@/components/application/skeleton/skeleto
 import { amountInrInWords } from "@/features/documents/amount-in-words";
 import { PrintDocumentChrome } from "@/features/documents/print-document-chrome";
 import { isThermalPrint, printPageCss } from "@/features/documents/print-paper";
+import { ThermalPaperEdges } from "@/features/documents/thermal-paper-edges";
 import {
   readPrintFormat,
   readPrintLanguage,
@@ -58,6 +59,7 @@ export function InvoicePrintView({ invoiceId }: { invoiceId: string }) {
     <PrintDocumentChrome
       title="Print invoice"
       documentId={invoice.invoice_number}
+      documentSubject={invoice.customer_display_name}
       backHref={`/invoices/${invoice.invoice_id}`}
       backLabel="Back to invoice"
       format={format}
@@ -78,7 +80,11 @@ export function InvoicePrintView({ invoiceId }: { invoiceId: string }) {
       >
         <style>{printPageCss(format)}</style>
         {thermal ? (
-          <ThermalInvoiceBody invoice={invoice} label={label} />
+          <ThermalPaperEdges paperClassName="bg-white">
+            <div className="px-1 py-2">
+              <ThermalInvoiceBody invoice={invoice} label={label} />
+            </div>
+          </ThermalPaperEdges>
         ) : (
           <SheetInvoiceBody invoice={invoice} label={label} compact={format === "A5"} />
         )}
@@ -89,8 +95,25 @@ export function InvoicePrintView({ invoiceId }: { invoiceId: string }) {
 
 type LabelFn = (key: Parameters<typeof printLabel>[0]) => string;
 
+function formatMethodLabel(method: string): string {
+  if (!method) {
+    return method;
+  }
+  return method.charAt(0).toUpperCase() + method.slice(1).toLowerCase();
+}
+
 function ThermalInvoiceBody({ invoice, label }: { invoice: InvoicePrint; label: LabelFn }) {
   const componentTotals = invoiceComponentTotals(invoice, label);
+  const paidInFull = isZeroMoney(invoice.amount_due_inr);
+  const paidRows =
+    invoice.collections.length > 0
+      ? invoice.collections.map((row) => ({
+          label: `${label("paid")} · ${formatMethodLabel(row.method)}`,
+          amount: row.amount_inr,
+        }))
+      : !isZeroMoney(invoice.amount_paid_inr)
+        ? [{ label: label("paid"), amount: invoice.amount_paid_inr }]
+        : [];
 
   return (
     <>
@@ -113,42 +136,87 @@ function ThermalInvoiceBody({ invoice, label }: { invoice: InvoicePrint; label: 
         {invoice.customer_phone ? <p className="tabular-nums">{invoice.customer_phone}</p> : null}
       </section>
 
-      <ul className="mb-3 space-y-2.5">
+      <ul className="mb-3 space-y-2">
         {invoice.lines.map((line) => {
           const components = lineComponentsForDisplay(line, label);
-          const articleRef = articleRefLine(line.article_number, line.barcode);
           return (
-            <li key={`${line.line_no}-${line.article_number}`} className="border-b border-neutral-300 pb-2">
+            <li key={`${line.line_no}-${line.article_number}`} className="border-b border-dashed border-neutral-400 pb-2">
               <div className="flex justify-between gap-2">
-                <p className="font-medium">{line.description}</p>
+                <div className="min-w-0">
+                  <p className="font-medium">{line.description}</p>
+                  <p className="font-mono text-[10px] text-neutral-700">
+                    {line.article_number} · {formatMetalLabel(line.metal)} {line.purity}
+                  </p>
+                  <p className="text-[10px] tabular-nums text-neutral-700">
+                    Gross {formatGrams(line.gross_weight_grams)} g · Net {formatGrams(line.net_metal_weight_grams)} g
+                    {line.rate_per_gram ? ` · ${formatInr(line.rate_per_gram)}/g` : ""}
+                  </p>
+                  {components.length > 0 ? (
+                    <ul className="mt-0.5 space-y-0.5 text-[10px] text-neutral-700">
+                      {components.map(([compLabel, value]) => (
+                        <li key={compLabel} className="flex justify-between gap-2">
+                          <span>{compLabel}</span>
+                          <span className="tabular-nums">{formatInr(value)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
                 <p className="shrink-0 font-semibold tabular-nums">{formatInr(line.line_total_inr)}</p>
               </div>
-              {articleRef ? <p className="text-[10px] text-neutral-700">{articleRef}</p> : null}
-              <p className="text-[10px]">
-                {formatMetalLabel(line.metal)} · {line.purity}
-              </p>
-              <p className="text-[10px] tabular-nums">
-                {label("gross_weight")} {formatGrams(line.gross_weight_grams)} · {label("net_weight")}{" "}
-                {formatGrams(line.net_metal_weight_grams)}
-                {line.rate_per_gram ? ` · ${label("rate_per_gram")} ${formatInr(line.rate_per_gram)}` : ""}
-              </p>
-              {components.length > 0 ? (
-                <ul className="mt-0.5 space-y-0.5 text-[10px] text-neutral-700">
-                  {components.map(([compLabel, value]) => (
-                    <li key={compLabel} className="flex justify-between gap-2">
-                      <span>{compLabel}</span>
-                      <span className="tabular-nums">{formatInr(value)}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
             </li>
           );
         })}
       </ul>
 
-      <TotalsBlock invoice={invoice} label={label} componentTotals={componentTotals} thermal />
+      <dl className="w-full text-[11px]">
+        {componentTotals.map(([compLabel, value]) => (
+          <div key={compLabel} className="flex justify-between gap-4 py-0.5">
+            <dt>{compLabel}</dt>
+            <dd className="tabular-nums">{formatInr(value)}</dd>
+          </div>
+        ))}
+        <div className="mt-1 flex justify-between gap-4 border-t-2 border-black pt-2 text-base">
+          <dt className="font-bold">{label("grand_total")}</dt>
+          <dd className="font-bold tabular-nums">{formatInr(invoice.grand_total_inr)}</dd>
+        </div>
+        {paidRows.map((row) => (
+          <div key={`${row.label}-${row.amount}`} className="flex justify-between gap-4 py-0.5">
+            <dt>{row.label}</dt>
+            <dd className="tabular-nums">{formatInr(row.amount)}</dd>
+          </div>
+        ))}
+        {paidInFull ? (
+          <div className="py-0.5 font-bold">{label("paid_in_full")}</div>
+        ) : (
+          <div className="flex justify-between gap-4 py-0.5 font-bold">
+            <dt>{label("due")}</dt>
+            <dd className="tabular-nums">{formatInr(invoice.amount_due_inr)}</dd>
+          </div>
+        )}
+      </dl>
+
+      <p className="mt-2 text-[10px] leading-snug">
+        <span className="font-semibold">{label("amount_in_words")}: </span>
+        {amountInrInWords(invoice.grand_total_inr)}
+      </p>
+
+      {invoice.collections.length > 0 ? (
+        <ul className="mt-3 space-y-0.5 border-t border-dashed border-neutral-400 pt-2 text-[10px]">
+          {invoice.collections.map((row) => (
+            <li key={`${row.receipt_number}-${row.business_date}-${row.amount_inr}`} className="flex justify-between gap-3">
+              <span>
+                {row.receipt_number} · {formatMethodLabel(row.method)} · {row.business_date}
+              </span>
+              <span className="tabular-nums">{formatInr(row.amount_inr)}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
       {invoice.invoice_footer ? <p className="mt-4 text-[10px] text-neutral-700">{invoice.invoice_footer}</p> : null}
+
+      <p className="mt-4 text-center text-[11px] font-medium">{label("thank_you")}</p>
     </>
   );
 }
@@ -165,6 +233,8 @@ function SheetInvoiceBody({
   const componentTotals = invoiceComponentTotals(invoice, label);
   const grossSum = sumGrams(invoice.lines.map((line) => line.gross_weight_grams));
   const netSum = sumGrams(invoice.lines.map((line) => line.net_metal_weight_grams));
+  const paidInFull = isZeroMoney(invoice.amount_due_inr);
+  const firstCollection = invoice.collections[0];
 
   return (
     <>
@@ -194,84 +264,71 @@ function SheetInvoiceBody({
           <p className="text-sm font-medium">{invoice.customer_display_name}</p>
           {invoice.customer_phone ? <p className="text-sm tabular-nums">{invoice.customer_phone}</p> : null}
         </div>
-        <div className="text-right text-sm">
-          <p className="tabular-nums">
-            {label("invoice")}: {invoice.invoice_number}
-          </p>
-          <p className="tabular-nums">
-            {label("business_date")}: {invoice.business_date}
-          </p>
+        <div className="text-right">
+          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-600">{label("paid")}</p>
+          {paidInFull ? (
+            <p className="text-sm font-semibold">{label("paid_in_full")}</p>
+          ) : (
+            <p className="text-sm font-semibold tabular-nums">
+              {label("due")} {formatInr(invoice.amount_due_inr)}
+            </p>
+          )}
+          {firstCollection ? (
+            <p className="text-sm tabular-nums">
+              {firstCollection.receipt_number} · {formatMethodLabel(firstCollection.method)}
+            </p>
+          ) : null}
         </div>
       </section>
 
       <table className="mb-6 w-full border-collapse text-xs">
         <thead>
           <tr className="border-b border-black text-left">
-            <th className="py-1.5 pr-1 font-semibold">{label("sl_no")}</th>
-            <th className="py-1.5 pr-1 font-semibold">{label("description")}</th>
-            <th className="py-1.5 pr-1 font-semibold">{label("metal")}</th>
-            <th className="py-1.5 pr-1 font-semibold">{label("purity")}</th>
+            <th className="py-1.5 pr-1 font-semibold">{label("article")}</th>
+            <th className="py-1.5 pr-1 font-semibold">
+              {label("metal")} · {label("purity")}
+            </th>
             <th className="py-1.5 pr-1 text-right font-semibold">{label("gross_weight")}</th>
             <th className="py-1.5 pr-1 text-right font-semibold">{label("net_weight")}</th>
             <th className="py-1.5 pr-1 text-right font-semibold">{label("rate_per_gram")}</th>
-            {!compact ? (
-              <>
-                <th className="py-1.5 pr-1 text-right font-semibold">{label("metal_value")}</th>
-                <th className="py-1.5 pr-1 text-right font-semibold">{label("making_charge")}</th>
-                <th className="py-1.5 pr-1 text-right font-semibold">{label("stones")}</th>
-              </>
-            ) : null}
             <th className="py-1.5 text-right font-semibold">{label("amount")}</th>
           </tr>
         </thead>
         <tbody>
-          {invoice.lines.map((line) => {
-            const articleRef = articleRefLine(line.article_number, compact ? null : line.barcode);
-            return (
-              <tr key={`${line.line_no}-${line.article_number}`} className="border-b border-neutral-300 align-top">
-                <td className="py-1.5 pr-1 tabular-nums">{line.line_no}</td>
-                <td className="py-1.5 pr-1">
-                  <p>{line.description}</p>
-                  {articleRef ? <p className="font-mono text-[10px] text-neutral-600">{articleRef}</p> : null}
-                </td>
-                <td className="py-1.5 pr-1">{formatMetalLabel(line.metal)}</td>
-                <td className="py-1.5 pr-1">{line.purity}</td>
-                <td className="py-1.5 pr-1 text-right tabular-nums">{formatGrams(line.gross_weight_grams)}</td>
-                <td className="py-1.5 pr-1 text-right tabular-nums">{formatGrams(line.net_metal_weight_grams)}</td>
-                <td className="py-1.5 pr-1 text-right tabular-nums">
-                  {line.rate_per_gram ? formatInr(line.rate_per_gram) : "—"}
-                </td>
-                {!compact ? (
-                  <>
-                    <td className="py-1.5 pr-1 text-right tabular-nums">{formatInr(line.metal_value_inr)}</td>
-                    <td className="py-1.5 pr-1 text-right tabular-nums">{formatInr(line.making_charge_inr)}</td>
-                    <td className="py-1.5 pr-1 text-right tabular-nums">
-                      {isZeroMoney(line.stone_charges_inr) ? "—" : formatInr(line.stone_charges_inr)}
-                    </td>
-                  </>
-                ) : null}
-                <td className="py-1.5 text-right font-medium tabular-nums">{formatInr(line.line_total_inr)}</td>
-              </tr>
-            );
-          })}
+          {invoice.lines.map((line) => (
+            <tr key={`${line.line_no}-${line.article_number}`} className="border-b border-neutral-300 align-top">
+              <td className="py-1.5 pr-1">
+                <p className="font-semibold">{line.description}</p>
+                <p className="font-mono text-[10px] text-neutral-600">
+                  {compact || !line.barcode || line.barcode === line.article_number
+                    ? line.article_number
+                    : `${line.article_number} · ${line.barcode}`}
+                </p>
+              </td>
+              <td className="py-1.5 pr-1">
+                {formatMetalLabel(line.metal)} {line.purity}
+              </td>
+              <td className="py-1.5 pr-1 text-right tabular-nums">{formatGrams(line.gross_weight_grams)}</td>
+              <td className="py-1.5 pr-1 text-right tabular-nums">{formatGrams(line.net_metal_weight_grams)}</td>
+              <td className="py-1.5 pr-1 text-right tabular-nums">
+                {line.rate_per_gram ? formatInr(line.rate_per_gram) : "—"}
+              </td>
+              <td className="py-1.5 text-right font-medium tabular-nums">{formatInr(line.line_total_inr)}</td>
+            </tr>
+          ))}
           <tr className="border-t border-black font-semibold">
-            <td className="py-1.5 pr-1" colSpan={4}>
-              {label("lines")}
+            <td className="py-1.5 pr-1" colSpan={2}>
+              {label("weight_total")}
             </td>
             <td className="py-1.5 pr-1 text-right tabular-nums">{formatGrams(grossSum)}</td>
             <td className="py-1.5 pr-1 text-right tabular-nums">{formatGrams(netSum)}</td>
-            <td className="py-1.5 pr-1" colSpan={compact ? 1 : 4} />
-            <td className="py-1.5 text-right tabular-nums">{formatInr(invoice.grand_total_inr)}</td>
+            <td className="py-1.5 pr-1" />
+            <td className="py-1.5" />
           </tr>
         </tbody>
       </table>
 
       <TotalsBlock invoice={invoice} label={label} componentTotals={componentTotals} thermal={false} />
-
-      <p className="mt-4 text-xs">
-        <span className="font-semibold">{label("amount_in_words")}: </span>
-        {amountInrInWords(invoice.grand_total_inr)}
-      </p>
 
       {invoice.invoice_footer ? <p className="mt-6 text-xs text-neutral-700">{invoice.invoice_footer}</p> : null}
 
@@ -294,6 +351,8 @@ function TotalsBlock({
   componentTotals: Array<[string, string]>;
   thermal: boolean;
 }) {
+  const paidInFull = isZeroMoney(invoice.amount_due_inr);
+
   return (
     <>
       <dl className={`text-sm ${thermal ? "w-full text-[11px]" : "ml-auto w-80"}`}>
@@ -303,37 +362,42 @@ function TotalsBlock({
             <dd className="tabular-nums">{formatInr(value)}</dd>
           </div>
         ))}
-        <div
-          className={`mt-1 flex justify-between gap-4 border-t-2 border-black pt-2 ${thermal ? "text-sm" : ""}`}
-        >
+        <div className={`mt-1 flex justify-between gap-4 border-t-2 border-black pt-2 ${thermal ? "text-base" : ""}`}>
           <dt className="font-bold">{label("grand_total")}</dt>
           <dd className="font-bold tabular-nums">{formatInr(invoice.grand_total_inr)}</dd>
         </div>
-        <div className="flex justify-between gap-4 py-0.5">
-          <dt>{label("paid")}</dt>
-          <dd className="tabular-nums">{formatInr(invoice.amount_paid_inr)}</dd>
-        </div>
-        <div className="flex justify-between gap-4 py-0.5">
-          <dt>{label("due")}</dt>
-          <dd className="tabular-nums">{formatInr(invoice.amount_due_inr)}</dd>
-        </div>
+        {!isZeroMoney(invoice.amount_paid_inr) ? (
+          <div className="flex justify-between gap-4 py-0.5">
+            <dt>{label("paid")}</dt>
+            <dd className="tabular-nums">{formatInr(invoice.amount_paid_inr)}</dd>
+          </div>
+        ) : null}
+        {paidInFull ? (
+          <div className="flex justify-between gap-4 py-0.5 font-semibold">
+            <dt>{label("paid_in_full")}</dt>
+            <dd />
+          </div>
+        ) : (
+          <div className="flex justify-between gap-4 py-0.5 font-bold">
+            <dt>{label("due")}</dt>
+            <dd className="tabular-nums">{formatInr(invoice.amount_due_inr)}</dd>
+          </div>
+        )}
       </dl>
 
-      {thermal ? (
-        <p className="mt-2 text-[10px] leading-snug">
-          <span className="font-semibold">{label("amount_in_words")}: </span>
-          {amountInrInWords(invoice.grand_total_inr)}
-        </p>
-      ) : null}
+      <p className={`mt-2 leading-snug ${thermal ? "text-[10px]" : "text-xs"}`}>
+        <span className="font-semibold">{label("amount_in_words")}: </span>
+        {amountInrInWords(invoice.grand_total_inr)}
+      </p>
 
-      {invoice.collections.length > 0 ? (
-        <section className={`mt-4 ${thermal ? "text-[10px]" : "text-xs"}`}>
+      {invoice.collections.length > 0 && !thermal ? (
+        <section className="mt-4 text-xs">
           <p className="mb-1 font-semibold">{label("collections")}</p>
           <ul className="space-y-0.5">
             {invoice.collections.map((row) => (
               <li key={`${row.receipt_number}-${row.business_date}-${row.amount_inr}`} className="flex justify-between gap-3">
                 <span>
-                  {row.receipt_number} · {row.method} · {row.business_date}
+                  {row.receipt_number} · {formatMethodLabel(row.method)} · {row.business_date}
                 </span>
                 <span className="tabular-nums">{formatInr(row.amount_inr)}</span>
               </li>
@@ -384,13 +448,6 @@ function lineComponentsForDisplay(
     return [];
   }
   return components;
-}
-
-function articleRefLine(articleNumber: string, barcode: string | null): string {
-  if (!barcode || barcode === articleNumber) {
-    return articleNumber;
-  }
-  return `${articleNumber} · ${barcode}`;
 }
 
 function formatMetalLabel(metal: string): string {

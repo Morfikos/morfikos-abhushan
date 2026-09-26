@@ -61,9 +61,9 @@ export const NavButton = ({
         );
 
     const classNames = cx(
-        "group/item relative flex w-full cursor-pointer items-center justify-center gap-1 rounded-lg bg-transparent outline-focus-ring transition duration-100 ease-linear select-none hover:bg-primary/70 focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2",
-        current && "bg-primary shadow-xs ring-1 ring-secondary hover:bg-primary",
-        iconOnly ? "size-9 min-h-9 min-w-9" : "px-2 py-1.5",
+        "group/item relative flex w-full cursor-pointer items-center justify-center gap-1 rounded-lg bg-transparent outline-focus-ring transition duration-100 ease-linear select-none hover:bg-sidebar-item-hover focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2",
+        current && "bg-sidebar-item-active hover:bg-brand-solid_hover",
+        iconOnly ? "size-11 min-h-11 min-w-11" : "px-3 py-2.5",
         className,
     );
 
@@ -73,8 +73,8 @@ export const NavButton = ({
                 <Icon
                     aria-hidden="true"
                     className={cx(
-                        "size-5 shrink-0 text-fg-quaternary transition-inherit-all group-hover/item:text-fg-quaternary_hover",
-                        current && "text-primary stroke-[2.25px]",
+                        "size-6 shrink-0 text-sidebar-muted transition-inherit-all group-hover/item:text-sidebar",
+                        current && "text-white stroke-[2.25px]",
                     )}
                 />
             )}
@@ -82,8 +82,8 @@ export const NavButton = ({
             {children && (
                 <span
                     className={cx(
-                        "px-0.5 text-sm font-medium text-tertiary transition duration-100 ease-linear group-hover/item:text-secondary",
-                        current && "font-bold text-primary",
+                        "px-0.5 text-md font-medium text-sidebar-muted transition duration-100 ease-linear group-hover/item:text-sidebar",
+                        current && "font-semibold text-white",
                     )}
                 >
                     {children}

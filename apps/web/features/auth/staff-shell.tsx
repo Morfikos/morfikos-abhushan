@@ -63,12 +63,13 @@ async function staffAccessToken(): Promise<string> {
   return token;
 }
 
-function ratesDismissKey(businessDate: string): string {
+export function ratesCoverageDismissKey(businessDate: string): string {
   return `staff-rates-banner-dismissed:${businessDate}`;
 }
 
 function StaffRatesBanner({ staff }: { staff: CurrentStaff }) {
   const router = useRouter();
+  const pathname = usePathname();
   const canSee =
     staffHasPermission(staff, "billing.write") ||
     staffHasPermission(staff, "rates.read") ||
@@ -78,17 +79,18 @@ function StaffRatesBanner({ staff }: { staff: CurrentStaff }) {
     if (typeof window === "undefined") {
       return false;
     }
-    return window.sessionStorage.getItem(ratesDismissKey(businessDate)) === "1";
+    return window.sessionStorage.getItem(ratesCoverageDismissKey(businessDate)) === "1";
   });
 
   const coverageQuery = useQuery({
     queryKey: ["shop", "rates-coverage", staff.membership.organization_id, businessDate],
     queryFn: async () => fetchMetalRatesCoverage(await staffAccessToken(), businessDate),
-    enabled: canSee && !dismissed,
+    enabled: canSee && !dismissed && pathname !== "/inventory/receive",
     staleTime: 60_000,
   });
 
-  if (!canSee || dismissed) {
+  // Receive article shows its own slim rates strip; hide the shell banner there.
+  if (!canSee || dismissed || pathname === "/inventory/receive") {
     return null;
   }
 
@@ -123,7 +125,7 @@ function StaffRatesBanner({ staff }: { staff: CurrentStaff }) {
           iconLeading={XClose}
           aria-label="Dismiss rates reminder"
           onPress={() => {
-            window.sessionStorage.setItem(ratesDismissKey(businessDate), "1");
+            window.sessionStorage.setItem(ratesCoverageDismissKey(businessDate), "1");
             setDismissed(true);
           }}
         />

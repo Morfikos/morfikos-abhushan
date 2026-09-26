@@ -190,6 +190,7 @@ export function PosBrowseArticlesDialog({
               value={search}
               onChange={setSearch}
               isDisabled={isSaving}
+              isClearable
             />
           </div>
 

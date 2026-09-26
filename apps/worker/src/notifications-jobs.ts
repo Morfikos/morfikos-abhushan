@@ -43,7 +43,7 @@ export async function startNotificationJobs(
     schema: "pgboss",
     deleteAfterSeconds: 60 * 60 * 24 * 7,
     archiveCompletedAfterSeconds: 60 * 60,
-    max: 4,
+    max: 2,
   });
 
   boss.on("error", (error: Error) => {

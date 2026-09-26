@@ -231,6 +231,7 @@ export function GirviSettleDialog({
                   isDisabled={mutation.isPending}
                   isInvalid={remainder.startsWith("-")}
                   hint={`of ${formatInr(payoff)} payable`}
+                  onFill={quote.data ? () => setCollected(payoff) : undefined}
                 />
 
                 {isZeroMoney(collected.trim()) ? null : (

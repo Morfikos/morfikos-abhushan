@@ -1,21 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   Customer,
   CustomerListItem,
   OutstandingInvoice,
   PaymentCreate,
-  PaymentCreateResult,
   PaymentMethod,
 } from "@aabhushan/contracts";
-import { Copy01, Plus, Trash01 } from "@untitledui/icons";
+import { Edit01, Plus, Trash01, XClose } from "@untitledui/icons";
 import { Heading } from "react-aria-components";
 
 import { Dialog, Modal, ModalOverlay } from "@/components/application/modals/modal";
 import { TableSkeleton } from "@/components/application/skeleton/skeleton";
-import { Badge } from "@/components/base/badges/badges";
+import { useStaffToast } from "@/components/application/toast/staff-toast";
 import { Button } from "@/components/base/buttons/button";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { Input } from "@/components/base/input/input";
@@ -23,9 +22,12 @@ import { MethodSelect } from "@/components/shared/method-select";
 import { MoneyInput } from "@/components/shared/money-input";
 import { MoneyText } from "@/components/shared/money-text";
 import { useStaff } from "@/features/auth/staff-shell";
-import { useStaffToast } from "@/components/application/toast/staff-toast";
 import { CustomerCombobox } from "@/features/customers/customer-combobox";
-import { newPaymentIdempotencyKey, paymentAccessToken, paymentErrorMessage } from "@/features/payments/payment-shared";
+import {
+  newPaymentIdempotencyKey,
+  paymentAccessToken,
+  paymentErrorMessage,
+} from "@/features/payments/payment-shared";
 import {
   compareMoney,
   formatInr,
@@ -36,8 +38,9 @@ import {
   subtractMoney,
   sumMoney,
 } from "@/lib/money";
-import { paymentMethodLabel, referenceHintFor } from "@/lib/payment-methods";
+import { paymentMethodLabel, referenceHintFor, referencePlaceholderFor } from "@/lib/payment-methods";
 import { fetchCustomerSalesStatement, recordPaymentRequest } from "@/lib/staff-api";
+import { cx } from "@/utils/cx";
 
 type AllocationRow = {
   invoiceId: string;
@@ -83,29 +86,30 @@ function allocationsFromOutstanding(
   });
 }
 
-function TotalsRow({
-  label,
-  amount,
-  emphasize = false,
+function NumberedStep({
+  number,
+  title,
+  active,
+  trailing,
+  children,
 }: {
-  label: string;
-  amount: string;
-  emphasize?: boolean;
+  number: string;
+  title: string;
+  active: boolean;
+  trailing?: ReactNode;
+  children: ReactNode;
 }) {
-  const zero = isZeroMoney(amount);
   return (
-    <div className="flex justify-between gap-3">
-      <dt className={emphasize && !zero ? "text-error-primary" : zero ? "text-quaternary" : "text-tertiary"}>
-        {label}
-      </dt>
-      <MoneyText
-        amount={amount}
-        as="dd"
-        className={
-          emphasize && !zero ? "font-medium text-error-primary" : zero ? "text-quaternary" : "text-primary"
-        }
-      />
-    </div>
+    <section className={cx("border-t border-secondary pt-5", !active && "opacity-45")}>
+      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+        <div className="flex items-baseline gap-2.5">
+          <span className="text-sm font-bold text-brand-secondary">{number}</span>
+          <h2 className="text-lg font-bold text-primary">{title}</h2>
+        </div>
+        {trailing && active ? trailing : null}
+      </div>
+      <div className={cx(!active && "pointer-events-none")}>{children}</div>
+    </section>
   );
 }
 
@@ -114,11 +118,14 @@ export function RecordPaymentDialog({
   initialCustomer,
   initialInvoiceId,
   onClose,
+  onRecorded,
 }: {
   isOpen: boolean;
   initialCustomer: CustomerListItem | Customer | null;
   initialInvoiceId: string | null;
   onClose: () => void;
+  /** Called with the first server-confirmed receipt number after a successful post. */
+  onRecorded?: (receiptNumber: string | null) => void;
 }) {
   const staff = useStaff();
   const toast = useStaffToast();
@@ -128,8 +135,6 @@ export function RecordPaymentDialog({
   const [tenders, setTenders] = useState<TenderRow[]>([newTenderRow()]);
   const [tenderAmountsTouched, setTenderAmountsTouched] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
-  const [posted, setPosted] = useState<PaymentCreateResult | null>(null);
-  const [copiedReceipt, setCopiedReceipt] = useState<string | null>(null);
   const [allocationSyncEpoch, setAllocationSyncEpoch] = useState(0);
   const idempotencyKeyRef = useRef<string>(newPaymentIdempotencyKey());
   const payloadSignatureRef = useRef<string>("");
@@ -156,8 +161,6 @@ export function RecordPaymentDialog({
 
   const outstandingInvoices = statement.data?.outstanding_invoices;
 
-  // Rebuild whenever the customer, statement fetch, or an explicit sync bump changes —
-  // not only when statement.data identity changes (cache hits keep the same reference).
   useEffect(() => {
     if (!customer?.id) {
       setAllocations([]);
@@ -192,8 +195,6 @@ export function RecordPaymentDialog({
   );
   const hasAllocationSelection = selectedAllocations.length > 0;
 
-  // A single untouched tender mirrors the allocated total. `tenders` is read through the
-  // updater so writing it cannot re-arm this effect, and an unchanged list keeps its identity.
   useEffect(() => {
     if (tenderAmountsTouched) {
       return;
@@ -212,37 +213,53 @@ export function RecordPaymentDialog({
     (row) => row.isSelected && isMoneyShape(row.amount) && compareMoney(row.amount, row.dueInr) > 0,
   );
 
+  const salesDue = statement.data?.sales_due_inr ?? "0.00";
+  const outstandingCount = outstandingInvoices?.length ?? 0;
+  const statementMatchesCustomer =
+    Boolean(customer?.id) &&
+    Boolean(statement.data) &&
+    statement.data?.customer_id === customer?.id;
+
+  const tendersReady = tenders.length > 0 && tenders.every((row) => isPositiveMoney(row.amount));
+  const paymentMismatch =
+    hasAllocationSelection && tendersReady && !moneyEquals(allocationTotal, tenderTotal);
+  const overSalesDue =
+    hasAllocationSelection &&
+    tendersReady &&
+    !isZeroMoney(salesDue) &&
+    compareMoney(tenderTotal, salesDue) > 0;
+
   const mutation = useMutation({
     mutationFn: async (input: { body: PaymentCreate; key: string }) =>
       recordPaymentRequest(await paymentAccessToken(), input.body, input.key),
     onSuccess: async (result) => {
-      setPosted(result);
       const receipt =
         result.payments
           .map((payment) => payment.receipt_number)
           .filter((value): value is string => Boolean(value))
           .join(", ") || "recorded";
+      const firstReceipt =
+        result.payments.map((payment) => payment.receipt_number).find(Boolean) ?? null;
       toast.success(`Payment recorded · ${receipt}`);
-      // Await so "Record another" rebuilds from a refreshed statement, not a stale cache hit.
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: statementQueryKey }),
         queryClient.invalidateQueries({ queryKey: ["payments"] }),
         queryClient.invalidateQueries({ queryKey: ["invoices"] }),
         queryClient.invalidateQueries({ queryKey: ["customers"] }),
       ]);
+      resetForm();
+      onClose();
+      onRecorded?.(firstReceipt);
     },
   });
 
-  function reset() {
+  function resetForm() {
     setTenders([newTenderRow()]);
     setTenderAmountsTouched(false);
     setLocalError(null);
-    setPosted(null);
-    setCopiedReceipt(null);
     mutation.reset();
     idempotencyKeyRef.current = newPaymentIdempotencyKey();
     payloadSignatureRef.current = "";
-    // Rebuild immediately so a same-customer cache hit cannot leave an empty list.
     const outstanding = statement.data?.outstanding_invoices;
     setAllocations(
       outstanding && customer?.id && statement.data?.customer_id === customer.id
@@ -253,7 +270,7 @@ export function RecordPaymentDialog({
   }
 
   function close() {
-    reset();
+    resetForm();
     onClose();
   }
 
@@ -275,13 +292,67 @@ export function RecordPaymentDialog({
     );
   }
 
-  async function copyReceipt(receiptNumber: string) {
-    try {
-      await navigator.clipboard.writeText(receiptNumber);
-      setCopiedReceipt(receiptNumber);
-    } catch {
-      setCopiedReceipt(null);
-    }
+  /** Fills tender amount only; does not change allocation. */
+  function fillPaymentToAllocated() {
+    setTenderAmountsTouched(true);
+    setTenders((current) => {
+      if (current.length === 0) {
+        return [{ ...newTenderRow(), amount: allocationTotal }];
+      }
+      return current.map((row, index) =>
+        index === 0 ? { ...row, amount: allocationTotal } : { ...row, amount: "" },
+      );
+    });
+  }
+
+  function setPaymentToSalesDue() {
+    setTenderAmountsTouched(true);
+    setTenders((current) => {
+      if (current.length === 0) {
+        return [{ ...newTenderRow(), amount: salesDue }];
+      }
+      return current.map((row, index) =>
+        index === 0 ? { ...row, amount: salesDue } : { ...row, amount: "" },
+      );
+    });
+  }
+
+  /** Reduces allocation to match the payment total, latest invoices first. */
+  function allocateToMatchPayment() {
+    const target = tenderTotal;
+    setAllocations((current) => {
+      const ordered = [...current].sort((left, right) => {
+        const byDate = right.businessDate.localeCompare(left.businessDate);
+        if (byDate !== 0) {
+          return byDate;
+        }
+        return (right.invoiceNumber ?? right.invoiceId).localeCompare(
+          left.invoiceNumber ?? left.invoiceId,
+        );
+      });
+      let remaining = target;
+      const nextAmounts = new Map<string, string>();
+      for (const row of ordered) {
+        if (!isPositiveMoney(remaining) && !isZeroMoney(remaining)) {
+          break;
+        }
+        if (isZeroMoney(remaining)) {
+          break;
+        }
+        const take = compareMoney(remaining, row.dueInr) > 0 ? row.dueInr : remaining;
+        if (isPositiveMoney(take)) {
+          nextAmounts.set(row.invoiceId, take);
+          remaining = subtractMoney(remaining, take);
+        }
+      }
+      return current.map((row) => {
+        const amount = nextAmounts.get(row.invoiceId);
+        if (amount) {
+          return { ...row, isSelected: true, amount };
+        }
+        return { ...row, isSelected: false, amount: "" };
+      });
+    });
   }
 
   function buildBody(): PaymentCreate | null {
@@ -335,19 +406,13 @@ export function RecordPaymentDialog({
     mutation.mutate({ body, key: idempotencyKeyRef.current });
   }
 
-  const salesDue = statement.data?.sales_due_inr ?? "0.00";
-  const outstandingCount = outstandingInvoices?.length ?? 0;
-  const statementMatchesCustomer =
-    Boolean(customer?.id) &&
-    Boolean(statement.data) &&
-    statement.data?.customer_id === customer?.id;
   const canSubmit =
     Boolean(customer) &&
     selectedAllocations.length > 0 &&
-    tenders.length > 0 &&
-    tenders.every((row) => isPositiveMoney(row.amount)) &&
+    tendersReady &&
     overAllocated.length === 0 &&
-    moneyEquals(allocationTotal, tenderTotal);
+    moneyEquals(allocationTotal, tenderTotal) &&
+    !overSalesDue;
 
   const submitReason = (() => {
     if (canSubmit) {
@@ -380,13 +445,48 @@ export function RecordPaymentDialog({
     if (tenders.some((row) => !isPositiveMoney(row.amount))) {
       return "Enter a positive amount for every tender.";
     }
+    if (overSalesDue) {
+      return `${formatInr(subtractMoney(tenderTotal, salesDue))} more than the ${formatInr(salesDue)} owed. Payments can only settle open dues.`;
+    }
     if (!moneyEquals(allocationTotal, tenderTotal)) {
-      return `Tenders total ${formatInr(tenderTotal)} but allocations total ${formatInr(allocationTotal)}.`;
+      const short = compareMoney(tenderTotal, allocationTotal) < 0;
+      return short
+        ? `Payment is ${formatInr(subtractMoney(allocationTotal, tenderTotal))} less than allocated.`
+        : `Payment is ${formatInr(subtractMoney(tenderTotal, allocationTotal))} more than allocated.`;
     }
     return null;
   })();
 
-  const selectedInvoiceCount = allocations.filter((row) => row.isSelected).length;
+  const methodSummary = tenders
+    .filter((row) => isPositiveMoney(row.amount))
+    .map((row) => paymentMethodLabel(row.method))
+    .join(" · ");
+
+  /** Highlight only the first positive tender when totals disagree (the field with the problem). */
+  const mismatchTenderId =
+    paymentMismatch || overSalesDue
+      ? (tenders.find((row) => isPositiveMoney(row.amount))?.id ?? tenders[0]?.id ?? null)
+      : null;
+
+  const outcomeText = (() => {
+    if (selectedAllocations.length === 0) {
+      return null;
+    }
+    if (selectedAllocations.length === 1) {
+      const row = selectedAllocations[0]!;
+      const label = row.invoiceNumber ?? row.invoiceId.slice(0, 8);
+      const leaves = subtractMoney(row.dueInr, row.amount);
+      if (isZeroMoney(leaves)) {
+        return `${label} fully paid`;
+      }
+      return `leaves ${formatInr(leaves)} due on ${label}`;
+    }
+    return `${String(selectedAllocations.length)} invoices`;
+  })();
+
+  const customerStepComplete = Boolean(customer);
+  const invoicesStepActive = customerStepComplete;
+  const paymentStepActive = customerStepComplete && hasAllocationSelection;
 
   return (
     <ModalOverlay
@@ -398,73 +498,56 @@ export function RecordPaymentDialog({
         }
       }}
     >
-      <Modal className="max-w-2xl">
+      <Modal className="max-w-3xl">
         <Dialog className="flex max-h-[inherit] flex-col overflow-hidden p-0 outline-hidden">
-          <header className="flex shrink-0 flex-col gap-1 border-b border-secondary px-5 py-4">
-            <Heading slot="title" className="text-lg font-semibold text-primary">
-              Record payment
-            </Heading>
-            {customer ? (
-              <p className="text-sm text-tertiary">{customer.display_name}</p>
-            ) : (
+          <header className="flex shrink-0 items-start justify-between gap-3 border-b-2 border-primary px-6 py-5">
+            <div className="flex flex-col gap-1">
+              <Heading slot="title" className="text-lg font-bold text-primary">
+                Record payment
+              </Heading>
               <p className="text-sm text-tertiary">Records money you already collected in the shop.</p>
-            )}
+            </div>
+            <Button
+              color="tertiary"
+              size="md"
+              className="shrink-0"
+              aria-label="Close"
+              isDisabled={mutation.isPending}
+              onPress={close}
+            >
+              <XClose className="size-5" aria-hidden />
+            </Button>
           </header>
 
-          {posted ? (
-            <>
-              <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-4">
-                <div className="rounded-lg bg-success-primary px-3 py-3 ring-1 ring-success" role="status">
-                  <p className="text-sm font-medium text-primary">
-                    Collection received: {formatInr(posted.total_inr)}
-                  </p>
-                  <p className="mt-1 text-xs text-tertiary">
-                    Payment saved. The receipt PDF may take a moment.
-                  </p>
+          <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-6 py-5">
+            <NumberedStep number="01" title="Customer" active>
+              {customer ? (
+                <div className="flex items-center justify-between gap-4 rounded-xl px-5 py-4 ring-1 ring-primary">
+                  <div className="min-w-0">
+                    <p className="text-lg font-bold text-primary">{customer.display_name}</p>
+                    <p className="text-sm text-tertiary">{customer.phone_display ?? "No phone"}</p>
+                  </div>
+                  <Button
+                    color="tertiary"
+                    size="lg"
+                    iconLeading={Edit01}
+                    className="shrink-0 text-primary"
+                    aria-label="Change customer"
+                    isDisabled={mutation.isPending}
+                    onPress={() => {
+                      setCustomer(null);
+                      setAllocations([]);
+                      setTenders([newTenderRow()]);
+                      setTenderAmountsTouched(false);
+                      setLocalError(null);
+                      mutation.reset();
+                    }}
+                  />
                 </div>
-                <ul className="flex flex-col gap-2">
-                  {posted.payments.map((payment) => (
-                    <li
-                      key={payment.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-secondary px-3 py-2 ring-1 ring-secondary"
-                    >
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span className="font-mono text-sm text-primary">
-                          {payment.receipt_number ?? "Receipt pending"}
-                        </span>
-                        {payment.receipt_number ? (
-                          <Button
-                            color="tertiary"
-                            size="sm"
-                            iconLeading={Copy01}
-                            aria-label={`Copy receipt ${payment.receipt_number}`}
-                            onPress={() => void copyReceipt(payment.receipt_number!)}
-                          />
-                        ) : null}
-                        {copiedReceipt === payment.receipt_number ? (
-                          <span className="text-xs text-success-primary">Copied</span>
-                        ) : null}
-                      </div>
-                      <span className="text-sm text-tertiary">{paymentMethodLabel(payment.method)}</span>
-                      <MoneyText amount={payment.amount_inr} className="text-sm font-medium text-primary" />
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <footer className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-secondary px-5 py-4">
-                <Button color="secondary" size="md" onPress={reset}>
-                  Record another
-                </Button>
-                <Button color="primary" size="md" onPress={close}>
-                  Done
-                </Button>
-              </footer>
-            </>
-          ) : (
-            <>
-              <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-4">
+              ) : (
                 <CustomerCombobox
                   selected={customer}
+                  size="lg"
                   autoFocus={isOpen && !initialCustomer}
                   excludeWalkIn
                   onSelect={(next) => {
@@ -473,6 +556,7 @@ export function RecordPaymentDialog({
                     setTenders([newTenderRow()]);
                     setTenderAmountsTouched(false);
                     setLocalError(null);
+                    mutation.reset();
                     setAllocationSyncEpoch((value) => value + 1);
                   }}
                   onClear={() => {
@@ -481,322 +565,399 @@ export function RecordPaymentDialog({
                     setTenders([newTenderRow()]);
                     setTenderAmountsTouched(false);
                     setLocalError(null);
+                    mutation.reset();
                   }}
                   isDisabled={mutation.isPending}
                 />
+              )}
+            </NumberedStep>
 
-                {!customer ? (
-                  <div className="rounded-lg border border-dashed border-secondary px-4 py-6 text-center">
-                    <p className="text-sm text-tertiary">Choose the paying customer to see unpaid invoices.</p>
+            <NumberedStep
+              number="02"
+              title="Invoices"
+              active={invoicesStepActive}
+              trailing={
+                invoicesStepActive ? (
+                  <div className="flex flex-wrap items-center gap-3 text-sm">
+                    {statementMatchesCustomer ? (
+                      <span className="text-tertiary">Sales due {formatInr(salesDue)}</span>
+                    ) : customer ? (
+                      <span className="text-tertiary">Loading…</span>
+                    ) : null}
+                    {allocations.length > 0 ? (
+                      <Button
+                        color="secondary"
+                        size="md"
+                        isDisabled={mutation.isPending}
+                        onPress={allocateAllDues}
+                      >
+                        Allocate all dues
+                      </Button>
+                    ) : null}
                   </div>
-                ) : (
-                  <div className="flex flex-col gap-3 rounded-lg bg-secondary p-3 ring-1 ring-secondary">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-medium text-primary">Unpaid invoices</p>
-                        {selectedInvoiceCount > 0 ? (
-                          <Badge color="gray" size="sm" type="modern">
-                            {selectedInvoiceCount} selected
-                          </Badge>
-                        ) : null}
+                ) : null
+              }
+            >
+              {!customer ? (
+                <p className="text-sm text-tertiary">Choose the paying customer to see unpaid invoices.</p>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {statement.isLoading ? (
+                    <TableSkeleton columns={3} rows={4} showCard={false} label="Loading sales statement" />
+                  ) : null}
+                  {statement.isError ? (
+                    <p className="text-sm text-error-primary" role="alert">
+                      {paymentErrorMessage(statement.error)}
+                    </p>
+                  ) : null}
+                  {!statement.isLoading &&
+                  !statement.isError &&
+                  statementMatchesCustomer &&
+                  outstandingCount === 0 &&
+                  isZeroMoney(salesDue) ? (
+                    <div
+                      className="flex flex-col items-center justify-center gap-6 py-10"
+                      role="status"
+                    >
+                      <div
+                        aria-hidden="true"
+                        className="-rotate-8 select-none border-[5px] border-utility-green-600 px-2.5 py-2.5 opacity-90"
+                      >
+                        <div className="border-[2.5px] border-utility-green-600 px-10 py-5 sm:px-12 sm:py-6">
+                          <p className="text-center text-display-sm font-bold tracking-[0.22em] text-utility-green-700 uppercase">
+                            No dues
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge color="gray" size="sm" type="modern">
-                          Sales due {formatInr(salesDue)}
-                        </Badge>
-                        {allocations.length > 0 ? (
-                          <Button
-                            color="link-color"
-                            size="sm"
-                            isDisabled={mutation.isPending}
-                            onPress={allocateAllDues}
-                          >
-                            Allocate all dues
-                          </Button>
-                        ) : null}
-                      </div>
-                    </div>
-                    {statement.isLoading ? (
-                      <TableSkeleton
-                        columns={3}
-                        rows={4}
-                        showCard={false}
-                        label="Loading sales statement"
-                      />
-                    ) : null}
-                    {statement.isError ? (
-                      <p className="text-sm text-error-primary" role="alert">
-                        {paymentErrorMessage(statement.error)}
-                      </p>
-                    ) : null}
-                    {!statement.isLoading &&
-                    !statement.isError &&
-                    statementMatchesCustomer &&
-                    outstandingCount === 0 &&
-                    isZeroMoney(salesDue) ? (
-                      <p className="text-sm text-tertiary">
+                      <p className="max-w-sm text-center text-sm text-tertiary">
                         This customer has no unpaid sales invoice. Girvi dues are settled separately.
                       </p>
-                    ) : null}
-                    {!statement.isLoading &&
-                    !statement.isError &&
-                    statementMatchesCustomer &&
-                    outstandingCount === 0 &&
-                    !isZeroMoney(salesDue) ? (
-                      <p className="text-sm text-warning-primary" role="status">
-                        Sales due is {formatInr(salesDue)} but unpaid invoices failed to load. Close and
-                        reopen this dialog, or try again.
-                      </p>
-                    ) : null}
-                    {allocations.map((row) => {
-                      const amountOver =
-                        row.isSelected &&
-                        row.amount.trim().length > 0 &&
-                        (!isPositiveMoney(row.amount) || compareMoney(row.amount, row.dueInr) > 0);
-                      const leaves =
-                        row.isSelected && isPositiveMoney(row.amount) && !amountOver
-                          ? subtractMoney(row.dueInr, row.amount)
-                          : null;
-                      return (
-                        <div key={row.invoiceId} className="grid grid-cols-12 items-start gap-3">
-                          <div className="col-span-12 sm:col-span-5">
-                            <Checkbox
-                              isSelected={row.isSelected}
-                              isDisabled={mutation.isPending}
-                              onChange={(selected) =>
-                                setAllocations((current) =>
-                                  current.map((item) =>
-                                    item.invoiceId === row.invoiceId
-                                      ? {
-                                          ...item,
-                                          isSelected: selected,
-                                          amount: selected ? item.amount || item.dueInr : "",
-                                        }
-                                      : item,
-                                  ),
-                                )
-                              }
-                              label={row.invoiceNumber ?? row.invoiceId.slice(0, 8)}
-                              hint={`${row.businessDate} · due ${formatInr(row.dueInr)}`}
-                            />
-                          </div>
-                          <div className="col-span-8 sm:col-span-5">
-                            <MoneyInput
-                              label="Amount"
-                              value={row.amount}
-                              isDisabled={!row.isSelected || mutation.isPending}
-                              isInvalid={Boolean(amountOver)}
-                              maxHintAmount={row.isSelected ? row.dueInr : undefined}
-                              onChange={(value) =>
-                                setAllocations((current) =>
-                                  current.map((item) =>
-                                    item.invoiceId === row.invoiceId ? { ...item, amount: value } : item,
-                                  ),
-                                )
-                              }
-                            />
-                            {amountOver ? (
-                              <p className="mt-1 text-xs text-error-primary" role="alert">
-                                Above remaining due. Overpayment is not accepted.
-                              </p>
-                            ) : null}
-                            {leaves !== null ? (
-                              <p className="mt-1 text-xs text-tertiary">
-                                Leaves {formatInr(leaves)} after this collection
-                              </p>
-                            ) : null}
-                          </div>
-                          <div className="col-span-4 flex items-end pb-0.5 sm:col-span-2 sm:justify-end">
-                            <Button
-                              color="link-color"
-                              size="sm"
-                              isDisabled={mutation.isPending}
-                              onPress={() => setAllocationFull(row.invoiceId)}
-                            >
-                              Full
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {customer && hasAllocationSelection ? (
-                  <>
-                    <div className="flex flex-col gap-3">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-primary">Tender</p>
-                          <Badge color="gray" size="sm" type="modern">
-                            {tenders.length}
-                          </Badge>
-                        </div>
-                        <Button
-                          color="tertiary"
-                          size="sm"
-                          iconLeading={Plus}
-                          isDisabled={tenders.length >= 10 || mutation.isPending}
-                          onPress={() => {
-                            setTenderAmountsTouched(true);
-                            setTenders((current) => [...current, newTenderRow("upi")]);
-                          }}
-                        >
-                          Add tender
-                        </Button>
-                      </div>
-                      {tenders.map((row) => (
-                        <div
-                          key={row.id}
-                          className="grid grid-cols-12 items-start gap-3 rounded-lg bg-secondary p-3 ring-1 ring-secondary"
-                        >
-                          <div className="col-span-12 sm:col-span-5">
-                            <MethodSelect
-                              label="Method"
-                              value={row.method}
-                              isDisabled={mutation.isPending}
-                              onChange={(method) =>
-                                setTenders((current) =>
-                                  current.map((item) => (item.id === row.id ? { ...item, method } : item)),
-                                )
-                              }
-                            />
-                          </div>
-                          <div className="col-span-12 sm:col-span-3">
-                            <MoneyInput
-                              label="Amount"
-                              value={row.amount}
-                              isDisabled={mutation.isPending}
-                              isInvalid={row.amount.trim().length > 0 && !isPositiveMoney(row.amount)}
-                              onChange={(value) => {
-                                setTenderAmountsTouched(true);
-                                setTenders((current) =>
-                                  current.map((item) => (item.id === row.id ? { ...item, amount: value } : item)),
-                                );
-                              }}
-                            />
-                          </div>
-                          <div className={`col-span-10 sm:col-span-3 ${tenders.length > 1 ? "" : "sm:col-span-4"}`}>
-                            <Input
-                              label="Reference (optional)"
-                              value={row.reference}
-                              isDisabled={mutation.isPending}
-                              placeholder={referenceHintFor(row.method)}
-                              onChange={(value) =>
-                                setTenders((current) =>
-                                  current.map((item) => (item.id === row.id ? { ...item, reference: value } : item)),
-                                )
-                              }
-                            />
-                          </div>
-                          {tenders.length > 1 ? (
-                            <div className="col-span-2 flex items-end justify-end pb-0.5 sm:col-span-1">
-                              <Button
-                                color="tertiary"
-                                size="md"
-                                iconLeading={Trash01}
-                                aria-label="Remove tender"
-                                isDisabled={mutation.isPending}
-                                onPress={() =>
-                                  setTenders((current) => current.filter((item) => item.id !== row.id))
-                                }
-                              />
-                            </div>
-                          ) : null}
-                        </div>
-                      ))}
                     </div>
+                  ) : null}
+                  {!statement.isLoading &&
+                  !statement.isError &&
+                  statementMatchesCustomer &&
+                  outstandingCount === 0 &&
+                  !isZeroMoney(salesDue) ? (
+                    <p className="text-sm text-warning-primary" role="status">
+                      Sales due is {formatInr(salesDue)} but unpaid invoices failed to load. Close and
+                      reopen this dialog, or try again.
+                    </p>
+                  ) : null}
+                  {allocations.map((row) => {
+                    const amountOver =
+                      row.isSelected &&
+                      row.amount.trim().length > 0 &&
+                      (!isPositiveMoney(row.amount) || compareMoney(row.amount, row.dueInr) > 0);
+                    const leaves =
+                      row.isSelected && isPositiveMoney(row.amount) && !amountOver
+                        ? subtractMoney(row.dueInr, row.amount)
+                        : null;
+                    return (
+                      <div
+                        key={row.invoiceId}
+                        className="grid grid-cols-12 items-start gap-4 border-b border-secondary py-4 last:border-b-0 last:pb-0 first:pt-0"
+                      >
+                        <div className="col-span-12 sm:col-span-6">
+                          <Checkbox
+                            size="md"
+                            isSelected={row.isSelected}
+                            isDisabled={mutation.isPending}
+                            onChange={(selected) =>
+                              setAllocations((current) =>
+                                current.map((item) =>
+                                  item.invoiceId === row.invoiceId
+                                    ? {
+                                        ...item,
+                                        isSelected: selected,
+                                        amount: selected ? item.amount || item.dueInr : "",
+                                      }
+                                    : item,
+                                ),
+                              )
+                            }
+                            label={
+                              <span className="font-mono text-md font-semibold">
+                                {row.invoiceNumber ?? row.invoiceId.slice(0, 8)}
+                              </span>
+                            }
+                            hint={`${row.businessDate} · due ${formatInr(row.dueInr)}${
+                              leaves !== null ? ` · leaves ${formatInr(leaves)}` : ""
+                            }`}
+                          />
+                        </div>
+                        <div className="col-span-12 sm:col-span-6">
+                          <MoneyInput
+                            label="Amount"
+                            size="md"
+                            value={row.amount}
+                            isDisabled={!row.isSelected || mutation.isPending}
+                            isInvalid={Boolean(amountOver)}
+                            hint={row.isSelected ? `of ${formatInr(row.dueInr)} due` : undefined}
+                            onFill={
+                              row.isSelected
+                                ? () => setAllocationFull(row.invoiceId)
+                                : undefined
+                            }
+                            error={
+                              amountOver
+                                ? "Above remaining due. Overpayment is not accepted."
+                                : undefined
+                            }
+                            onChange={(value) =>
+                              setAllocations((current) =>
+                                current.map((item) =>
+                                  item.invoiceId === row.invoiceId ? { ...item, amount: value } : item,
+                                ),
+                              )
+                            }
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </NumberedStep>
 
-                    <div className="flex flex-col gap-3">
-                      <div className="rounded-lg bg-brand-primary px-3 py-3">
-                        <p className="text-sm font-medium text-brand-secondary">Collecting</p>
-                        <MoneyText
-                          amount={allocationTotal}
-                          as="p"
-                          className="text-display-sm font-semibold text-brand-primary"
+            <NumberedStep
+              number="03"
+              title="Payment"
+              active={paymentStepActive}
+              trailing={
+                paymentStepActive ? (
+                  <Button
+                    color="secondary"
+                    size="md"
+                    iconLeading={Plus}
+                    isDisabled={tenders.length >= 10 || mutation.isPending}
+                    onPress={() => {
+                      setTenderAmountsTouched(true);
+                      setTenders((current) => [...current, newTenderRow("upi")]);
+                    }}
+                  >
+                    Split payment
+                  </Button>
+                ) : null
+              }
+            >
+              {!paymentStepActive ? (
+                <p className="text-sm text-tertiary">Allocate at least one invoice to enter tenders.</p>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {tenders.map((row) => {
+                    const tenderHasMismatch = mismatchTenderId === row.id;
+                    return (
+                    <div
+                      key={row.id}
+                      className={cx(
+                        "grid grid-cols-12 items-start gap-3 rounded-xl bg-secondary p-4 ring-1",
+                        tenderHasMismatch ? "ring-error-secondary" : "ring-secondary",
+                      )}
+                    >
+                      <div className="col-span-12 sm:col-span-5">
+                        <MethodSelect
+                          label="Method"
+                          size="md"
+                          value={row.method}
+                          isDisabled={mutation.isPending}
+                          onChange={(nextMethod) =>
+                            setTenders((current) =>
+                              current.map((item) =>
+                                item.id === row.id ? { ...item, method: nextMethod } : item,
+                              ),
+                            )
+                          }
                         />
                       </div>
-                      <dl className="flex flex-col gap-2 text-sm">
-                        <TotalsRow label="Allocated to invoices" amount={allocationTotal} />
-                        <TotalsRow label="Tender total" amount={tenderTotal} />
-                        <TotalsRow label="Difference" amount={difference} emphasize />
-                      </dl>
+                      <div className="col-span-12 sm:col-span-3">
+                        <MoneyInput
+                          label="Amount"
+                          size="md"
+                          value={row.amount}
+                          isDisabled={mutation.isPending}
+                          isInvalid={
+                            (row.amount.trim().length > 0 && !isPositiveMoney(row.amount)) ||
+                            tenderHasMismatch
+                          }
+                          onChange={(value) => {
+                            setTenderAmountsTouched(true);
+                            setTenders((current) =>
+                              current.map((item) =>
+                                item.id === row.id ? { ...item, amount: value } : item,
+                              ),
+                            );
+                          }}
+                        />
+                      </div>
+                      <div
+                        className={`col-span-10 sm:col-span-3 ${tenders.length > 1 ? "" : "sm:col-span-4"}`}
+                      >
+                        <Input
+                          label="Reference (optional)"
+                          size="md"
+                          value={row.reference}
+                          isDisabled={mutation.isPending}
+                          placeholder={referencePlaceholderFor(row.method)}
+                          hint={referenceHintFor(row.method)}
+                          onChange={(value) =>
+                            setTenders((current) =>
+                              current.map((item) =>
+                                item.id === row.id ? { ...item, reference: value } : item,
+                              ),
+                            )
+                          }
+                        />
+                      </div>
+                      {tenders.length > 1 ? (
+                        <div className="col-span-2 flex items-end justify-end pb-0.5 sm:col-span-1">
+                          <Button
+                            color="tertiary"
+                            size="lg"
+                            iconLeading={Trash01}
+                            aria-label="Remove tender"
+                            isDisabled={mutation.isPending}
+                            onPress={() => {
+                              setTenderAmountsTouched(true);
+                              setTenders((current) => current.filter((item) => item.id !== row.id));
+                            }}
+                          />
+                        </div>
+                      ) : null}
                     </div>
+                    );
+                  })}
 
-                    <div className="rounded-lg bg-primary p-3 ring-1 ring-secondary">
-                      <p className="text-sm font-medium text-primary">Confirm this collection</p>
-                      <dl className="mt-2 flex flex-col gap-1.5 text-sm">
-                        <div className="flex justify-between gap-3">
-                          <dt className="text-tertiary">Customer</dt>
-                          <dd className="text-right text-primary">{customer.display_name}</dd>
-                        </div>
-                        <div className="flex justify-between gap-3">
-                          <dt className="text-tertiary">Invoices</dt>
-                          <dd className="text-right text-primary">
-                            {selectedAllocations
-                              .map(
-                                (row) =>
-                                  `${row.invoiceNumber ?? row.invoiceId.slice(0, 8)} ${formatInr(row.amount)}`,
-                              )
-                              .join(", ")}
-                          </dd>
-                        </div>
-                        <div className="flex justify-between gap-3">
-                          <dt className="text-tertiary">Tenders</dt>
-                          <dd className="text-right text-primary">
-                            {tenders
-                              .filter((row) => isPositiveMoney(row.amount))
-                              .map((row) => `${formatInr(row.amount)} ${paymentMethodLabel(row.method)}`)
-                              .join(", ")}
-                          </dd>
-                        </div>
-                        <div className="flex justify-between gap-3">
-                          <dt className="text-tertiary">Total</dt>
-                          <MoneyText amount={allocationTotal} as="dd" className="font-medium text-primary" />
-                        </div>
-                      </dl>
-                      <p className="mt-2 text-xs text-tertiary">
-                        Records money you already collected in the shop against the selected invoices.
+                  {!isZeroMoney(allocationTotal) ? (
+                    <div className="flex flex-col gap-1.5">
+                      <Button
+                        color="secondary"
+                        size="lg"
+                        className="w-full sm:w-auto"
+                        isDisabled={mutation.isPending}
+                        onPress={fillPaymentToAllocated}
+                      >
+                        Full due {formatInr(allocationTotal)}
+                      </Button>
+                      <p className="text-sm text-tertiary">
+                        Fills the tender amount; allocation stays as set above.
                       </p>
                     </div>
-                  </>
-                ) : null}
+                  ) : null}
 
-                {localError ? (
-                  <p className="text-sm text-error-primary" role="alert">
-                    {localError}
-                  </p>
-                ) : null}
-                {mutation.isError ? (
-                  <p className="text-sm text-error-primary" role="alert">
-                    {paymentErrorMessage(mutation.error)}
-                  </p>
-                ) : null}
-              </div>
+                  {overSalesDue ? (
+                    <div className="flex flex-col gap-2 rounded-lg bg-error-primary px-4 py-3 ring-1 ring-error-secondary">
+                      <p className="text-sm text-error-primary" role="alert">
+                        {formatInr(subtractMoney(tenderTotal, salesDue))} more than the{" "}
+                        {formatInr(salesDue)} owed. Payments can only settle open dues.
+                      </p>
+                      <Button
+                        color="secondary"
+                        size="md"
+                        className="self-start"
+                        isDisabled={mutation.isPending}
+                        onPress={setPaymentToSalesDue}
+                      >
+                        Set to {formatInr(salesDue)}
+                      </Button>
+                    </div>
+                  ) : null}
 
-              <footer className="flex shrink-0 flex-col gap-2 border-t border-secondary px-5 py-4">
-                {submitReason ? (
-                  <p className="text-xs text-tertiary" role="status">
-                    {submitReason}
-                  </p>
-                ) : null}
-                <div className="flex flex-wrap justify-end gap-2">
-                  <Button color="secondary" size="md" isDisabled={mutation.isPending} onPress={close}>
-                    Cancel
-                  </Button>
-                  <Button
-                    color="primary"
-                    size="md"
-                    isDisabled={!canSubmit || mutation.isPending}
-                    isLoading={mutation.isPending}
-                    onPress={submit}
-                  >
-                    Record payment
-                  </Button>
+                  {paymentMismatch && !overSalesDue ? (
+                    <div className="flex flex-col gap-2 rounded-lg bg-error-primary px-4 py-3 ring-1 ring-error-secondary">
+                      <p className="text-sm text-error-primary" role="alert">
+                        {compareMoney(tenderTotal, allocationTotal) < 0
+                          ? `Payment is ${formatInr(subtractMoney(allocationTotal, tenderTotal))} less than allocated.`
+                          : `Payment is ${formatInr(subtractMoney(tenderTotal, allocationTotal))} more than allocated.`}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          color="secondary"
+                          size="md"
+                          isDisabled={mutation.isPending}
+                          onPress={allocateToMatchPayment}
+                        >
+                          Allocate {formatInr(tenderTotal)} instead
+                        </Button>
+                        <Button
+                          color="secondary"
+                          size="md"
+                          isDisabled={mutation.isPending}
+                          onPress={fillPaymentToAllocated}
+                        >
+                          Set payment to {formatInr(allocationTotal)}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
-              </footer>
-            </>
-          )}
+              )}
+            </NumberedStep>
+
+            {localError ? (
+              <p className="text-sm text-error-primary" role="alert">
+                {localError}
+              </p>
+            ) : null}
+            {mutation.isError ? (
+              <p className="text-sm text-error-primary" role="alert">
+                {paymentErrorMessage(mutation.error)}
+              </p>
+            ) : null}
+          </div>
+
+          <footer className="flex shrink-0 flex-col gap-3 border-t-2 border-primary px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+            {paymentMismatch || overSalesDue ? (
+              <dl className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                <div className="flex gap-2">
+                  <dt className="text-tertiary">Allocated</dt>
+                  <MoneyText amount={allocationTotal} as="dd" className="font-medium text-primary" />
+                </div>
+                <div className="flex gap-2">
+                  <dt className="text-tertiary">Payment</dt>
+                  <MoneyText amount={tenderTotal} as="dd" className="font-medium text-primary" />
+                </div>
+                <div className="flex gap-2">
+                  <dt className="font-semibold text-error-primary">Difference</dt>
+                  <MoneyText
+                    amount={difference}
+                    as="dd"
+                    className="font-bold text-error-primary"
+                  />
+                </div>
+              </dl>
+            ) : submitReason ? (
+              <p className="text-sm text-tertiary" role="status">
+                {submitReason}
+              </p>
+            ) : (
+              <div className="min-w-0">
+                <p className="text-sm font-semibold tracking-wide text-tertiary uppercase">
+                  Collecting{methodSummary ? ` · ${methodSummary}` : ""}
+                </p>
+                <MoneyText
+                  amount={allocationTotal}
+                  as="p"
+                  className="text-xl font-bold text-primary"
+                />
+                {outcomeText ? <p className="text-sm text-tertiary">{outcomeText}</p> : null}
+              </div>
+            )}
+            <div className="flex flex-wrap justify-end gap-3">
+              <Button color="secondary" size="lg" isDisabled={mutation.isPending} onPress={close}>
+                Cancel
+              </Button>
+              <Button
+                color="primary"
+                size="lg"
+                isDisabled={!canSubmit || mutation.isPending}
+                isLoading={mutation.isPending}
+                onPress={submit}
+              >
+                Record {formatInr(allocationTotal)}
+              </Button>
+            </div>
+          </footer>
         </Dialog>
       </Modal>
     </ModalOverlay>

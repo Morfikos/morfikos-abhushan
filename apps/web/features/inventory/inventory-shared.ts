@@ -27,21 +27,34 @@ export function articleStatusLabel(status: ArticleStatus): string {
   return "Unavailable";
 }
 
-export function articleStatusColor(status: ArticleStatus): "success" | "gray" | "warning" | "error" {
+export function articleStatusColor(status: ArticleStatus): "success" | "blue" | "orange" | "error" {
   if (status === "available") {
     return "success";
   }
   if (status === "sold") {
-    return "gray";
+    return "blue";
   }
   if (status === "return_inspection") {
-    return "warning";
+    return "orange";
   }
   return "error";
 }
 
+export function metalBadgeColor(metal: "gold" | "silver" | string): "warning" | "slate" {
+  return metal === "silver" ? "slate" : "warning";
+}
+
+export function sellableBadgeColor(sellable: boolean): "success" | "orange" {
+  return sellable ? "success" : "orange";
+}
+
 export function formatGrams(value: string): string {
   return `${value} g`;
+}
+
+/** Weight amount only — use when the unit is already in the column header (e.g. Gross (g)). */
+export function gramsDisplay(value: string): string {
+  return value;
 }
 
 /** Calendar-day age from a Kolkata business date to today. Display only. */
@@ -107,7 +120,7 @@ export function inventoryErrorMessage(error: unknown): string {
 export function scanLookupErrorMessage(error: unknown): string {
   if (error instanceof StaffApiError) {
     if (error.status === 404 || error.code === "NOT_FOUND") {
-      return "Unknown barcode.";
+      return "No article has this barcode.";
     }
     if (error.code === "ARTICLE_SOLD") {
       return "This article is sold.";
@@ -118,6 +131,10 @@ export function scanLookupErrorMessage(error: unknown): string {
     return error.message;
   }
   return "Network error.";
+}
+
+export function isScanNotFoundError(error: unknown): boolean {
+  return error instanceof StaffApiError && (error.status === 404 || error.code === "NOT_FOUND");
 }
 
 export function fieldError(error: unknown, field: string): string | undefined {

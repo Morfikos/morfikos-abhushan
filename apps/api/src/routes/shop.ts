@@ -18,6 +18,7 @@ import {
   removeShopLogo,
   updateDeviceSettings,
   updateDocumentSequences,
+  updateMetalRate,
   updateReminderSettings,
   updateShopProfile,
   uploadShopLogo,
@@ -32,6 +33,7 @@ import {
   makingChargeDefaultUpsertSchema,
   metalRateCreateSchema,
   metalRateListQuerySchema,
+  metalRatePatchSchema,
   metalRatesCoverageQuerySchema,
   reminderSettingsPatchSchema,
   shopProfilePatchSchema,
@@ -211,6 +213,19 @@ export function registerShopRoutes(
       const body = parseBody(metalRateCreateSchema, req.body);
       const rate = await withShopRepo(pool, req, (repo) => createMetalRate(repo, req.staffAccess, body));
       res.status(201).json(rate);
+    }),
+  );
+
+  app.patch(
+    "/api/v1/shop/rates/:id",
+    requireStaff,
+    handle(async (req, res) => {
+      const rateId = parsePathUuid(req.params.id, "id");
+      const body = parseBody(metalRatePatchSchema, req.body);
+      const rate = await withShopRepo(pool, req, (repo) =>
+        updateMetalRate(repo, req.staffAccess, rateId, body),
+      );
+      res.status(200).json(rate);
     }),
   );
 

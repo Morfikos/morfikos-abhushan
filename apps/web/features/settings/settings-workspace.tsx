@@ -19,6 +19,7 @@ import type {
   DeviceSettings,
   DocumentSequence,
   InvitibleStaffRole,
+  MetalRate,
   ReminderSettings,
   ShopProfile,
   StaffDirectoryItem,
@@ -34,18 +35,23 @@ import { Tabs } from "@/components/application/tabs/tabs";
 import { useStaffToast } from "@/components/application/toast/staff-toast";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
+import { Chip } from "@/components/shared/chip";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { Input } from "@/components/base/input/input";
 import { TextArea } from "@/components/base/textarea/textarea";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { FormDialog } from "@/components/shared/form-dialog";
 import { CatalogueCombobox } from "@/components/shared/catalogue-combobox";
 import { ListTableFooter } from "@/components/shared/list-table-footer";
+import { useListPagination } from "@/lib/list-search-params";
+import { kolkataTodayCalendar } from "@/lib/period-bounds";
 import { SectionCard } from "@/components/shared/section-card";
 import { SelectField } from "@/components/shared/select-field";
+import { SegmentedField } from "@/components/shared/segmented-field";
 import { StaffPageHeader } from "@/components/shared/staff-page-header";
 import { StickyFormActions } from "@/components/shared/sticky-form-actions";
 import { staffHasPermission, useStaff } from "@/features/auth/staff-shell";
-import { membershipStatusColor, membershipStatusLabel } from "./membership-status";
+import { catalogueActiveBadgeColor, membershipStatusColor, membershipStatusLabel } from "./membership-status";
 import {
   createMetalRateRequest,
   createPurityLabelRequest,
@@ -63,6 +69,7 @@ import {
   fetchStorageLocations,
   inviteStaffRequest,
   patchDevices,
+  patchMetalRateRequest,
   patchPurityLabelRequest,
   patchReminders,
   patchSequences,
@@ -763,8 +770,7 @@ function StaffPanel() {
   const queryClient = useQueryClient();
   const me = useStaff();
   const toast = useStaffToast();
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const { page, setPage, pageSize, setPageSize } = useListPagination(10);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<InvitibleStaffRole>("billing");
   const [displayName, setDisplayName] = useState("");
@@ -821,7 +827,7 @@ function StaffPanel() {
               value={email}
               isRequired
               isInvalid={Boolean(inviteEmailHint)}
-              hint={inviteEmailHint}
+              error={inviteEmailHint}
               onChange={(value) => {
                 if (invite.isError) {
                   invite.reset();
@@ -841,14 +847,29 @@ function StaffPanel() {
             />
             <SelectField
               label="Role"
-              hint="Admin: settings and staff. Billing: POS and payments. Inventory: stock and tags. Girvi: collateral accounts."
               value={role}
-              onChange={(value) => setRole(value as InvitibleStaffRole)}
+              onChange={setRole}
               options={[
-                { label: "Admin", value: "admin" },
-                { label: "Billing", value: "billing" },
-                { label: "Inventory", value: "inventory" },
-                { label: "Girvi", value: "girvi" },
+                {
+                  label: "Admin",
+                  value: "admin",
+                  supportingText: "Settings and staff",
+                },
+                {
+                  label: "Billing",
+                  value: "billing",
+                  supportingText: "POS and payments",
+                },
+                {
+                  label: "Inventory",
+                  value: "inventory",
+                  supportingText: "Stock and tags",
+                },
+                {
+                  label: "Girvi",
+                  value: "girvi",
+                  supportingText: "Collateral accounts",
+                },
               ]}
             />
             <div className="flex items-end lg:pt-7">
@@ -919,11 +940,9 @@ function StaffPanel() {
           page={page}
           totalPages={totalPages}
           pageSize={pageSize}
+          total={total}
           onPageChange={setPage}
-          onPageSizeChange={(next) => {
-            setPageSize(next);
-            setPage(1);
-          }}
+          onPageSizeChange={setPageSize}
         />
         ) : null}
       </TableCard.Root>
@@ -937,12 +956,10 @@ function StaffPanel() {
               Suspend <span className="font-medium text-primary">{suspendTarget.display_name}</span> (
               <span className="font-mono text-primary">{suspendTarget.email}</span>)? They will lose access until
               restored.
-              {suspend.isError ? (
-                <p className="mt-2 text-sm text-error-primary">{errorMessage(suspend.error)}</p>
-              ) : null}
             </>
           ) : null
         }
+        error={suspend.isError ? errorMessage(suspend.error) : undefined}
         confirmLabel="Suspend"
         confirmColor="primary-destructive"
         cancelLabel="Cancel"
@@ -990,15 +1007,13 @@ function CatalogueStarterChips({
       <p className="text-xs text-tertiary">Suggestions</p>
       <div className="flex flex-wrap gap-2">
         {suggestions.map((suggestion) => (
-          <Button
+          <Chip
             key={suggestion}
-            color="secondary"
-            size="sm"
             isDisabled={disabled}
             onPress={() => onPick(suggestion)}
           >
             {suggestion}
-          </Button>
+          </Chip>
         ))}
       </div>
     </div>
@@ -1068,7 +1083,7 @@ function PuritiesCatalogueSection() {
             placeholder="e.g. 22K"
             isDisabled={busy}
             isInvalid={create.isError}
-            hint={createHint}
+            error={createHint}
             onChange={(value) => {
               if (create.isError) {
                 create.reset();
@@ -1137,7 +1152,7 @@ function PuritiesCatalogueSection() {
                   )}
                 </Table.Cell>
                 <Table.Cell>
-                  <Badge type="pill-color" size="sm" color={item.is_active ? "success" : "gray"}>
+                  <Badge type="pill-color" size="sm" color={catalogueActiveBadgeColor(item.is_active)}>
                     {item.is_active ? "Active" : "Archived"}
                   </Badge>
                 </Table.Cell>
@@ -1263,7 +1278,7 @@ function StorageLocationsCatalogueSection() {
             placeholder="e.g. Safe A"
             isDisabled={busy}
             isInvalid={create.isError}
-            hint={createHint}
+            error={createHint}
             onChange={(value) => {
               if (create.isError) {
                 create.reset();
@@ -1332,7 +1347,7 @@ function StorageLocationsCatalogueSection() {
                   )}
                 </Table.Cell>
                 <Table.Cell>
-                  <Badge type="pill-color" size="sm" color={item.is_active ? "success" : "gray"}>
+                  <Badge type="pill-color" size="sm" color={catalogueActiveBadgeColor(item.is_active)}>
                     {item.is_active ? "Active" : "Archived"}
                   </Badge>
                 </Table.Cell>
@@ -1398,14 +1413,18 @@ function StorageLocationsCatalogueSection() {
 function RatesPanel() {
   const queryClient = useQueryClient();
   const router = useRouter();
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const { page, setPage, pageSize, setPageSize } = useListPagination(10);
   const [metal, setMetal] = useState<"gold" | "silver">("gold");
   const [purity, setPurity] = useState("");
   const [rate, setRate] = useState("");
   const [businessDate, setBusinessDate] = useState<CalendarDate | null>(null);
   const [makingDirty, setMakingDirty] = useState(false);
   const [makingSavePending, setMakingSavePending] = useState(false);
+  const [editingRate, setEditingRate] = useState<MetalRate | null>(null);
+  const [editRateValue, setEditRateValue] = useState("");
+
+  const todayIso = kolkataTodayCalendar().toString();
+  const yesterdayIso = kolkataTodayCalendar().subtract({ days: 1 }).toString();
 
   const query = useQuery({
     queryKey: ["shop", "rates", page, pageSize],
@@ -1432,12 +1451,43 @@ function RatesPanel() {
     },
   });
 
+  const editMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingRate) {
+        throw new Error("No rate selected.");
+      }
+      return patchMetalRateRequest(await accessToken(), editingRate.id, {
+        rate_per_gram: editRateValue.trim(),
+      });
+    },
+    onSuccess: () => {
+      setEditingRate(null);
+      setEditRateValue("");
+      void queryClient.invalidateQueries({ queryKey: ["shop", "rates"] });
+    },
+  });
+
   const items = query.data?.items ?? [];
   const total = query.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const purityItems = (purities.data?.items ?? []).map((item) => ({ id: item.label, label: item.label }));
   const addRateDirty = purity.trim() !== "" || rate.trim() !== "" || businessDate !== null;
   useReportSettingsDirty("rates", addRateDirty || makingDirty, mutation.isPending || makingSavePending);
+
+  function openEditRate(item: MetalRate) {
+    setEditingRate(item);
+    setEditRateValue(stripTrailingRateZeros(item.rate_per_gram));
+    editMutation.reset();
+  }
+
+  function closeEditRate() {
+    if (editMutation.isPending) {
+      return;
+    }
+    setEditingRate(null);
+    setEditRateValue("");
+    editMutation.reset();
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -1450,30 +1500,29 @@ function RatesPanel() {
       >
         <SectionCard
           title="Add rate"
-          description="New rates are added; old ones stay for history. Leave date blank for today."
+          description="New rates are added; old ones stay for history. Leave date blank for today. To correct today’s rate, edit the row below."
         >
           <div className="grid gap-4 md:grid-cols-2">
-            <SelectField
+            <SegmentedField
               label="Metal"
+              size="md"
               value={metal}
-              onChange={(value) => setMetal(value as "gold" | "silver")}
+              onChange={setMetal}
               options={[
                 { label: "Gold", value: "gold" },
                 { label: "Silver", value: "silver" },
               ]}
             />
-            <div className="flex flex-col gap-1.5">
-              <CatalogueCombobox
-                label="Purity"
-                value={purity}
-                placeholder="Select purity"
-                isRequired
-                isDisabled={purities.isLoading}
-                items={purityItems}
-                onChange={setPurity}
-              />
-              {!purities.isLoading && purityItems.length === 0 ? (
-                <p className="text-sm text-tertiary">
+            <CatalogueCombobox
+              label="Purity"
+              value={purity}
+              placeholder="Select purity"
+              isRequired
+              isLoading={purities.isLoading}
+              items={purityItems}
+              onChange={setPurity}
+              emptyMessage={
+                <>
                   No purities yet.{" "}
                   <button
                     type="button"
@@ -1482,9 +1531,9 @@ function RatesPanel() {
                   >
                     Add purities in Catalogues
                   </button>
-                </p>
-              ) : null}
-            </div>
+                </>
+              }
+            />
             <Input
               label="Rate per gram (₹/g)"
               value={rate}
@@ -1517,7 +1566,7 @@ function RatesPanel() {
       <TableCard.Root>
         <TableCard.Header title="Metal rates" badge={query.isLoading && items.length === 0 ? undefined : String(total)} />
         {query.isLoading && items.length === 0 ? (
-          <TableSkeleton columns={4} rows={6} showCard={false} label="Loading metal rates" />
+          <TableSkeleton columns={5} rows={6} showCard={false} label="Loading metal rates" />
         ) : items.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-tertiary md:px-6">No rates yet. Add a rate above.</p>
         ) : (
@@ -1527,19 +1576,32 @@ function RatesPanel() {
               <Table.Head id="metal" label="Metal" />
               <Table.Head id="purity" label="Purity" />
               <Table.Head id="rate" label="Rate" className="text-right" />
+              <Table.Head id="actions" label="" className="w-28" />
             </Table.Header>
             <Table.Body items={items}>
-              {(item) => (
-                <Table.Row id={item.id}>
-                  <Table.Cell className="tabular-nums">{item.effective_business_date}</Table.Cell>
-                  <Table.Cell className="capitalize">{item.metal}</Table.Cell>
-                  <Table.Cell>{item.purity}</Table.Cell>
-                  <Table.Cell className="text-right font-medium">
-                    <MoneyText amount={item.rate_per_gram} className="font-medium" />
-                    /g
-                  </Table.Cell>
-                </Table.Row>
-              )}
+              {(item) => {
+                const isToday = item.effective_business_date === todayIso;
+                return (
+                  <Table.Row id={item.id}>
+                    <Table.Cell className="tabular-nums">
+                      {rateBusinessDateLabel(item.effective_business_date, todayIso, yesterdayIso)}
+                    </Table.Cell>
+                    <Table.Cell className="capitalize">{item.metal}</Table.Cell>
+                    <Table.Cell>{item.purity}</Table.Cell>
+                    <Table.Cell className="text-right font-medium">
+                      <MoneyText amount={item.rate_per_gram} className="font-medium" />
+                      /g
+                    </Table.Cell>
+                    <Table.Cell truncate={false}>
+                      {isToday ? (
+                        <Button color="secondary" size="sm" onPress={() => openEditRate(item)}>
+                          Edit
+                        </Button>
+                      ) : null}
+                    </Table.Cell>
+                  </Table.Row>
+                );
+              }}
             </Table.Body>
           </Table>
         )}
@@ -1548,18 +1610,61 @@ function RatesPanel() {
           page={page}
           totalPages={totalPages}
           pageSize={pageSize}
+          total={total}
           onPageChange={setPage}
-          onPageSizeChange={(next) => {
-            setPageSize(next);
-            setPage(1);
-          }}
+          onPageSizeChange={setPageSize}
         />
         ) : null}
       </TableCard.Root>
 
+      <FormDialog
+        isOpen={editingRate !== null}
+        title="Edit today’s rate"
+        confirmLabel="Save rate"
+        isConfirming={editMutation.isPending}
+        isConfirmDisabled={editRateValue.trim() === ""}
+        error={editMutation.isError ? errorMessage(editMutation.error) : undefined}
+        onConfirm={() => editMutation.mutate()}
+        onCancel={closeEditRate}
+      >
+        {editingRate ? (
+          <div className="flex flex-col gap-4">
+            <Input label="Metal" value={editingRate.metal === "gold" ? "Gold" : "Silver"} isDisabled />
+            <Input label="Purity" value={editingRate.purity} isDisabled />
+            <Input label="Business date" value="Today" isDisabled />
+            <Input
+              label="Rate per gram (₹/g)"
+              value={editRateValue}
+              placeholder="e.g. 6500"
+              isRequired
+              onChange={setEditRateValue}
+            />
+          </div>
+        ) : null}
+      </FormDialog>
+
       <MakingDefaultsSection onDirtyChange={setMakingDirty} onSavePendingChange={setMakingSavePending} />
     </div>
   );
+}
+
+function rateBusinessDateLabel(businessDate: string, todayIso: string, yesterdayIso: string): string {
+  if (businessDate === todayIso) {
+    return "Today";
+  }
+  if (businessDate === yesterdayIso) {
+    return "Yesterday";
+  }
+  return businessDate;
+}
+
+/** Prefill edit field without DB trailing zeros (2000.000000 → 2000). */
+function stripTrailingRateZeros(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed.includes(".")) {
+    return trimmed;
+  }
+  return trimmed.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
 }
 
 function makingChargeLabel(making: {
@@ -1656,27 +1761,26 @@ function MakingDefaultsSection({
           description="Applied when a new POS line is added for that metal and purity. Staff can still override inline or in Pricing."
         >
           <div className="grid gap-4 md:grid-cols-2">
-            <SelectField
+            <SegmentedField
               label="Metal"
+              size="md"
               value={metal}
-              onChange={(next) => setMetal(next as "gold" | "silver")}
+              onChange={setMetal}
               options={[
                 { label: "Gold", value: "gold" },
                 { label: "Silver", value: "silver" },
               ]}
             />
-            <div className="flex flex-col gap-1.5">
-              <CatalogueCombobox
-                label="Purity"
-                value={purity}
-                placeholder="Select purity"
-                isRequired
-                isDisabled={purities.isLoading}
-                items={purityItems}
-                onChange={setPurity}
-              />
-              {!purities.isLoading && purityItems.length === 0 ? (
-                <p className="text-sm text-tertiary">
+            <CatalogueCombobox
+              label="Purity"
+              value={purity}
+              placeholder="Select purity"
+              isRequired
+              isLoading={purities.isLoading}
+              items={purityItems}
+              onChange={setPurity}
+              emptyMessage={
+                <>
                   No purities yet.{" "}
                   <button
                     type="button"
@@ -1685,13 +1789,15 @@ function MakingDefaultsSection({
                   >
                     Add purities in Catalogues
                   </button>
-                </p>
-              ) : null}
-            </div>
-            <SelectField
+                </>
+              }
+            />
+            <SegmentedField
               label="Making method"
+              size="md"
+              selection="quiet"
               value={method}
-              onChange={(next) => setMethod(next as "fixed" | "per_gram" | "percent_of_metal")}
+              onChange={setMethod}
               options={[
                 { label: "Fixed ₹", value: "fixed" },
                 { label: "₹/g", value: "per_gram" },
@@ -1917,10 +2023,11 @@ function DevicesPanel() {
     >
       <SectionCard title="Scanner" description="How barcode scans complete in inventory and POS.">
         <div className="grid gap-4 md:grid-cols-2">
-          <SelectField
+          <SegmentedField
             label="Scan terminator"
+            selection="quiet"
             value={form.scan_terminator}
-            onChange={(value) => setForm({ ...form, scan_terminator: value as DeviceSettings["scan_terminator"] })}
+            onChange={(value) => setForm({ ...form, scan_terminator: value })}
             options={[
               { label: "Enter", value: "Enter" },
               { label: "Tab", value: "Tab" },
@@ -1950,14 +2057,15 @@ function DevicesPanel() {
             value={form.tag_height_mm}
             onChange={(value) => setForm({ ...form, tag_height_mm: value })}
           />
-          <SelectField
+          <SegmentedField
             label="Invoice paper size"
+            selection="quiet"
             value={form.invoice_paper_size}
-            onChange={(value) => setForm({ ...form, invoice_paper_size: value as DeviceSettings["invoice_paper_size"] })}
+            onChange={(value) => setForm({ ...form, invoice_paper_size: value })}
             options={[
               { label: "A5", value: "A5" },
               { label: "A4", value: "A4" },
-              { label: "80mm (thermal)", value: "80mm" },
+              { label: "80mm", value: "80mm" },
             ]}
           />
         </div>
@@ -2049,10 +2157,11 @@ function RemindersPanel() {
             value={form.send_window_end}
             onChange={(value) => setForm({ ...form, send_window_end: value })}
           />
-          <SelectField
+          <SegmentedField
             label="Language"
+            selection="quiet"
             value={form.language}
-            onChange={(value) => setForm({ ...form, language: value as ReminderSettings["language"] })}
+            onChange={(value) => setForm({ ...form, language: value })}
             options={[
               { label: "English", value: "en" },
               { label: "Hindi", value: "hi" },
@@ -2072,8 +2181,7 @@ function RemindersPanel() {
 }
 
 function AuditPanel() {
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const { page, setPage, pageSize, setPageSize } = useListPagination(10);
   const query = useQuery({
     queryKey: ["shop", "audit", page, pageSize],
     queryFn: async () => fetchAudit(await accessToken(), { page, pageSize }),
@@ -2123,11 +2231,9 @@ function AuditPanel() {
             page={page}
             totalPages={totalPages}
             pageSize={pageSize}
+            total={total}
             onPageChange={setPage}
-            onPageSizeChange={(next) => {
-              setPageSize(next);
-              setPage(1);
-            }}
+            onPageSizeChange={setPageSize}
           />
         </>
       )}

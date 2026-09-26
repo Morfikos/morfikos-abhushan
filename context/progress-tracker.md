@@ -4,11 +4,483 @@ Update this file after every meaningful implementation change. Record completed 
 
 ## Current Phase
 
-Spec 15 (dashboard, reports, and exports) is implemented: `0021` reconstructs sales dues as of the range end, collections ignore non-posted outflows, and dashboard drill-through carries the selected range. Spec 14 notifications remain implemented in code; official WhatsApp credentials/templates stay configuration. Specs 01–13 remain implemented; spec 05 hardware drill remains incomplete. Staff screens use structure-matched skeleton loaders for data fetch (mutations keep Button isLoading). Counter-facing UX polish is in place: success toasts, daily metal-rates shell banner, two-way list URL filters with chips, notification nav attention badges, dirty leave guards, dashboard role/as-of copy, and staff-shell remount survival (session staff cache + QueryClient singleton + shell skeleton + `next/link` soft nav).
+Spec 15 (dashboard, reports, and exports) is implemented: `0021` reconstructs sales dues as of the range end, collections ignore non-posted outflows, and dashboard drill-through carries the selected range. Spec 14 notifications remain implemented in code; official WhatsApp credentials/templates stay configuration. Specs 01–13 remain implemented; spec 05 hardware drill remains incomplete. Staff screens use structure-matched skeleton loaders for data fetch (mutations keep Button isLoading). Counter-facing UX polish is in place: success toasts, daily metal-rates shell banner, two-way list URL filters with chips, notification nav attention badges, dirty leave guards, dashboard role/as-of copy, and staff-shell remount survival (session staff cache + QueryClient singleton + shell skeleton + `next/link` soft nav). Directory lists share search-pending feedback, empty CTA matrix, page-number footer, in-card errors, and the chip-visibility rule.
 
-**Last updated:** 21 September 2026 (Tabular money display).
+**Last updated:** 23 September 2026 (Sidebar bg `#131413`).
+
+## Completed — Sidebar background restored to `#131413`
+
+- `--color-bg-sidebar` set to `#131413` in light and dark theme (decoupled from new-black `#1a1a1a`). Matches `ui-context.md`.
+
+## Completed — New black `#1a1a1a`
+
+- `--color-neutral-950` and `--color-black` set to `#1a1a1a`; alpha-black / print ink left as pure black. Sidebar stays `#131413`.
+- Docs in `ui-context.md`.
+
+## Completed — Sidebar shadow mid strength
+
+- Softened cast and edge gradient to sit between the earlier faint lift and the heavy falloff (`from-black/20`, mid box-shadow opacities).
+
+## Completed — Sidebar raised shadow strengthened
+
+- Cast moved to the fixed desktop wrapper so `aside` overflow no longer clips it.
+- Stronger three-layer box-shadow plus a right-edge black→transparent gradient strip for a clear raised read. Docs updated.
+
+## Completed — Sidebar raised right shadow
+
+- Desktop rail uses dual-layer `--shadow-sidebar-rail` / `--shadow-sidebar-rail-dragging`; desktop `border-r` removed so the cast reads as lift over the canvas.
+- `StaffShellSkeleton` matched. Docs in `ui-context.md`.
+
+## Completed — Sidebar background #131413 and larger nav items
+
+- `--color-bg-sidebar` set to `#131413` (light and dark theme).
+- Nav rows bumped: `min-h-11`, `text-md`, `size-6` icons, roomier padding/gaps; collapsed rail hit targets `size-11`.
+- Docs in `ui-context.md`.
+
+## Completed — Dark staff sidebar
+
+- Staff rail (desktop + mobile drawer) uses ink `bg-sidebar` (`#131413`) with sibling tokens for hover/active/muted text/border; workspace canvas stays light.
+- Selected nav is a brand-orange pill with white label/icon; idle muted; account card quiet dark trigger with light Sign-out popover; `ShopMark variant="onDark"`; skeleton rail matched.
+- Docs in `ui-context.md`. Mobile header stays light.
+- Browser: desktop rail `rgb(17,17,17)` + orange Dashboard/Customers pills; collapsed icon rail; Sign out light popover; mobile drawer same dark treatment. Workspace `/customers` stayed light. Typecheck passed.
+
+## Completed — Customer WhatsApp select filter
+
+- `/customers` WhatsApp filter is a strip `SelectField` (`lg`, All WhatsApp / Granted / Revoked / None) beside Type `ButtonGroup`, matching inventory category selects; popover + `SegmentedField` removed.
+- URL `whatsapp` param and Clear filters behavior unchanged. Docs in `ui-context.md`.
+- Browser: select Granted → `?whatsapp=granted`, Directory badge 3 with only Granted rows, Clear filters → All WhatsApp and `/customers`. Typecheck passed.
+
+## Completed — Customer list comfort
+
+- `/customers` joins inventory/invoices comfort: `lg` New customer, full-width `lg` search band, roomier filter bands, status tabs `md`/`gap-6`, Type `ButtonGroup` on the strip, WhatsApp `SelectField` on the strip, Clear filters when Type/WhatsApp non-default.
+- Rows: `md` avatar, name + phone stack, Walk-in/Inactive badges, `lg` WhatsApp badge, `size-6` chevron; email column removed.
+- Skeleton matched. Docs in `ui-context.md`. `pnpm --filter @aabhushan/web typecheck` passed.
+- Browser `/customers`: `lg` Search, Active/Inactive/All tabs, Type All/Named/Walk-in, WhatsApp select → Granted (`?whatsapp=granted`, Clear filters), search `q=Anjali`, Walk-in row shows Walk-in badge + phone dash; `/customers/new` still loads.
+
+## Completed — Print preview headers match tags
+
+- Invoice/receipt `PrintDocumentChrome` now composes roomy `PrintPreviewChrome` (large title, mono id + customer pill, helpers, `lg` Print + Back; Format/Language in `controls`).
+- `PrintDocumentSkeleton` matched. Docs in `ui-context.md`.
+- Browser: `/print/invoices/…` INV00004 and `/print/receipts/…` RCT00003 — title/pills/helpers/`lg` actions + Format/Language controls. Typecheck passed.
+
+
+## Completed — Detailed receipt print
+
+- Receipt HTML (thermal + A4/A5) mirrors invoice hierarchy: shop header, Kolkata-formatted issued time, customer phone, hero amount, method/reference, amount in words, per-invoice applied/total/due, footer, thank-you / signatures.
+- Print DTO adds phone, reference, business date, received-by staff, invoice footer, and allocation rows; drops flat `invoice_numbers`.
+- Receipt PDF `receipt.pdf.v3` prints the same facts; Regenerate picks up the new template.
+- Docs in `ui-context.md`. Typecheck: contracts, application, db, integrations, web, worker.
+- Browser: `/print/receipts/…` for RCT00003 — thermal/A5, EN/HI; amount ₹84,269.00, Cash, INV00003 paid in full, customer phone, received by, amount in words.
+
+
+## Completed — Daily rates display and same-day edit
+
+- `formatInr` accepts DB-scale decimals (`2000.000000` → `₹2,000.00`); money input math stays 2dp.
+- Rates list Business date: Today / Yesterday (Kolkata); older dates stay ISO.
+- `PATCH /api/v1/shop/rates/:id` corrects today’s `rate_per_gram` only (`RATE_NOT_TODAY` otherwise); audit `shop.rate.update`; Edit dialog on today’s rows.
+- Spec 03 + `ui-context` updated. Verified in browser: rates show ₹ amounts (not —/g), Today labels + Edit on today rows, edit 999 gold 3444→3450 succeeded; 2020-01-01 row has no Edit. `verify:money-format` + typecheck passed.
+
+
+## Completed — Record payment No dues stamp
+
+- Zero-due invoices step shows a large tilted double-border green **No dues** stamp (`text-display-sm`) with the Girvi note underneath.
+
+
+## Completed — Record payment comfort
+
+- Modal `max-w-3xl`; quieter step hairlines; POS-style customer bar; secondary Allocate/Split; `md` invoice/tender controls; `lg` Full due + footer Cancel/Record; Collecting caption `text-sm`.
+- Verified `/payments` open: dialog, `lg` Change customer (no orange Change link), disabled Record until allocation. `pnpm --filter @aabhushan/web typecheck` passed.
+- Docs in `ui-context.md`.
+
+
+## Completed — Thermal slip polish
+
+- POS totals slip: serrated paper edges (`ThermalPaperEdges`), compact line-item reprint in the rail, thank-you on completed-sale only.
+- Thermal invoice + receipt HTML: same serration + `thank_you` label (EN/HI); sheet layouts unchanged. Skeleton line stubs updated.
+- Docs in `ui-context.md`.
+
+## Completed — API process survived idle database disconnects
+
+- `ERR_CONNECTION_REFUSED` on port 3001 was the API process exiting. Dev logs showed `Unhandled 'error' event` / `read ETIMEDOUT` on an idle `pg` pool client (`BoundPool`), and the same timeout on a checked-out worker client. `tsx watch` left the parent running and did not respawn the server.
+- `createPool` now listens for idle pool errors, guards checked-out clients, enables TCP keep-alive, and caps the default pool at 4. pg-boss uses 2 connections so API + worker + pg-boss stay under the session pooler's 15-client limit (`EMAXCONNSESSION` was already failing requests).
 
 SQL `0001`–`0023` are the current migration set (`0023` purity labels + location archive applied on the project DB). Approved `girvi.v1` is seeded on `nhfmcosxqogxqvhdhzfz`. First owner `shikhar.nitsri@gmail.com` has an active membership.
+
+## Completed — Invoice detail comfort
+
+- Finalized detail: `StaffPageHeader density="comfort"`, `lg` actions/badges, money band `text-sm` labels + `px-5 py-4`, page `gap-6`, lines `Table md`, Collections/Corrections roomier with method/kind chips, docs rail `280px` + `DocumentStatusCard density="comfort"`.
+- Skeleton matched. Docs in `ui-context.md`. `pnpm --filter @aabhushan/web typecheck` passed.
+
+
+## Completed — POS thermal totals slip
+
+- Draft and completed totals rails restyled as a paper slip: shop header, dashed sections, scrollable body, sticky **TOTAL** above Finalize / New sale (no dark grand-total slab).
+- Quote blocked still leads; TOTAL muted while blocked. Bill-to uses `customer_display_name` only (phone is not on the Invoice contract). Skeleton matches the new hierarchy.
+- Docs in `ui-context.md`.
+
+## Completed — Payments method chips
+
+- Collections Method column uses `lg` Badge chips with fixed colours: Cash success, UPI purple, Card blue, Bank slate (`paymentMethodBadgeColor`).
+- Docs in `ui-context.md`.
+
+
+## Completed — Payments collections column align
+
+- Header + day-group body tables used independent auto column widths, so Invoices/Method/Amount drifted and multi-invoice rows looked left-shifted.
+- Locked collections tables to `table-fixed` with shared `%` column classes (and matching cell `px-5`) on header and each day group.
+- Verified: Invoices / Method / Amount header and cells share the same x/width; multi-invoice row matches single-invoice columns. `pnpm --filter @aabhushan/web typecheck` passed.
+- Docs in `ui-context.md`.
+
+
+## Completed — POS tender amount width
+
+- Clipped one-row amount was superseded by stacked tenders: method+delete over full-width `MoneyInput` (`w-full`); rail spot-check ~256px amount field, no clipping.
+- Docs already cover this in the POS totals bullet in `ui-context.md`.
+- `pnpm --filter @aabhushan/web typecheck` passed.
+
+
+## Completed — POS tender grouping
+
+- Each tender wraps method + delete + full-width amount in `rounded-lg p-3 ring-1 ring-secondary` so multiple payments read as separate blocks.
+- Docs in `ui-context.md`.
+
+## Completed — POS payments amount width
+
+- Tender rows stack method + delete over full-width `MoneyInput` so long INR values are not clipped in the `320px` rail.
+- Collecting now / Due after sale stack vertically in the ring card; amounts use `min-w-0 break-words` (no truncation).
+- Docs in `ui-context.md`.
+
+## Completed — POS customer Change icon
+
+- Selected customer bar: labeled Change replaced with `tertiary` `lg` `Edit01` icon (`text-primary`, right-aligned; `aria-label="Change customer"`).
+- Docs in `ui-context.md`.
+- Verified draft: icon-only Change; click opens combobox + New customer.
+
+## Completed — POS line Remove icon
+
+- Line actions: Pricing stays labeled `lg` secondary; Remove is `tertiary-destructive` `lg` `Trash01` icon (`text-error-primary`) with `aria-label` including article number.
+- Docs in `ui-context.md`.
+- Verified draft `/invoices/64848e9a-…`: Pricing labeled; Remove is icon-only with `aria-label="Remove ART00005"`; no text Remove button.
+
+## Completed — Exact 68px table rows
+
+- Shared `Table.Row` locks `h-[68px] min-h-[68px] max-h-[68px]` for both `sm` and `md` (size only affects header/card padding and cell horizontal padding). Selection checkbox wrapper matches.
+- Removed per-row 68px classes from invoices list and payments collections; POS and inventory multi-line stacks use centered `overflow-hidden` so content cannot grow the row.
+- `TableSkeleton` body rows are `h-[68px]`. Docs in `ui-context.md`.
+- Verified body rows are 68px on POS lines, invoices list, payments collections, inventory list, and Settings Daily rates tables. `pnpm --filter @aabhushan/web typecheck` passed.
+
+## Completed — Payments filter dividers
+
+- Collections filter stack matches Inventory/Invoices: `border-b border-primary` under search, tabs band with no bottom ink, chips `border-t border-secondary`, stack closes with `border-b border-secondary` (removed `border-b-2` rails).
+- Verified `/payments`: search rule 1px ink, tabs band `borderBottomWidth: 0`, stack 1px secondary; no `border-b-2`.
+
+## Completed — Payments list 68px rows
+
+- Collections body rows locked to `h-[68px] min-h-[68px] max-h-[68px]` (Invoices pattern); method badge stays on one line.
+- Docs in `ui-context.md`.
+- Verified `/payments`: three receipt rows each exactly 68px; Cash filter still sets `?method=cash`.
+
+## Completed — Payments list comfort
+
+- Joined Inventory/Invoices list comfort on `/payments`: `gap-6` stack; `lg` period + Record payment; roomier method band (`text-sm` labels, `px-5 py-4`, `text-display-xs` collected); `lg` search + `md` type tabs; `text-md` rows; Invoices-style day banners with `hidden` nested headers; `size-6` chevron.
+- Docs in `ui-context.md`.
+- Verified `/payments`: period `lg` (16px / 44px), Record payment `lg`, method labels 14px with `px-5 py-4`, search 44px, receipts 16px; Cash filter sets `?method=cash`. `pnpm --filter @aabhushan/web typecheck` passed.
+
+## Completed — POS counter comfort
+
+- Whole POS page loosened for mid-aged counter staff: `text-sm` floor, `lg` counter actions, `gap-6`, `320px` rail, `md` line rows. Skeleton matches.
+- Receive number conflicts stay in the Receive dialog. Walk-in is chosen from the customer picker, with a confirm when replacing a named customer. Scan placeholder is “Scan tag”; Scanner ready hides on error. Lines show two-decimal net, gross when it differs, Set rate, “₹X making” / Unsaved, and labeled Pricing and Remove. Header status covers rate missing, quote blocked, and unsaved making. Leave copy says a saved draft stays in Invoices.
+- Docs in `ui-context.md`.
+- Verified on `/invoices/new` at 1440px: rail `320px`, scan placeholder “Scan tag”, hint while no customer, `lg` Browse / Receive / New sale, customer name `18px` with Change, walk-in confirm then Keep customer, silver line `10.00 g` / Set rate / ₹0.00 making / Pricing / Remove, header “Draft · rate missing”, duplicate scan error without Scanner ready, leave copy “This draft stays in Invoices”. Column headers `14px`. `pnpm --filter @aabhushan/web typecheck` passed.
+
+## Completed — POS totals rail polish
+
+- Draft rail: quieter discount link / applied Discount+Edit chip; Payments hidden until lines; `md` tenders; Pay remaining secondary button.
+- Collecting/Due `text-md`; Paid in full when due clears; finalize reason `text-sm`.
+- Docs in `ui-context.md`.
+- Verified empty `/invoices/new`: “Add articles to quote”, no Payments, Finalize disabled + reason.
+- Verified draft with lines: Payments band, md tender row, Pay remaining secondary (disabled when `!canPayFull`), Collecting/Due readout, quiet discount link. `pnpm --filter @aabhushan/web typecheck` passed.
+
+
+## Completed — Invoice list 68px rows + day-group gap
+
+- Day-group nested `Table.Header` uses `hidden` so date banners sit flush above first row.
+- Invoice body rows locked to `68px`; Number is two lines (id + customer · phone); status badge `md`.
+- Docs in `ui-context.md`.
+- Verified Week view: gap 0 under date banners; body rows 68px. `pnpm --filter @aabhushan/web typecheck` passed.
+
+## Completed — Invoice filter band + list density defaults
+
+- Invoices: search-only lookup; status tabs left + period filters right (`py-4`, inventory pattern).
+- Shared defaults: `Table` md rows `min-h-16` (`sm` stays `min-h-12`); `ListTableFooter` default `lg`.
+- Docs in `ui-context.md`.
+- Verified `/invoices`: search above; tabs left + period right side-by-side. Customers footer uses `lg` padding. `pnpm --filter @aabhushan/web typecheck` passed.
+
+- List API adds `customer_phone_display`; `q` matches phone display/normalized as well as name/number.
+- UI: Number stacks customer + phone; Items + Paid columns; short en-IN dates; wider columns fill the card.
+- Docs in `ui-context.md`.
+- Verified `/invoices`: Items/Paid/phone/dates; INV00004 Paid ₹10k Due ₹7.7k; phone search `9876500003` filters to Anjali. Typecheck contracts/db/web passed.
+
+## Completed — Tag polish + gross/net (tag-v4)
+
+- Template `tag-v4`: three-line footer (HRI, metal/purity, Gross · Net); hairlines on name rail and under barcode; wider shop-name tracking; weights via `formatGrams` at two decimals.
+- `TAG_FOOTER_HEIGHT_MM` 5.75; barcode height still usable − footer. Spec 05, `ui-context`, `verify-barcodes` updated.
+- Verified: `pnpm --filter @aabhushan/{domain,web} typecheck` and web lint.
+
+## Completed — Tag preview grid (1 enlarged / 2 columns)
+
+- Single tag: screen-only 2× enlarged centered preview; print stays configured mm.
+- Two or more tags: fixed `grid-cols-2` (no 3-column breakpoint). Print still one tag per page.
+
+## Completed — Comfortable invoices list (inventory-inspired)
+
+- `ListSearchField` accepts optional `size` (default `md`); invoices pass `lg`.
+- Invoices list: `lg` New sale / search / period; roomy bands; `md` status tabs; `TableCard.Header` + count; Number+customer stack; `min-h-16` / `text-md`; `lg` badges + footer; `md` Resume / Record payment; roomier day banners.
+- Docs in `ui-context.md`.
+- Verified `/invoices`: count badge, Number+customer stack, Resume / Due Record payment + hint; `pnpm --filter @aabhushan/web typecheck` passed.
+
+## Completed — Tag layout v3 (vertical shop name)
+
+- Template `tag-v3`: left vertical shop `legal_name` rail, barcode band, centered HRI, then `Metal purity · net g`. No logo on tags (`logo_data_uri` always null).
+- Domain geometry: `TAG_NAME_RAIL_WIDTH_MM` / `TAG_RAIL_GAP_MM` / taller footer; barcode height = usable − footer; `tagCanShowLogo` always false.
+- `getArticleTagPreview` no longer loads logo; API call site simplified. Spec 05 + `ui-context` updated; `verify-barcodes` uses `tag-v3`.
+- Verified: `pnpm --filter @aabhushan/{domain,application,web} typecheck` (and web lint).
+
+## Completed — Inventory headers + tag print comfort
+
+- `StaffBackLink` accepts `size` (`sm`|`md`|`lg`); `StaffPageHeader` opt-in `density="comfort"` (roomier gaps, `text-display-sm` title, `text-lg` description, `md` back, `size-7` icon).
+- Receive / edit / article detail headers use comfort density; detail badges and Print/Edit/Adjust actions are `lg`; mono title drops one-off `text-[1.75rem]`.
+- Tag `PrintPreviewChrome` loosened (`px-5 py-5 md:px-7`, larger title/metadata/pills); tag print helpers and confirm strip bumped one step; Print/Back `lg`. Invoice/receipt `PrintDocumentChrome` unchanged.
+- Docs in `ui-context.md`. Verified: `pnpm --filter @aabhushan/web lint` and `typecheck`.
+
+## Completed — Articles list second comfort bump
+
+- Another level looser: toolbar bands `py-5` / `md:px-7`; empty lookup card `p-5 md:p-6`; page CTAs and filter/bulk controls `lg`; Lookup `ScanField` `size="lg"`; rows `min-h-16` with `text-md` article stack; status `Badge` `lg`; larger ⋯ hit target; `ListTableFooter size="lg"` (roomier pad + larger page-size / pager controls).
+- Skeleton and `ui-context.md` updated. `ScanField` accepts optional `size`. `ListTableFooter` accepts optional `size` (default `sm`).
+- Verified: `pnpm --filter @aabhushan/web lint` and `typecheck` passed.
+
+## Completed — Articles list comfort polish
+
+- Roomy lookup/filter/chip bands (`py-4`); filter and bulk controls bumped to `md`; ScanField hint + Scanner ready kept; duplicate tooltip removed.
+- Table: Article stacks category (`min-h-14`); Gross/Net `(g)` headers with `gramsDisplay`; status `Badge` `md`; write rows `⋯` only (read-only chevron).
+- `Table.Row` uses `min-h-12` so taller inventory rows can grow; `InventoryFilterStripSkeleton` matches `md` controls. Docs in `ui-context.md`.
+- Verified on `/inventory`: Lookup + Scanner ready; Gross (g) / Net (g); stacked Article+category (e.g. ART00005 Coins); bare weights; ⋯ menus only; filters present. `pnpm --filter @aabhushan/web lint` and `typecheck` passed.
+
+## Completed — Article Spec jewellery fields
+
+- Specification Identity now lists Category, Metal, Purity before Barcode/HUID/Stones.
+- Weights section (Gross / Non-metal / Net) sits to the right of Identity on desktop (`md:grid-cols-2`); stacks below on narrow.
+- Source and place unchanged; Location stays fact-band-only. Docs in `ui-context.md`.
+- Verified ART00005 Spec: Category Coins, Metal Silver, Purity 999, Weights 10 g / 0 g / 10 g, Source SUP-COIN-01; fact band + Edit still present. `pnpm --filter @aabhushan/web typecheck` passed.
+
+## Completed — Comfortable article UI spacing (second bump)
+
+- Another level looser: form cards `p-6 md:p-7`; section titles `text-lg`; Net readout `text-2xl`; checklist `size-6` / `text-lg`; preview rail `360px`; detail columns `280px`; fact labels `text-sm` / values `text-lg` (Net `text-xl`); Spec values `text-lg`.
+- Skeletons and `ui-context.md` updated to match.
+- Verified receive + ART00005 detail structure unchanged (category-only Coins, Edit, Spec, tag stamp). `pnpm --filter @aabhushan/web lint` and `typecheck` passed.
+
+## Completed — Comfortable article UI spacing
+
+- Shared form chrome: card `p-5 md:p-6`; NumberedSection `pt-5` / `mb-4` / `text-sm` numbers; weight grid `gap-x-3` + larger Net readout; preview/checklist `p-5`, `size-5` checks, `md` jump links.
+- Receive/edit: field gaps `gap-5`/`gap-6`; More details chips `md`; optional panels `p-5`; sticky rail `320px` + `gap-5`; page shell `gap-7`.
+- Article detail: fact labels `text-xs` (not 10px); body `240px` columns + `gap-6`; PieceRail default SectionCard padding; Spec `py-2` / `text-base` values; history `gap-3.5` / `text-base` titles.
+- Skeletons match wider rails and card padding. Docs in `ui-context.md`.
+- Verified: receive has md More details chips, wider preview rail, Assigned when received; ART00005 detail shows category-only “Coins”, Edit primary, Spec Stones · None + cost under Source, tag stamp “ART00005 / Silver 999 · 10.0000 g”; edit shows Ready to save + tag preview. `pnpm --filter @aabhushan/web lint` and `typecheck` passed.
+
+## Completed — Article detail UI polish
+
+- Header: category-only description; Edit primary when writable. Fact band: quiet zero non-metal; ink Net kept.
+- Spec: no article number / Location / Cost section; empty Stones inline; cost under Source; denser row padding.
+- PieceRail: 4:3 photo; hairline tag stamp (id + metal/net); no stripe barcode. Shorter movement timestamps.
+- `ArticleDetailSkeleton` photo `aspect-[4/3]`. Docs in `ui-context.md`.
+- Verified ART00005: category-only subtitle “Coins”; Edit is `bg-brand-solid`; Spec has Stones · None, no Location/Cost section, cost under Source; tag stamp “ART00005 / Silver 999 · 10.0000 g”; movement “20 Sept 2026, 6:55 am”. `pnpm --filter @aabhushan/web lint` and `typecheck` passed.
+
+## Completed — Receive/edit rail polish
+
+- Preview: compact empty photo row (Add photograph / No photograph); 4:3 only when a photo is staged; “Assigned when received” on receive; optional detail line; gross − non-metal under net when non-metal > 0.
+- Checklist collapses to Ready to receive / Ready to save when all gates pass; weight gate label is Weights; Add photograph opens Photograph and scrolls to the dropzone; mobile sticky is the action card only.
+- Docs in `ui-context.md` and spec 04.
+- Verified in browser: receive shows Assigned when received, compact Add photograph, Weights checklist → Ready to receive when complete, HUID detail line, `18.20 − 3.12` under 15.08 g, Receive enabled; Photograph group opens from More details; edit ART00005 shows real number, No photograph empty, `SUP-COIN-01 · Counter`, Ready to save. `pnpm --filter @aabhushan/web typecheck` passed.
+
+## Completed — Receive/edit form section polish
+
+- `WeightEquationRow`: Gross field hint for decimals; Net metal as result readout (no field chrome); operators locked to input midline; rebalanced column fractions.
+- Identification denser (`gap-3`); HUID half-width on `md`. Receive More details chips tertiary when idle, secondary + `ring-secondary` when open/filled.
+- Docs in `ui-context.md`.
+- Verified: Gross hint “Up to 4 decimal places”; broken weights show −5 g + Go to weights; Source & location opens; edit ART00005 Save enabled. `pnpm --filter @aabhushan/web lint` and `typecheck` passed.
+
+## Completed — Money and payment UX polish
+
+- `MoneyInput`: default placeholder `0.00`; select-all on empty/zero focus; optional Due `onFill` (record-payment allocations, Girvi repayment/settle).
+- `MethodSelect` `layout="menu"` on POS one-line tenders (method | amount | trash); dialogs keep segmented; Collecting/Due captions `text-xs`; due zero is em dash.
+- `MoneyText` `zero="dash"` and debit default error colour; invoice list due uses dash; payments debit callers simplified.
+- Record payment: `referenceHintFor` on Reference input; method has no long hint.
+- Docs in `ui-context.md`.
+- Verified: POS tender one-line (Cash menu ~104px + amount placeholder `0.00` + trash); `pnpm --filter @aabhushan/web typecheck` / lint; `verify:money-input` + `verify:money-format`.
+
+- Shared `ArticlePreviewCard` / `ArticleChecklistCard` in `inventory-form-chrome`; form column is a white card; numbered sections use hairline rules; net-metal result is a solid hairline box.
+- Category client errors and checklist red/jump gate on submit; broken weights stay live red; progress copy is “N fields left”; rail primary uses neutral full-opacity disabled fill; Cancel is `link-gray`.
+- Identification reflow (Category full width; Metal + Purity; HUID half); staff copy for header, HUID, supplier/karigar; receive optional groups are secondary chips without leading `+`.
+- `FormSkeleton` `form-rail` matches the card + tag layout. Docs in `ui-context.md`.
+- Verified in browser: receive empty form has muted checklist + neutral disabled Receive (no red category); broken weights show live Go to weights and −5 g; Meta+Enter enables Go to category/purity; Add photograph opens section 03; edit ART00005 shows tag preview + Before you save with Save enabled. `pnpm --filter @aabhushan/web lint` and `typecheck` passed.
+
+## Completed — Form and dialog UX polish
+
+- `StickyFormActions`: safe-area bottom padding; `bar` defaults to `justify-end` (Cancel left of primary). Customer form Cancel→Save; profile Save disabled until dirty with “Unsaved changes” line.
+- `SectionCard` `tone="metric"` for Girvi statement tiles; header actions `items-center`.
+- Secondary `SegmentedField` enums use `selection="quiet"` (language, making, wastage, paper size, terminator); metal/tender/status stay `accent`.
+- `ConfirmDialog`: destructive severity icon; primary confirm autoFocus; ReactNode message described-by. `FormDialog`: scrollable body, sticky footer, narrow full-width confirm, `initialFocusRef` + reprint focus-on-empty-reason.
+- `CatalogueCombobox`: loading stays tappable with “Loading…” + spinner; `emptyMessage`; `isClearable` on optional locations. `ScanField`: “Scanner ready” / “Waiting for scanner…”; dual-mode hint; status visible with error; Lookup always when terminator is `None`.
+- Docs in `ui-context.md`. `pnpm --filter @aabhushan/web typecheck`.
+
+## Completed — Form and dialog improvements
+
+- `SegmentedField`: label/hint/error ids + `aria-*` on ButtonGroup; `selection="filter"` for customer More filters and Girvi Overdue; `size="md"` beside catalogue fields.
+- `SectionCard` optional `actions` + description gap; Girvi create Collateral uses them. `StickyFormActions` inset shares flex gap; customer create/profile use form-level `bar`.
+- `ConfirmDialog` requires `confirmLabel`, announces description, optional `error`, shared overlay padding. New `FormDialog` for adjust/release and reprint reason (empty reason shows field error).
+- `CatalogueCombobox`: `menuTrigger="input"`, `isLoading`, safer `allowEmpty` null-clear. `ScanField`: keydown burst 50ms, live input value, `status` ready/idle, live error, autocapitalize off.
+- Docs in `ui-context.md`.
+- Verified in browser: customer create Save/Cancel; customers More filters Type/WhatsApp segments; settings Daily rates Metal + Purity + Save rate (purity enables after load); inventory Lookup shows “Scanner ready”. `pnpm --filter @aabhushan/web typecheck` passed. Adjust/reprint FormDialog and profile sticky bar left for a signed-in scroll pass.
+
+## Completed — Money and payment field improvements
+
+- Domain `formatInr` / `formatMoneyInputDisplay` with Indian grouping (last three, then pairs); web re-exports; PDF uses the same helper. Empty/non-numeric display → em dash. `pnpm verify:money-format`.
+- `MoneyInput`: trailing-dot blur normalize (`normalizeMoneyInput` accepts `1500.`); caret restore on focus; drop `maxHintAmount`; forward `size` / `isRequired` / default `aria-label` “Amount”. `pnpm verify:money-input`.
+- `MoneyText` `sign` auto | debit | absolute; payments refund/reversal and Girvi ledger deltas adopt it.
+- POS totals tenders stacked (method over amount); `MethodSelect` forwards field props; record-payment reference hint on method + short placeholder.
+- Docs in `ui-context.md`.
+- Verified: payments band shows `₹1,14,354.00`; POS tender `MethodSelect` full width (~264px) stacked above amount (`aria-label` Amount / Payment method); Girvi principal required (`Principal *`); `verify:money-format` + `verify:money-input` + web/domain/integrations typecheck/lint passed.
+
+## Completed — Directory list UX polish
+
+- `ListSearchField` optional `isPending` spinner; wired on customers / Girvi / invoices / payments (inventory keeps Enter/scan).
+- `DirectoryTableBusy` soft-dims table body while `isFetching && hasData`; no full skeleton swap on filter changes.
+- `FilteredEmptyState` CTA matrix from `hasSearch` / `hasPeriod` / `hasOtherFilters`; default `align="start"`.
+- Customers: Status underline tabs + More filters popover (Type/WhatsApp); Clear filters link when non-default.
+- Chip rule: Girvi `q` + period only; notifications drop chip bar for Clear filters link; payments search chip only; ActiveFiltersBar Clear copy unified to **Clear filters**.
+- `ListTableFooter` compact page-number strip via `Pagination.Root` when `totalPages > 1`.
+- `DirectoryError` inset style; rendered inside `TableCard` when the directory card is showing (six list bodies + payments collections).
+- Docs in `ui-context.md` staff-list recipe.
+
+## Completed — Filter, chip, and control UX polish
+
+- `ButtonGroup` `selection="filter"`: secondary fill + brand bottom inset; horizontal scroll; wired on invoice/payments/dashboard/Girvi period and inventory metal. Forms keep accent; pagination stays quiet.
+- Chip: whole-chip dismiss, truncated labels, dashed suggestion hover; `ActiveFiltersBar` Clear is `link-gray`.
+- Primary buttons without skeuomorphic shadow; Keep as credit + filtered-empty clears use tertiary / `link-gray`.
+- Stronger dashed Draft badge; dropped `type="modern"` for soft gray; inventory chips strip has more vertical padding.
+- Docs in `ui-context.md`.
+- Verified: invoice period `selection="filter"` (bg-secondary + inset brand underline); Draft `border-2` dashed + semibold; primary New sale without skeuomorphic shadow; `pnpm --filter @aabhushan/web typecheck` passed.
+
+## Completed — Directory list chrome
+
+- Shared `useDebouncedListQuery` + `ListSearchField` (search-as-you-type into `q`); customers and Girvi sync `q` via URL codecs; invoices/payments use the shared debounce.
+- `FilteredEmptyState` optional Clear search / Search all time; Girvi and notifications chips are removable; customers Clear filters is separate from search clear.
+- `directoryListFlags` + `DirectoryError` on the six list bodies; `DirectoryTableSkeleton` requires `filterSkeleton`; removed unused `*DirectoryLoading` aliases.
+- `ListTableFooter` shows `1–N of total` + page size on one wrapping row; `useListPagination` on directory lists and settings Staff/Rates/Audit tables.
+- Docs in `ui-context.md`.
+
+## Completed — Button, group, chip, badge polish
+
+- Button: link colors always underlined; loading keeps the label by default; spinner respects `prefers-reduced-motion`.
+- ButtonGroup: accent selected style (brand tint); deleted unused `components/ds/button-group.tsx`; form metal/release/adjust status use `SegmentedField`; `MethodSelect` wraps `SegmentedField`.
+- Shared `Chip` for filter dismiss and catalogue suggestions; `ActiveFiltersBar` Clear is tertiary. Dropped duplicate chips when tabs/groups already show the value; prefixed remaining inventory chips; Girvi keeps only the search chip.
+- Badge `appearance` solid/outline/dashed for Paid / Returned / Draft; collapsed sky and status-brand into `blue` (nav attention count stays brand).
+- Docs in `ui-context.md`.
+- Verified: invoice period group brand selected; Draft dashed / Paid solid / Partially paid soft error classes; payments search chip dismiss (`Remove “Anjali”`); inventory metal accent selected; `pnpm --filter @aabhushan/web typecheck` passed. Catalogue empty-state suggestion chips not exercised (lists already have labels). Loading spinner + reduced-motion not exercised in browser.
+
+## Completed — Input UX polish
+
+- Weight row: one shared break message under the equation; field API errors stay per-field.
+- `MoneyInput`: sanitize paste/typing; blur normalizes to 2dp and displays Indian grouping without ₹ (prefix owns the mark).
+- POS making/wastage: `MoneyInput` / `₹/g` / `%` suffixes; short “Making” / “Wastage” labels.
+- Login: invalid rings on both fields, error copy only under password.
+- `ScanField`: stronger ready status; `error` on the field; inventory/POS wire scan errors; `isClearable` on search/scan.
+- Invalid decorative icon hidden when a suffix is present.
+- Docs in `ui-context.md`.
+- `pnpm --filter @aabhushan/web typecheck` passed; money helpers smoke-checked (`10,000` → `10000`, blur display `10,000.50`).
+
+## Completed — Select UX improvements
+
+- Shared `SegmentedField` (Label + ButtonGroup) for 2–4 option enums; POS tender rows use existing `MethodSelect`.
+- Select polish: loading spinner in trigger, open chevron rotate, popover `min-w-(--trigger-width) w-max max-w-80`, empty options disable + “No options yet”.
+- Converted metal/language/scan/paper/making/wastage/discount/overdue/customer filters/stock-count status to segments; staff Role uses option `supportingText`.
+- Inventory category: `isLoading`, empty option “All categories”; receive/edit Category invalid when empty (checklist-ready).
+- `pnpm --filter @aabhushan/web typecheck` passed.
+
+## Completed — Select field improvements
+
+- Base `Select` trigger: invalid ring matches Input (`ring-error_subtle`, focused/open `ring-error`); label already receives `isInvalid`.
+- `SelectField`: generic `T extends string`, empty-value sentinel `__select_field_empty__` with dev warn, `isLoading` (disables + “Loading…”), `ref` / `name` / `popoverClassName`, option `supportingText` / `icon`, memoized items; client-mount placeholder removed (no hydration mismatch on RAC 1.21).
+- Call sites: dropped `as` casts on typed selects; location/category in-flight uses `isLoading`; `paymentMethodOptions` returns `PaymentMethod` values. Removed temporary `/select-preview`.
+- Verified: `/select-preview` open + choose Sold (no hydration text); `/inventory` Category listbox opens. `pnpm --filter @aabhushan/web typecheck` passed.
+
+## Completed — Input field improvements
+
+- Shared `Input` / `TextArea` / `InputDate` / `Select` / `ComboBox` / `SelectField`: separate `hint` (description) and `error` (errorMessage); `validationBehavior="aria"` on composed text/date fields.
+- Trailing: label tooltips when a label exists; shortcut reserved for short keys with padding; `ScanField` shows status such as “Scanner ready” under the field.
+- Prefix/suffix slots; `MoneyInput` uses `₹` + `inputMode="decimal"`; weight row uses suffix `g`.
+- Read-only secondary background; disabled opacity no longer stacked; password toggle has a larger hit target and Show/Hide labels.
+- Call sites migrated for auth, customers, inventory, settings catalogues/invite, POS making, and payment reasons.
+- `pnpm --filter @aabhushan/web typecheck` passed.
+- Browser: receive weight row shows field `error` messages and suffix `g` with `inputMode="decimal"`; inventory Lookup shows “Scanner ready” under the field (not an in-input badge); Girvi principal uses `₹` prefix + decimal; customer phone invalid shows `errorMessage` slot. Login dual-field error and sellable-article read-only edit not exercised in this pass (session already signed in; available-article edit click blocked mid-verify).
+
+## Completed — Dashboard review fixes
+
+- Today panel: counter-facing note when intraday chart is unavailable.
+- Girvi panel title follows period (today / this week / this month / this range); week chart future band says “rest of week”.
+- Interest-rate checklist row only when `unapproved_active_account_count > 0` (no invented count).
+- Period chart keeps today callout unless another day is hovered; dotted guide on focused/hovered day.
+- Available stock table header: Category · Metal purity · Pieces · Net g.
+
+## Completed — Dashboard revamp
+
+- Header: period ButtonGroup (Today / Week / Month / Custom ▾) + one Export ▾ dropdown (role-gated CSV items; dues as-of note in menu). Standalone day DatePicker removed; Custom keeps DateRangePicker. Period ↔ `from`/`to` URL sync unchanged.
+- Before closing checklist at top (failed/unknown WhatsApp, overdue Girvi, interest-rate gaps, stock count / discrepancies); collapses to one quiet line when empty. Replaces bottom ops tiles.
+- Five-cell totals row (Sales / Collections / Sales dues / Girvi principal / Accrued interest) with semantic value colours; 2×2 Today panels (dues, headline % + method bar, stock, Girvi); Week/Month/Custom full-width grouped daily bars + MTD horizontal bars.
+- `DashboardBodySkeleton` matches checklist → totals → 2×2 or chart. Docs in `ui-context.md`.
+- Verified in browser: Today checklist/totals/2×2 + 92% headline + method bar; Month URL `from`/`to`, grouped bars + MTD due bracket; Export ▾ with five CSVs + dues as-of note. `pnpm lint` and `pnpm typecheck` passed.
+- **Could not match (no API):** Today cumulative step chart (needs timestamped sale/collection events). Headline % and method bar kept from period totals.
+
+## Completed — Payments revamp polish
+
+- Detail: hide More while statement loads (“Checking corrections…”); refunded frame is History + rule + Print refund slip / Close only (facts/allocations/PDF hidden); slim `RefundDocumentsCard` mirrors receipt status row.
+- List: no day money/count under search; skeletons without fake Collections title; Suspense header keeps period + Record payment stubs; type tabs keep All selected with other tabs disabled; method text + Refund/Reversal badge on outflow rows.
+- Record: Sales due shows Loading… until statement matches customer; `mutation.reset()` on Change/select/clear; success resets page to 1 and clears method/search for highlight; mismatch/`isInvalid` only on first positive tender.
+- `pnpm --filter @aabhushan/web lint` and typecheck passed.
+
+## Completed — Payments module revamp
+
+- List: period in header, method band from `GET /api/v1/reports/collections` (Collected / Net collected + Cash/UPI/Card/Bank filters), search-as-you-type, type tabs without counts/filtering, day subtotals from report, empty-period open-dues panel, matching skeleton. `fetchCollectionsReport` added to `staff-api`.
+- Detail: amount-first header, facts row, slim PDF status row, Print / Preview / More with in-dialog refund and reverse (What happens tables), refunded/reversed history from customer statement + `reversed_by_payment_id`. `PaymentCorrectionDialog` kept for invoice credit strip.
+- Record payment: numbered 01/02/03 steps, Full due fills tender only, sticky Collecting footer + Record ₹X, mismatch and over-due fix buttons; closes on success with toast + brief row highlight.
+- `pnpm --filter @aabhushan/web lint` and typecheck passed after each screen.
+- **Could not match (no API support):** gross “₹X in · ₹Y refunded”; per-method “2 in · 1 refund” (outflow is refunds+reversals combined — UI shows “N in · M out”); type-tab counts or kind filtering; day money subtotals while a method filter is on; customers-with-dues list in Record payment; “now fully paid” on allocation rows; complete refund history beyond the customer statement’s latest 50 payments. Receipt side panel deferred.
+
+## Completed — Invoices/POS wireframe fidelity polish
+
+- POS: larger grand-total type (`text-display-sm`), white-outline Open daily rates on blocked rail (customer bar already `ring-primary`).
+- Paid = solid ink badge (`bg-primary-solid`); Returned / Partially returned = outline; Partially paid stays error. Documents rail: uppercase Documents → Invoice PDF + status → tip → Preview & print (Download/Regenerate secondary).
+- Print: two-line title stack + format caption; thermal Gross·Net·Rate, Paid · method, dashed collections without heading; A4 Bill to | Payment, no Sl. No., weight-only footer row.
+- `pnpm lint` and typecheck passed.
+
+## Completed — Invoices/POS revamp (POS billing)
+
+- Rebuilt POS to the handoff layout: customer bar, scan row, compact line table with making popover and ⋯ menu, sticky totals rail (dark grand total, hide-zero rows, discount link, split payments with Collecting now / Due after sale), red blocked rail, and on-page finalized state via `?sale=done`. `PosWorkspaceSkeleton` matches. `pnpm lint` and `pnpm --filter @aabhushan/web typecheck` passed.
+- Could not match: WhatsApp status when the notification is not on the first customer page of `transactional_invoice` results (show "—" rather than invent). Finalized Paid · Method rows rely on session tenders; after refresh they fall back to Paid total only.
+
+## Completed — Invoices/POS revamp (list)
+
+- Search-as-you-type, period ButtonGroup, status tabs All/Drafts/Due/Paid, Resume / Not priced / —, day date labels when sorted by business date, Due-tab Record payment, no-results state. Honored `has_due=false` in API + repository for Paid. `pnpm lint` / typecheck passed.
+- **Not shown (no API aggregates):** tab counts, period Sales/Due totals, day subtotal amounts or sale/draft counts. List `q` does not search phone; Due tab has no phone under customer (list item has no phone field).
+
+## Completed — Invoices/POS revamp (detail)
+
+- Money band (Grand total / Paid / Credited / Due), lines ⋯ menu, return dialog What-happens table + credit preview, Collections allocations-only, Corrections · N / dashed empty, Documents rail copy, credit strip with Refund… → `PaymentCorrectionDialog` (`initialRefundAmount`, `refunds.approve`) or Keep as credit dismiss. `InvoiceFinalizedDetailSkeleton` updated. `pnpm lint` / typecheck passed.
+- Phone on the header comes from a separate customer fetch; invoice payload has no phone.
+
+## Completed — Invoices/POS revamp (print)
+
+- Single-row `PrintDocumentChrome` (shared with receipt): ← back, title · number · subject, Format, Language, format caption, Print, tip strip. Thermal: one article ref line, large grand total, Paid in full / bold due, amount in words then collections. A4/A5: article / metal purity / weights / rate / amount table + weight-total row. Added `paid_in_full` and `weight_total` label keys (Hindi flagged for review). `PrintDocumentSkeleton` matches. `pnpm lint` and typecheck passed.
 
 ## Owner-approved Girvi calculation policy — `girvi.v1`
 
@@ -63,6 +535,12 @@ Document PDF templates are `*.pdf.v2`. Ready docs with an older `template_versio
 
 ## Completed
 
+- Inventory module UI revamp (list / receive / detail): merged lookup with scan-burst vs Enter search (two fields when terminator is `None`); status tabs without counts (API has none); compact filters + bulk selection bar; row `⋯` menu; receive rates strip + numbered sections + sticky preview rail + on-page success; detail fact band + adjust/release dialog + sold lock note. Skeletons updated. Docs in `ui-context.md` and spec 04. `pnpm --filter @aabhushan/web lint` and `typecheck` passed. Signed-in browser pass still needs a staff session.
+- Edit article UI revamp: mirrors receive two-column chrome (no rates strip); shared `inventory-form-chrome` (`NumberedSection`, `WeightEquationRow`); `FormSkeleton layout="form-rail"` (alias `receive-rail`); sticky preview/checklist + Save/Cancel; stamp-field save → success rail (Print/Reprint + Open article) + toast; non-stamp → detail; sold redirect, dirty leave, photo replace, PATCH/`row_version`, `metalTouched` on prefill preserved. Docs in `ui-context.md` and spec 04. `pnpm --filter @aabhushan/web lint` and `typecheck` passed. Signed-in browser pass still needs a staff session.
+- Brand orange palette: replaced blue `--color-brand-50`…`950` with wireframe orange (`#FFEDEB` / `#FB4D17`); dashboard sales chart hex updated; neutrals unchanged. Docs in `ui-context.md`. `pnpm --filter @aabhushan/web lint` and `typecheck` passed.
+- Wireframe neutrals and ink chrome: overridden `--color-neutral-50`…`950` (ground `#F3F2F2`, surface `#EAE9E9`, hairline `#CFCBC9`, muted `#676767`, ink `#111111`, black `#000000`); `border-primary` → ink; sidebar `#EAE9E9`; `bg-primary-solid` → `#111111`; section numbers use `brand-600`. Docs in `ui-context.md`. `pnpm --filter @aabhushan/web lint` and `typecheck` passed.
+- Vibrant status badges: saturated green/yellow/red/orange/blue/sky/purple ramps; denser Badge fills (`*-100` / `*-300`); diversified status colors (inventory sold→blue / under review→orange; Girvi overdue→error / settled→blue / released→sky; notifications pending→sky; payments kind purple/orange; membership invited→sky). Docs in `ui-context.md`. `pnpm --filter @aabhushan/web lint` and `typecheck` passed.
+- Vibrant attribute chips: metal gold/silver, sellable, invoice status, due/settled, Girvi custody, catalogue active, walk-in; counts/methods/filters stay modern gray. Docs in `ui-context.md`. `pnpm --filter @aabhushan/web lint` and `typecheck` passed.
 - Tabular money display: shared `MoneyText` (`formatInr` + `tabular-nums` on Inter); migrated dashboard, invoices/POS, payments, Girvi, settings rates, article acquisition cost. Prose/hints keep inline `formatInr`. Docs in `ui-context.md`. `pnpm --filter @aabhushan/web typecheck`.
 - Auth page UX polish: photo-only left panel (no ShopMark/tagline); light scrim; short mobile image band; login form spacing + demoted invite-only copy. Docs in `ui-context.md`. `pnpm --filter @aabhushan/web typecheck`.
 - Auth brand panel image: `/auth/brand-panel.jpg` full-bleed cover on shared `AuthPage` desktop aside + mobile strip with dark gradient scrim; form plane unchanged. Docs in `ui-context.md`. `pnpm --filter @aabhushan/web typecheck`.
@@ -1124,7 +1602,7 @@ Limitations still true: no Supabase project, no SMTP, no live DB schema applied,
 - **No Redis:** explicitly requested. The documented queue choice is pg-boss with a separate Node.js worker using PostgreSQL; this is a design selection, not an installed integration.
 - **Modular monolith:** maintain clear inventory, billing, payments, customers, Girvi, and notification boundaries while allowing local database transactions and a small deployment footprint.
 - **Initial single-business/single-branch operation:** use organization-aware records and permissions as preparation for growth; full multi-tenant onboarding and branch transfers are deferred.
-- **Free-only Untitled UI:** explicitly confirmed. Use Untitled UI tokens and approved public Base/Application UI components, with Aabhushan blue (`#2c5ce6` as `brand-600` and generated 50–950 shades) instead of the library default purple. Inter, original page compositions, no PRO purchase or paid-template dependency. This supersedes the earlier Morfikos/shadcn direction and the interim burgundy ramp.
+- **Free-only Untitled UI:** explicitly confirmed. Use Untitled UI tokens and approved public Base/Application UI components, with Aabhushan orange (`#FB4D17` as `brand-600`, tint `#FFEDEB` as `brand-50`, and generated 50–950 shades) instead of the library default purple. Inter, original page compositions, no PRO purchase or paid-template dependency. This supersedes the earlier Morfikos/shadcn direction, the interim burgundy ramp, and the interim blue ramp.
 - **Decimal arithmetic and historical snapshots:** preserve reproducible invoice and Girvi results. Invoice commercial rules are encoded as approved `invoice.v1`.
 - **Transactional posting and idempotency:** invoice, stock, initial payment, audit, and outbox writes commit together; repeat submissions cannot create duplicate financial operations.
 - **Outbox and asynchronous side effects:** PDFs and WhatsApp messages run after commit, so provider failures do not undo valid sales or repayments. Consumers handle retries and ambiguous external outcomes explicitly.

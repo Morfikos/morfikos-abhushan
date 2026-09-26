@@ -10,6 +10,8 @@ import {
 import { cx, sortCx } from "@/utils/cx";
 import { isReactComponent } from "@/utils/is-react-component";
 
+export type ButtonGroupSelection = "accent" | "quiet" | "filter";
+
 export const styles = sortCx({
     common: {
         root: [
@@ -18,9 +20,12 @@ export const styles = sortCx({
             "hover:bg-primary_hover hover:text-secondary_hover focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2",
             // Disabled styles
             "disabled:cursor-not-allowed disabled:text-secondary/50 disabled:*:opacity-50",
-            // Selected styles
-            "selected:bg-primary_hover selected:text-secondary_hover",
         ].join(" "),
+        selectedAccent:
+            "selected:bg-brand-primary selected:text-brand-secondary selected:font-semibold selected:hover:bg-brand-primary selected:hover:text-brand-secondary",
+        selectedQuiet: "selected:bg-primary_hover selected:text-secondary_hover",
+        selectedFilter:
+            "selected:bg-secondary selected:text-primary selected:font-semibold selected:hover:bg-secondary selected:hover:text-primary selected:shadow-[inset_0_-2px_0_0_var(--color-bg-brand-solid)]",
         icon: "pointer-events-none text-fg-quaternary transition-[inherit] group-hover/button-group:text-fg-quaternary_hover group-selected/button-group:text-fg-quaternary_hover",
     },
 
@@ -42,7 +47,20 @@ export const styles = sortCx({
 
 type ButtonSize = keyof typeof styles.sizes;
 
-const ButtonGroupContext = createContext<{ size: ButtonSize }>({ size: "md" });
+const ButtonGroupContext = createContext<{ size: ButtonSize; selection: ButtonGroupSelection }>({
+    size: "md",
+    selection: "accent",
+});
+
+function selectedStyles(selection: ButtonGroupSelection): string {
+    if (selection === "filter") {
+        return styles.common.selectedFilter;
+    }
+    if (selection === "quiet") {
+        return styles.common.selectedQuiet;
+    }
+    return styles.common.selectedAccent;
+}
 
 interface ButtonGroupItemProps extends ToggleButtonProps, RefAttributes<HTMLButtonElement> {
     iconLeading?: FC<{ className?: string }> | ReactNode;
@@ -64,7 +82,7 @@ export const ButtonGroupItem = ({
         throw new Error("ButtonGroupItem must be used within a ButtonGroup component");
     }
 
-    const { size } = context;
+    const { size, selection } = context;
 
     const isIcon = (IconLeading || IconTrailing) && !children;
 
@@ -73,7 +91,7 @@ export const ButtonGroupItem = ({
             {...otherProps}
             data-icon-only={isIcon ? true : undefined}
             data-icon-leading={IconLeading ? true : undefined}
-            className={cx(styles.common.root, styles.sizes[size].root, className)}
+            className={cx(styles.common.root, selectedStyles(selection), styles.sizes[size].root, className)}
         >
             {isReactComponent(IconLeading) && <IconLeading className={cx(styles.common.icon, styles.sizes[size].icon)} />}
             {isValidElement(IconLeading) && IconLeading}
@@ -88,15 +106,21 @@ export const ButtonGroupItem = ({
 
 interface ButtonGroupProps extends Omit<ToggleButtonGroupProps, "orientation">, RefAttributes<HTMLDivElement> {
     size?: ButtonSize;
+    /** Selected segment treatment. Default accent (brand tint). Filter = list filters; quiet = pagers. */
+    selection?: ButtonGroupSelection;
     className?: string;
 }
 
-export const ButtonGroup = ({ children, size = "md", className, ...otherProps }: ButtonGroupProps) => {
+export const ButtonGroup = ({ children, size = "md", selection = "accent", className, ...otherProps }: ButtonGroupProps) => {
     return (
-        <ButtonGroupContext.Provider value={{ size }}>
+        <ButtonGroupContext.Provider value={{ size, selection }}>
             <AriaToggleButtonGroup
                 selectionMode="single"
-                className={cx("relative z-0 inline-flex w-max -space-x-px rounded-lg shadow-xs", className)}
+                className={cx(
+                    "relative z-0 inline-flex w-max -space-x-px rounded-lg shadow-xs",
+                    selection === "filter" && "max-w-full overflow-x-auto",
+                    className,
+                )}
                 {...otherProps}
             >
                 {children}

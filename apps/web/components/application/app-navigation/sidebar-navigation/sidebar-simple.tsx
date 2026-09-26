@@ -103,13 +103,6 @@ export const SidebarNavigationSimple = ({
                     "relative flex h-full w-full max-w-full flex-col justify-between overflow-x-hidden overflow-y-auto bg-sidebar pt-4 lg:pt-5",
                     isDesktop && "lg:w-(--width)",
                     isDesktop && widthTransitionClass,
-                    isDesktop &&
-                        !hideBorder &&
-                        "border-r border-secondary shadow-[3px_0_4px_rgb(0_0_0/0.07)] dark:shadow-[3px_0_4px_rgb(0_0_0/0.32)]",
-                    isDesktop &&
-                        !hideBorder &&
-                        drag.isDragging &&
-                        "shadow-[4px_0_6px_rgb(0_0_0/0.09)] dark:shadow-[4px_0_6px_rgb(0_0_0/0.4)]",
                     className,
                 )}
             >
@@ -118,11 +111,17 @@ export const SidebarNavigationSimple = ({
                         {isCollapsed ? (
                             <Tooltip title={shopLegalName} placement="right">
                                 <span className="inline-flex">
-                                    <ShopMark legalName={shopLegalName} logoUrl={shopLogoUrl} showName={false} size="sm" />
+                                    <ShopMark
+                                        legalName={shopLegalName}
+                                        logoUrl={shopLogoUrl}
+                                        showName={false}
+                                        size="sm"
+                                        variant="onDark"
+                                    />
                                 </span>
                             </Tooltip>
                         ) : (
-                            <ShopMark legalName={shopLegalName} logoUrl={shopLogoUrl} showName />
+                            <ShopMark legalName={shopLegalName} logoUrl={shopLogoUrl} showName variant="onDark" />
                         )}
                         {collapseEnabled ? (
                             <Button
@@ -141,7 +140,11 @@ export const SidebarNavigationSimple = ({
                                     />
                                 )}
                                 onPress={drag.toggle}
-                                className={cx(isCollapsed ? undefined : "max-lg:hidden")}
+                                className={cx(
+                                    "text-sidebar-muted hover:bg-sidebar-item-hover hover:text-sidebar data-loading:bg-sidebar-item-hover",
+                                    "*:data-icon:text-sidebar-muted hover:*:data-icon:text-sidebar",
+                                    isCollapsed ? undefined : "max-lg:hidden",
+                                )}
                             />
                         ) : null}
                     </div>
@@ -162,7 +165,7 @@ export const SidebarNavigationSimple = ({
                                 if ("divider" in item && item.divider) {
                                     return (
                                         <li key={`footer-divider-${index}`} className="w-full px-0.5 py-2">
-                                            <hr className="h-px w-full border-none bg-border-secondary" />
+                                            <hr className="h-px w-full border-none bg-border-sidebar" />
                                         </li>
                                     );
                                 }
@@ -205,8 +208,8 @@ export const SidebarNavigationSimple = ({
                         {...drag.handleProps}
                         className={cx(
                             "absolute inset-y-0 right-0 z-10 w-2 translate-x-1/2 cursor-col-resize touch-none outline-focus-ring",
-                            "hover:bg-fg-quaternary/10 focus-visible:outline-2 focus-visible:-outline-offset-2",
-                            drag.isDragging && "bg-fg-quaternary/15",
+                            "hover:bg-white/10 focus-visible:outline-2 focus-visible:-outline-offset-2",
+                            drag.isDragging && "bg-white/15",
                         )}
                     />
                 ) : null}
@@ -221,9 +224,27 @@ export const SidebarNavigationSimple = ({
                 {renderContent(false)}
             </MobileNavigationHeader>
 
-            {/* Desktop sidebar navigation */}
-            <div className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:flex">
+            {/* Desktop sidebar navigation — cast on wrapper (aside overflow clips shadow). */}
+            <div
+                className={cx(
+                    "relative hidden bg-sidebar lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:flex",
+                    !hideBorder &&
+                        (drag.isDragging
+                            ? "shadow-(--shadow-sidebar-rail-dragging)"
+                            : "shadow-(--shadow-sidebar-rail)"),
+                )}
+            >
                 {renderContent(isCollapsedVisual, { desktop: true })}
+                {!hideBorder ? (
+                    <div
+                        aria-hidden
+                        className={cx(
+                            "pointer-events-none absolute inset-y-0 left-full w-8",
+                            "bg-linear-to-r from-black/20 via-black/7 to-transparent",
+                            drag.isDragging && "from-black/28 via-black/10",
+                        )}
+                    />
+                ) : null}
             </div>
 
             {/* Placeholder to take up physical space because the real sidebar has `fixed` position. */}

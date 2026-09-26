@@ -1,56 +1,92 @@
 "use client";
 
-import type { Key } from "react-aria-components";
 import type { PaymentMethod } from "@aabhushan/contracts";
+import { ChevronDown } from "@untitledui/icons";
 
-import { ButtonGroup, ButtonGroupItem } from "@/components/base/button-group/button-group";
-import { Label } from "@/components/base/input/label";
-import { PAYMENT_METHODS, paymentMethodLabel } from "@/lib/payment-methods";
+import { Button } from "@/components/base/buttons/button";
+import { Dropdown } from "@/components/base/dropdown/dropdown";
+import { SegmentedField } from "@/components/shared/segmented-field";
+import { PAYMENT_METHODS, paymentMethodLabel, paymentMethodOptions } from "@/lib/payment-methods";
 import { cx } from "@/utils/cx";
 
 export function MethodSelect({
   value,
   onChange,
   isDisabled = false,
+  isInvalid = false,
+  isRequired = false,
   label,
+  hint,
+  error,
+  size = "sm",
+  layout = "segmented",
   className,
+  "aria-label": ariaLabel,
 }: {
   value: PaymentMethod;
   onChange: (method: PaymentMethod) => void;
   isDisabled?: boolean;
+  isInvalid?: boolean;
+  isRequired?: boolean;
   label?: string;
+  hint?: string;
+  error?: string;
+  size?: "sm" | "md";
+  layout?: "segmented" | "menu";
   className?: string;
+  "aria-label"?: string;
 }) {
-  return (
-    <div className={cx("flex flex-col gap-1.5", className)}>
-      {label ? <Label>{label}</Label> : null}
-      <ButtonGroup
-        aria-label={label ?? "Tender method"}
-        size="sm"
-        selectedKeys={new Set([value])}
-        disallowEmptySelection
-        isDisabled={isDisabled}
-        className="w-full"
-        onSelectionChange={(keys) => {
-          const next = [...keys][0] as Key | undefined;
-          if (typeof next === "string" && PAYMENT_METHODS.includes(next as PaymentMethod)) {
-            onChange(next as PaymentMethod);
-          }
-        }}
-      >
-        {PAYMENT_METHODS.map((method) => (
-          <ButtonGroupItem
-            key={method}
-            id={method}
-            className={cx(
-              "flex-1 justify-center",
-              "selected:bg-brand-primary selected:text-brand-secondary selected:font-semibold",
-            )}
+  const resolvedAria = ariaLabel ?? label ?? "Payment method";
+
+  if (layout === "menu") {
+    return (
+      <div className={cx("flex w-full flex-col gap-1.5", className)}>
+        <Dropdown.Root>
+          <Button
+            color="secondary"
+            size={size}
+            className="w-full justify-between"
+            isDisabled={isDisabled}
+            aria-label={resolvedAria}
+            iconTrailing={ChevronDown}
           >
-            {paymentMethodLabel(method)}
-          </ButtonGroupItem>
-        ))}
-      </ButtonGroup>
-    </div>
+            {paymentMethodLabel(value)}
+          </Button>
+          <Dropdown.Popover className="w-40">
+            <Dropdown.Menu
+              selectionMode="single"
+              selectedKeys={new Set([value])}
+              onSelectionChange={(keys) => {
+                const [first] = keys;
+                if (typeof first === "string" && (PAYMENT_METHODS as readonly string[]).includes(first)) {
+                  onChange(first as PaymentMethod);
+                }
+              }}
+            >
+              {PAYMENT_METHODS.map((method) => (
+                <Dropdown.Item key={method} id={method} label={paymentMethodLabel(method)} />
+              ))}
+            </Dropdown.Menu>
+          </Dropdown.Popover>
+        </Dropdown.Root>
+      </div>
+    );
+  }
+
+  return (
+    <SegmentedField
+      label={label}
+      hint={hint}
+      error={error}
+      aria-label={resolvedAria}
+      value={value}
+      onChange={onChange}
+      isDisabled={isDisabled}
+      isInvalid={isInvalid}
+      isRequired={isRequired}
+      size={size}
+      className={className}
+      options={paymentMethodOptions()}
+    />
   );
 }

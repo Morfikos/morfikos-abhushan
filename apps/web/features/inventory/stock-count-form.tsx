@@ -13,7 +13,7 @@ import { StaffBackLink } from "@/components/application/staff-back-link";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
-import { SelectField } from "@/components/shared/select-field";
+import { SegmentedField } from "@/components/shared/segmented-field";
 import { TextArea } from "@/components/base/textarea/textarea";
 import { staffHasPermission, useStaff } from "@/features/auth/staff-shell";
 import {
@@ -179,11 +179,12 @@ export function StockCountForm() {
                       </Badge>
                     </Table.Cell>
                     <Table.Cell truncate={false}>
-                      <SelectField
+                      <SegmentedField
                         aria-label={`Counted status for ${item.article_number}`}
+                        size="sm"
                         value={counts[item.id] ?? "available"}
                         onChange={(value) =>
-                          setCounts((current) => ({ ...current, [item.id]: value as CountedStatus }))
+                          setCounts((current) => ({ ...current, [item.id]: value }))
                         }
                         options={[
                           { label: "Available", value: "available" },

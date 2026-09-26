@@ -524,12 +524,16 @@ export function createDocumentsRepository(client: PoolClient, organizationId: st
         receipt_number: string;
         issued_at: Date | string;
         customer_display_name: string;
+        customer_phone: string | null;
         method: string;
         amount_inr: string;
-        invoice_numbers: string | null;
+        reference: string | null;
+        received_business_date: string;
+        received_by_display_name: string;
         legal_name: string;
         address_line: string | null;
         phone: string | null;
+        invoice_footer: string | null;
         logo_object_key: string | null;
         logo_content_type: string | null;
       }>(
@@ -538,22 +542,22 @@ export function createDocumentsRepository(client: PoolClient, organizationId: st
           r.receipt_number,
           r.issued_at,
           c.display_name AS customer_display_name,
+          c.phone_display AS customer_phone,
           p.method,
           p.amount_inr::text,
-          (
-            SELECT string_agg(DISTINCT i.invoice_number, ', ' ORDER BY i.invoice_number)
-            FROM app.payment_allocations pa
-            JOIN app.invoices i ON i.id = pa.invoice_id AND i.organization_id = pa.organization_id
-            WHERE pa.organization_id = p.organization_id AND pa.payment_id = p.id
-          ) AS invoice_numbers,
+          p.reference,
+          p.received_business_date::text AS received_business_date,
+          su.display_name AS received_by_display_name,
           sp.legal_name,
           sp.address_line,
           sp.phone,
+          sp.invoice_footer,
           sp.logo_object_key,
           sp.logo_content_type
         FROM app.receipts r
         JOIN app.payments p ON p.id = r.payment_id AND p.organization_id = r.organization_id
         JOIN app.customers c ON c.id = p.customer_id AND c.organization_id = p.organization_id
+        JOIN app.staff_users su ON su.id = p.received_by_staff_user_id
         JOIN app.shop_profiles sp ON sp.organization_id = r.organization_id
         WHERE r.organization_id = $1 AND r.payment_id = $2
         `,
@@ -563,17 +567,49 @@ export function createDocumentsRepository(client: PoolClient, organizationId: st
       if (!row) {
         return null;
       }
+      const allocations = await client.query<{
+        invoice_number: string;
+        business_date: string;
+        invoice_total_inr: string;
+        applied_inr: string;
+        amount_due_inr: string;
+      }>(
+        `
+        SELECT
+          i.invoice_number,
+          i.business_date::text AS business_date,
+          i.grand_total_inr::text AS invoice_total_inr,
+          pa.amount_inr::text AS applied_inr,
+          i.amount_due_inr::text AS amount_due_inr
+        FROM app.payment_allocations pa
+        JOIN app.invoices i ON i.id = pa.invoice_id AND i.organization_id = pa.organization_id
+        WHERE pa.organization_id = $1 AND pa.payment_id = $2
+        ORDER BY i.invoice_number ASC
+        `,
+        [organizationId, paymentId],
+      );
       return {
         receiptNumber: row.receipt_number,
         issuedAt: asIso(row.issued_at),
         customerDisplayName: row.customer_display_name,
+        customerPhone: row.customer_phone,
         paymentMethod: row.method,
         amountInr: money(row.amount_inr),
-        invoiceNumbers: row.invoice_numbers ? row.invoice_numbers.split(", ").filter(Boolean) : [],
+        reference: row.reference,
+        receivedBusinessDate: row.received_business_date,
+        receivedByDisplayName: row.received_by_display_name,
+        allocations: allocations.rows.map((item) => ({
+          invoice_number: item.invoice_number,
+          business_date: item.business_date,
+          invoice_total_inr: money(item.invoice_total_inr),
+          applied_inr: money(item.applied_inr),
+          amount_due_inr: money(item.amount_due_inr),
+        })),
         shop: {
           legal_name: row.legal_name,
           address_line: row.address_line,
           phone: row.phone,
+          invoice_footer: row.invoice_footer,
           logo_object_key: row.logo_object_key,
           logo_content_type: row.logo_content_type,
         },

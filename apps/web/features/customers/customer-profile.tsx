@@ -65,18 +65,19 @@ function ActivityEmpty({
 }
 
 function profilePhoneHint(phone: string, apiPhoneError: string | undefined): {
-  hint: string;
+  hint?: string;
+  error?: string;
   isInvalid: boolean;
 } {
   if (apiPhoneError) {
-    return { hint: apiPhoneError, isInvalid: true };
+    return { error: apiPhoneError, isInvalid: true };
   }
   const parsed = normalizeShopPhone(phone);
   if (parsed.kind === "ok") {
     return { hint: `Stored as ${parsed.normalized}.`, isInvalid: false };
   }
   if (parsed.kind === "invalid") {
-    return { hint: parsed.message, isInvalid: true };
+    return { error: parsed.message, isInvalid: true };
   }
   return {
     hint: "Required for WhatsApp consent. 10-digit Indian numbers are stored as +91.",
@@ -151,6 +152,11 @@ export function CustomerProfile({ customerId }: { customerId: string }) {
     onSuccess: (customer) => {
       void queryClient.invalidateQueries({ queryKey: ["customers"] });
       queryClient.setQueryData(["customers", "detail", staff.membership.organization_id, customerId], customer);
+      setDisplayName(customer.display_name);
+      setPhone(customer.phone_display ?? "");
+      setEmail(customer.email ?? "");
+      setAddressLine(customer.address_line ?? "");
+      setNotes(customer.notes ?? "");
     },
   });
 
@@ -177,6 +183,22 @@ export function CustomerProfile({ customerId }: { customerId: string }) {
     () => profilePhoneHint(phone, fieldError(saveMutation.error, "phone")),
     [phone, saveMutation.error],
   );
+
+  const profileDirty = useMemo(() => {
+    const customer = query.data;
+    if (!customer || !hydrated) {
+      return false;
+    }
+    const nextPhone = phone.trim();
+    const storedPhone = (customer.phone_display ?? "").trim();
+    return (
+      displayName.trim() !== customer.display_name.trim() ||
+      nextPhone !== storedPhone ||
+      email.trim() !== (customer.email ?? "").trim() ||
+      addressLine.trim() !== (customer.address_line ?? "").trim() ||
+      notes.trim() !== (customer.notes ?? "").trim()
+    );
+  }, [addressLine, displayName, email, hydrated, notes, phone, query.data]);
 
   if (!allowed) {
     return null;
@@ -232,71 +254,80 @@ export function CustomerProfile({ customerId }: { customerId: string }) {
 
         <Tabs.Panel id="profile" className="pt-2">
           <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
-            <SectionCard
-              title="Contact"
-              description="Staff-only record. Customers do not have an account or portal."
-            >
-              <div className="grid gap-4 md:grid-cols-2">
-                <Input
-                  label="Name"
-                  isRequired
-                  value={displayName}
-                  isDisabled={!canWrite}
-                  onChange={setDisplayName}
-                  isInvalid={Boolean(fieldError(saveMutation.error, "display_name"))}
-                  hint={fieldError(saveMutation.error, "display_name")}
-                />
-                <Input
-                  label="Phone"
-                  type="tel"
-                  value={phone}
-                  isDisabled={!canWrite}
-                  onChange={setPhone}
-                  isInvalid={phoneField.isInvalid}
-                  hint={phoneField.hint}
-                />
-              </div>
-            </SectionCard>
-
-            <SectionCard title="Details" description="Optional email, address, and staff notes.">
-              <div className="grid gap-4 md:grid-cols-2">
-                <Input
-                  label="Email"
-                  value={email}
-                  isDisabled={!canWrite}
-                  onChange={setEmail}
-                  isInvalid={Boolean(fieldError(saveMutation.error, "email"))}
-                  hint={fieldError(saveMutation.error, "email")}
-                />
-                <Input label="Address" value={addressLine} isDisabled={!canWrite} onChange={setAddressLine} />
-                <div className="md:col-span-2">
-                  <TextArea
-                    label="Staff notes"
-                    value={notes}
+            <div className="flex flex-col gap-5">
+              <SectionCard
+                title="Contact"
+                description="Staff-only record. Customers do not have an account or portal."
+              >
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Input
+                    label="Name"
+                    isRequired
+                    value={displayName}
                     isDisabled={!canWrite}
-                    onChange={setNotes}
-                    rows={4}
-                    hint="Staff only. Not shown to the customer."
+                    onChange={setDisplayName}
+                    isInvalid={Boolean(fieldError(saveMutation.error, "display_name"))}
+                    error={fieldError(saveMutation.error, "display_name")}
+                  />
+                  <Input
+                    label="Phone"
+                    type="tel"
+                    value={phone}
+                    isDisabled={!canWrite}
+                    onChange={setPhone}
+                    isInvalid={phoneField.isInvalid}
+                    hint={phoneField.hint}
+                    error={phoneField.error}
                   />
                 </div>
-              </div>
-              {saveMutation.error ? (
-                <p className="text-sm text-error-primary">{customerErrorMessage(saveMutation.error)}</p>
-              ) : null}
+              </SectionCard>
+
+              <SectionCard title="Details" description="Optional email, address, and staff notes.">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Input
+                    label="Email"
+                    value={email}
+                    isDisabled={!canWrite}
+                    onChange={setEmail}
+                    isInvalid={Boolean(fieldError(saveMutation.error, "email"))}
+                    error={fieldError(saveMutation.error, "email")}
+                  />
+                  <Input label="Address" value={addressLine} isDisabled={!canWrite} onChange={setAddressLine} />
+                  <div className="md:col-span-2">
+                    <TextArea
+                      label="Staff notes"
+                      value={notes}
+                      isDisabled={!canWrite}
+                      onChange={setNotes}
+                      rows={4}
+                      hint="Staff only. Not shown to the customer."
+                    />
+                  </div>
+                </div>
+                {saveMutation.error ? (
+                  <p className="text-sm text-error-primary">{customerErrorMessage(saveMutation.error)}</p>
+                ) : null}
+              </SectionCard>
+
               {canWrite ? (
-                <StickyFormActions variant="inset">
+                <StickyFormActions variant="bar" className="items-center justify-between gap-3">
+                  {profileDirty ? (
+                    <p className="text-sm text-tertiary">Unsaved changes</p>
+                  ) : (
+                    <span className="sr-only">No unsaved changes</span>
+                  )}
                   <Button
                     color="primary"
                     size="md"
                     isLoading={saveMutation.isPending}
-                    isDisabled={saveMutation.isPending}
+                    isDisabled={saveMutation.isPending || !profileDirty}
                     onPress={() => saveMutation.mutate()}
                   >
                     Save profile
                   </Button>
                 </StickyFormActions>
               ) : null}
-            </SectionCard>
+            </div>
 
             <SectionCard
               title="WhatsApp consent"

@@ -25,6 +25,7 @@ export {
   removeShopLogo,
   updateDeviceSettings,
   updateDocumentSequences,
+  updateMetalRate,
   updateReminderSettings,
   updateShopProfile,
   uploadShopLogo,

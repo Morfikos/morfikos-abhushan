@@ -10,6 +10,7 @@ import { Dialog, Modal, ModalOverlay } from "@/components/application/modals/mod
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
 import { CatalogueCombobox } from "@/components/shared/catalogue-combobox";
+import { SegmentedField } from "@/components/shared/segmented-field";
 import { SelectField } from "@/components/shared/select-field";
 import { useStaff } from "@/features/auth/staff-shell";
 import { invoiceAccessToken, invoiceErrorMessage } from "@/features/invoices/invoice-shared";
@@ -26,7 +27,7 @@ export type PosQuickReceiveDialogProps = {
   isOpen: boolean;
   isSaving: boolean;
   onClose: () => void;
-  onSubmit: (input: InvoiceDraftQuickArticle) => void;
+  onSubmit: (input: InvoiceDraftQuickArticle) => void | Promise<void>;
 };
 
 export function PosQuickReceiveDialog({ isOpen, isSaving, onClose, onSubmit }: PosQuickReceiveDialogProps) {
@@ -139,7 +140,9 @@ export function PosQuickReceiveDialog({ isOpen, isSaving, onClose, onSubmit }: P
       ...(locationId ? { location_id: locationId } : {}),
       ...(huid.trim() ? { huid: huid.trim() } : {}),
     };
-    onSubmit(input);
+    void Promise.resolve(onSubmit(input)).catch((error: unknown) => {
+      setLocalError(quickReceiveErrorMessage(error));
+    });
   }
 
   return (
@@ -166,15 +169,16 @@ export function PosQuickReceiveDialog({ isOpen, isSaving, onClose, onSubmit }: P
             value={categoryId}
             onChange={setCategoryId}
             options={categoryOptions}
-            isDisabled={categories.isLoading}
+            isLoading={categories.isLoading}
           />
           <div className="grid gap-3 sm:grid-cols-2">
-            <SelectField
+            <SegmentedField
               label="Metal"
+              size="md"
               value={metal}
               onChange={(value) => {
                 setMetalTouched(true);
-                setMetal(value as Metal);
+                setMetal(value);
               }}
               options={[
                 { label: "Gold", value: "gold" },
@@ -187,8 +191,9 @@ export function PosQuickReceiveDialog({ isOpen, isSaving, onClose, onSubmit }: P
               onChange={setPurity}
               placeholder="Search purity"
               isRequired
-              isDisabled={purities.isLoading}
+              isLoading={purities.isLoading}
               items={purityItems}
+              emptyMessage="No purities yet. Add them in Settings → Catalogues."
             />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -210,7 +215,8 @@ export function PosQuickReceiveDialog({ isOpen, isSaving, onClose, onSubmit }: P
             placeholder="Search location"
             allowEmpty
             emptyLabel="Unspecified"
-            isDisabled={locations.isLoading}
+            isClearable
+            isLoading={locations.isLoading}
             items={locationItems}
           />
           <Input label="HUID (optional)" value={huid} onChange={setHuid} />
@@ -242,6 +248,9 @@ export function PosQuickReceiveDialog({ isOpen, isSaving, onClose, onSubmit }: P
 
 export function quickReceiveErrorMessage(error: unknown): string {
   if (error instanceof StaffApiError) {
+    if (error.code === "ARTICLE_NUMBER_CONFLICT") {
+      return "The next article number is already in use. Try Receive & add again.";
+    }
     const field = error.fieldErrors[0];
     return field ? `${error.message} ${field.message}` : error.message;
   }

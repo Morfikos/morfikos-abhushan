@@ -40,7 +40,7 @@ This unit solves the problem of later features having nowhere to attach rates, i
 - Request-supplied `organization_id` never grants access
 - Missing transaction-local organization context denies data access
 - Runtime DB roles cannot read `app` tables through the browser Data API
-- Rate changes are dated and do not rewrite historical rate rows
+- Rate changes are dated and do not rewrite historical rate rows; today’s row may be corrected in place (`PATCH`) without changing issued invoice snapshots
 - Navigation hides unauthorized modules; direct API calls still return `403`
 - Sensitive actions (staff changes, rate updates) write audit rows
 
@@ -68,6 +68,7 @@ This unit solves the problem of later features having nowhere to attach rates, i
 1. Authorized staff enter today’s metal rates per metal and purity.
 2. The API stores an effective business date in `Asia/Kolkata`.
 3. Later invoices snapshot the rate used; changing tomorrow’s rate does not alter issued invoices.
+4. Staff may correct today’s rate in place (`PATCH /api/v1/shop/rates/:id`). Past and future dated rows stay immutable; add a new dated row for other days.
 
 ### Printer and reminder defaults
 
@@ -177,7 +178,8 @@ Enabled flags, local send window, language preference. No templates sent here.
 | Method | Path | Permission | Notes |
 | --- | --- | --- | --- |
 | `GET/PATCH` | `/api/v1/shop/profile` | `settings.write` for patch | |
-| `GET/POST` | `/api/v1/shop/rates` | `rates.write` for post | |
+| `GET/POST` | `/api/v1/shop/rates` | `rates.write` for post | Insert dated row; never rewrite a past row |
+| `PATCH` | `/api/v1/shop/rates/:id` | `rates.write` | Correct today’s `rate_per_gram` only (`RATE_NOT_TODAY` otherwise) |
 | `GET/PATCH` | `/api/v1/shop/sequences` | `settings.write` | |
 | `GET/PATCH` | `/api/v1/shop/devices` | `settings.write` | |
 | `GET/PATCH` | `/api/v1/shop/reminders` | `settings.write` | |
@@ -201,7 +203,8 @@ Settings is a local composition of free form controls, headings, and validation/
 ## Edge Cases & Error Handling
 
 - Second organization/branch create attempt in MVP: reject rather than building SaaS onboarding
-- Duplicate rate for the same business date: `409` or supersede only by inserting a new row if the product later allows corrections; do not silently edit the old row
+- Duplicate rate for the same business date: `409 RATE_DATE_CONFLICT` (today’s clash points staff to edit the row; other dates keep history wording). Same-day corrections use `PATCH`, not silent overwrite on insert
+- Attempt to PATCH a non-today row: `409 RATE_NOT_TODAY`
 - Sequence edit that would collide with issued numbers: `422` once issuing exists; until then, prevent decreasing `next_value` below 1
 - Pooled connection reuse: integration test must prove organization context does not leak
 - Unauthorized settings URL: hide nav and return `403` from API

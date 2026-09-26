@@ -123,7 +123,7 @@ export function CustomerSalesPanel({ customerId }: { customerId: string }) {
       <div className="flex flex-col gap-3 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-lg font-semibold text-primary">Credits</h3>
-          <Badge color="gray" size="sm" type="modern">
+          <Badge color="gray" size="sm">
             {statement.credit_notes.length} recorded
           </Badge>
         </div>
@@ -151,7 +151,7 @@ export function CustomerSalesPanel({ customerId }: { customerId: string }) {
       <div className="flex flex-col gap-3 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-lg font-semibold text-primary">Payment history</h3>
-          <Badge color="gray" size="sm" type="modern">
+          <Badge color="gray" size="sm">
             {statement.payments.length} recorded
           </Badge>
         </div>

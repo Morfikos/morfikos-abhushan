@@ -20,6 +20,7 @@ export function StaffPageHeader({
   badge,
   actions,
   back,
+  density = "default",
   className,
 }: {
   title: ReactNode;
@@ -28,21 +29,48 @@ export function StaffPageHeader({
   badge?: ReactNode;
   actions?: ReactNode;
   back?: StaffPageHeaderBack;
+  /** `comfort` loosens gaps and bumps title/description/back for mid-aged counter screens (inventory). */
+  density?: "default" | "comfort";
   className?: string;
 }) {
+  const comfort = density === "comfort";
+
   return (
-    <div className={cx("flex flex-col gap-2", className)}>
-      {back ? <StaffBackLink label={back.label} href={back.href} onPress={back.onPress} /> : null}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            {Icon ? <Icon className="size-6 shrink-0 text-primary" aria-hidden /> : null}
-            <h1 className="text-display-xs font-semibold text-primary">{title}</h1>
+    <div className={cx("flex flex-col", comfort ? "gap-3" : "gap-2", className)}>
+      {back ? (
+        <StaffBackLink
+          label={back.label}
+          href={back.href}
+          onPress={back.onPress}
+          size={comfort ? "md" : "sm"}
+        />
+      ) : null}
+      <div className={cx("flex flex-wrap items-start justify-between", comfort ? "gap-4" : "gap-3")}>
+        <div className={cx("flex min-w-0 flex-col", comfort ? "gap-3" : "gap-2")}>
+          <div className={cx("flex flex-wrap items-center", comfort ? "gap-3" : "gap-2")}>
+            {Icon ? (
+              <Icon
+                className={cx("shrink-0 text-primary", comfort ? "size-7" : "size-6")}
+                aria-hidden
+              />
+            ) : null}
+            <h1
+              className={cx(
+                "font-semibold text-primary",
+                comfort ? "text-display-sm" : "text-display-xs",
+              )}
+            >
+              {title}
+            </h1>
             {badge}
           </div>
-          {description ? <p className="text-md text-tertiary">{description}</p> : null}
+          {description ? (
+            <p className={cx("text-tertiary", comfort ? "text-lg" : "text-md")}>{description}</p>
+          ) : null}
         </div>
-        {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
+        {actions ? (
+          <div className={cx("flex flex-wrap", comfort ? "gap-3" : "gap-2")}>{actions}</div>
+        ) : null}
       </div>
     </div>
   );
