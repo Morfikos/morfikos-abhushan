@@ -2,12 +2,12 @@
 
 import type { HTMLAttributes, ReactNode } from "react";
 import {
+  AlertTriangle,
   CheckCircle,
-  Info,
-  Warning,
+  InfoCircle,
   X,
   XCircle,
-} from "@phosphor-icons/react";
+} from "@untitledui/icons";
 
 import { cx } from "@/utils/cx";
 
@@ -40,9 +40,9 @@ const markClass: Record<AlertTone, string> = {
 };
 
 const toneIcon = {
-  info: Info,
+  info: InfoCircle,
   success: CheckCircle,
-  warning: Warning,
+  warning: AlertTriangle,
   error: XCircle,
 } as const;
 
@@ -72,7 +72,7 @@ export function Alert({
       )}
       {...rest}
     >
-      <Icon aria-hidden weight="fill" className={cx("mt-0.5 size-4 shrink-0", markClass[tone])} />
+      <Icon aria-hidden className={cx("mt-0.5 size-4 shrink-0", markClass[tone])} />
       <div className="min-w-0 flex-1">
         {title ? <p className="font-medium text-ds-sm">{title}</p> : null}
         <div className={title ? "mt-0.5 text-ds-xs" : undefined}>{children}</div>
@@ -90,7 +90,7 @@ export function Alert({
             "disabled:pointer-events-none disabled:opacity-45",
           )}
         >
-          <X aria-hidden className="size-3.5" weight="bold" />
+          <X aria-hidden className="size-3.5" />
         </button>
       ) : null}
     </div>
