@@ -6,6 +6,7 @@ const serverEnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   DATABASE_URL: z.string().url(),
   CORS_ORIGINS: z.string().min(1),
+  CORS_ORIGIN_PATTERN: z.string().optional(),
   API_HOST: z.string().min(1).default("0.0.0.0"),
   API_PORT: z.coerce.number().int().positive().default(3001),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
@@ -22,6 +23,7 @@ export type ServerEnv = {
   DATABASE_URL: string;
   CORS_ORIGINS: string;
   corsOrigins: string[];
+  CORS_ORIGIN_PATTERN?: string;
   API_HOST: string;
   API_PORT: number;
   LOG_LEVEL: "fatal" | "error" | "warn" | "info" | "debug" | "trace" | "silent";
@@ -56,6 +58,7 @@ export function parseServerEnv(env: Record<string, string | undefined>): ServerE
     NODE_ENV: env.NODE_ENV,
     DATABASE_URL: env.DATABASE_URL,
     CORS_ORIGINS: env.CORS_ORIGINS,
+    CORS_ORIGIN_PATTERN: env.CORS_ORIGIN_PATTERN,
     API_HOST: env.API_HOST,
     API_PORT: env.API_PORT,
     LOG_LEVEL: env.LOG_LEVEL,
@@ -80,6 +83,7 @@ export function parseServerEnv(env: Record<string, string | undefined>): ServerE
     DATABASE_URL: parsed.DATABASE_URL,
     CORS_ORIGINS: parsed.CORS_ORIGINS,
     corsOrigins,
+    ...(parsed.CORS_ORIGIN_PATTERN ? { CORS_ORIGIN_PATTERN: parsed.CORS_ORIGIN_PATTERN } : {}),
     API_HOST: parsed.API_HOST,
     API_PORT: parsed.API_PORT,
     LOG_LEVEL: parsed.LOG_LEVEL,
