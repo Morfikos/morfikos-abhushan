@@ -98,9 +98,16 @@ export function createApp(env: ServerEnv): Express {
     });
     next();
   });
+  const corsOriginPattern = env.CORS_ORIGIN_PATTERN ? new RegExp(env.CORS_ORIGIN_PATTERN) : null;
   app.use(
     cors({
-      origin: env.corsOrigins,
+      origin: (origin, callback) => {
+        if (!origin || env.corsOrigins.includes(origin) || corsOriginPattern?.test(origin)) {
+          callback(null, true);
+          return;
+        }
+        callback(new Error(`Origin ${origin} is not allowed.`));
+      },
     }),
   );
 
